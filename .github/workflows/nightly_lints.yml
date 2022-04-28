@@ -19,8 +19,7 @@ jobs:
           components: clippy
 
       - name: Run cargo clippy
-        uses: actions-rs/cargo@v1
-        continue-on-error: true  # WARNING: only for this example, remove it!
+        uses: actions-rs/cargo@v1        
         with:
           command: clippy
           args: -- -D warnings
