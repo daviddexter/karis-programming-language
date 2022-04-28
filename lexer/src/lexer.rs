@@ -149,13 +149,15 @@ impl Lexer {
 
     fn move_current_position_and_read(&mut self) {
         self.position += 1;
-        self.read_char();
+        self.read_char()
     }
 
     fn skip_whitespace(&mut self) {
         let v = self.ch.as_ref().unwrap();
-        if is_space(v.as_bytes().first().unwrap()) {
+        println!("line 158: {:?}", v);
+        if is_space(v.as_bytes().first().unwrap()) || is_newline(v.as_bytes().first().unwrap()) {
             self.move_current_position_and_read();
+            self.skip_whitespace()
         }
     }
 
@@ -221,6 +223,15 @@ impl Lexer {
                                 tokens::Token::new(tokens::IndentifierKind::ELSE, ident_owned)
                             } else if ident == tokens::RETURN {
                                 tokens::Token::new(tokens::IndentifierKind::RETURN, ident_owned)
+                            } else if ident == tokens::INT {
+                                tokens::Token::new(tokens::IndentifierKind::INTTYPE, ident_owned)
+                            } else if ident == tokens::STRING {
+                                tokens::Token::new(tokens::IndentifierKind::STRINGTYPE, ident_owned)
+                            } else if ident == tokens::BOOLEAN {
+                                tokens::Token::new(
+                                    tokens::IndentifierKind::BOOLEANTYPE,
+                                    ident_owned,
+                                )
                             } else if is_intergers_only(ident) {
                                 tokens::Token::new(tokens::IndentifierKind::INT, ident_owned)
                             } else if is_alphanumeric_only(ident) {
@@ -292,8 +303,19 @@ fn is_allowed_alphanumeric_and_char(chr: u8) -> bool {
     is_alphabetic(chr) || is_digit(chr) || is_underscore(chr)
 }
 
+// checks if byte is ASCII : space or tab
 fn is_space(chr: &u8) -> bool {
     *chr == b' ' || *chr == b'\t'
+}
+
+// checks if byte is ASCII : n or N
+fn is_letter_n(chr: &u8) -> bool {
+    *chr == 0x6e || *chr == 0x4e
+}
+
+// checks if byte is ASCII : space or tab
+fn is_newline(chr: &u8) -> bool {
+    *chr == b'\n'
 }
 
 /// check if byte is ASCII alphabetic: A-Z, a-z
@@ -346,62 +368,158 @@ mod tests {
 
     #[test]
     fn should_read_equal_token1() {
-        let mut lx1 = Lexer::new(String::from("=="));
-        assert_eq!(lx1.new_token().token_type, tokens::IndentifierKind::EQ);
+        let mut lx = Lexer::new(String::from("=="));
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::EQ);
     }
 
     #[test]
     fn should_read_equal_token2() {
-        let mut lx2 = Lexer::new(String::from(">="));
-        assert_eq!(lx2.new_token().token_type, tokens::IndentifierKind::GTOREQ);
+        let mut lx = Lexer::new(String::from(">="));
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::GTOREQ);
     }
 
     #[test]
     fn should_read_equal_token3() {
-        let mut lx3 = Lexer::new(String::from("!=+>="));
-        assert_eq!(lx3.new_token().token_type, tokens::IndentifierKind::NOTEQ);
-        assert_eq!(lx3.new_token().token_type, tokens::IndentifierKind::PLUS);
-        assert_eq!(lx3.new_token().token_type, tokens::IndentifierKind::GTOREQ);
+        let mut lx = Lexer::new(String::from("!=+>="));
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::NOTEQ);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::PLUS);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::GTOREQ);
     }
 
     #[test]
     fn should_read_equal_token4() {
-        let mut lx4 = Lexer::new(String::from("==+>=!()=<>*<=-/# -"));
-        assert_eq!(lx4.new_token().token_type, tokens::IndentifierKind::EQ);
-        assert_eq!(lx4.new_token().token_type, tokens::IndentifierKind::PLUS);
-        assert_eq!(lx4.new_token().token_type, tokens::IndentifierKind::GTOREQ);
-        assert_eq!(lx4.new_token().token_type, tokens::IndentifierKind::BANG);
-        assert_eq!(lx4.new_token().token_type, tokens::IndentifierKind::LPAREN);
-        assert_eq!(lx4.new_token().token_type, tokens::IndentifierKind::RPAREN);
-        assert_eq!(lx4.new_token().token_type, tokens::IndentifierKind::ASSIGN);
-        assert_eq!(lx4.new_token().token_type, tokens::IndentifierKind::LT);
-        assert_eq!(lx4.new_token().token_type, tokens::IndentifierKind::GT);
-        assert_eq!(
-            lx4.new_token().token_type,
-            tokens::IndentifierKind::ASTERISK
-        );
-        assert_eq!(lx4.new_token().token_type, tokens::IndentifierKind::LTOREQ);
-        assert_eq!(lx4.new_token().token_type, tokens::IndentifierKind::MINUS);
-        assert_eq!(lx4.new_token().token_type, tokens::IndentifierKind::SLASH);
-        assert_eq!(lx4.new_token().token_type, tokens::IndentifierKind::UNKNOWN);
-        assert_eq!(lx4.new_token().token_type, tokens::IndentifierKind::MINUS);
+        let mut lx = Lexer::new(String::from("==+>=!()=<>*<=-/# -"));
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::EQ);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::PLUS);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::GTOREQ);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::BANG);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::LPAREN);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::RPAREN);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::ASSIGN);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::LT);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::GT);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::ASTERISK);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::LTOREQ);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::MINUS);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::SLASH);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::UNKNOWN);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::MINUS);
     }
 
     #[test]
     fn should_read_equal_token5() {
-        let mut lx5 = Lexer::new(String::from("let a = 1 + 2;"));
-        assert_eq!(lx5.new_token().token_type, tokens::IndentifierKind::LET);
+        let mut lx = Lexer::new(String::from("let a = 1 + 2;"));
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::LET);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::VARIABLE);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::ASSIGN);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::INT);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::PLUS);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::INT);
         assert_eq!(
-            lx5.new_token().token_type,
-            tokens::IndentifierKind::VARIABLE
-        );
-        assert_eq!(lx5.new_token().token_type, tokens::IndentifierKind::ASSIGN);
-        assert_eq!(lx5.new_token().token_type, tokens::IndentifierKind::INT);
-        assert_eq!(lx5.new_token().token_type, tokens::IndentifierKind::PLUS);
-        assert_eq!(lx5.new_token().token_type, tokens::IndentifierKind::INT);
-        assert_eq!(
-            lx5.new_token().token_type,
+            lx.new_token().token_type,
             tokens::IndentifierKind::SEMICOLON
         );
     }
+
+    #[test]
+    fn should_read_equal_token6() {
+        let mut lx = Lexer::new(String::from("let person_age @int = 1 + 2;"));
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::LET);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::VARIABLE);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::INTTYPE);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::ASSIGN);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::INT);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::PLUS);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::INT);
+        assert_eq!(
+            lx.new_token().token_type,
+            tokens::IndentifierKind::SEMICOLON
+        );
+    }
+
+    #[test]
+    fn should_read_multiline() {
+        let mut lx = Lexer::new(String::from(
+            "
+        let sum @int = 1 + 2;
+
+        let person_age @int = 25;
+
+        let is_active @bool = true;
+
+        let is_live @bool = false;
+        
+        ",
+        ));
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::LET);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::VARIABLE);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::INTTYPE);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::ASSIGN);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::INT);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::PLUS);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::INT);
+        assert_eq!(
+            lx.new_token().token_type,
+            tokens::IndentifierKind::SEMICOLON
+        );
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::LET);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::VARIABLE);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::INTTYPE);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::ASSIGN);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::INT);
+        assert_eq!(
+            lx.new_token().token_type,
+            tokens::IndentifierKind::SEMICOLON
+        );
+
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::LET);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::VARIABLE);
+        assert_eq!(
+            lx.new_token().token_type,
+            tokens::IndentifierKind::BOOLEANTYPE
+        );
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::ASSIGN);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::TRUE);
+        assert_eq!(
+            lx.new_token().token_type,
+            tokens::IndentifierKind::SEMICOLON
+        );
+
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::LET);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::VARIABLE);
+        assert_eq!(
+            lx.new_token().token_type,
+            tokens::IndentifierKind::BOOLEANTYPE
+        );
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::ASSIGN);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::FALSE);
+        assert_eq!(
+            lx.new_token().token_type,
+            tokens::IndentifierKind::SEMICOLON
+        );
+    }
+
+    // #[test]
+    // fn should_read_multiline0() {
+    //     let mut lx = Lexer::new(String::from(
+    //         "
+
+    //     let add = fn(x, y) {
+    //         return x + y;
+    //     };
+
+    //     ",
+    //     ));
+
+    //     assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::LET);
+    //     assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::VARIABLE);
+    //     assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::ASSIGN);
+    //     assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::FUNCTION);
+    //     assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::ASSIGN);
+    //     assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::FALSE);
+    //     assert_eq!(
+    //         lx.new_token().token_type,
+    //         tokens::IndentifierKind::SEMICOLON
+    //     );
+    // }
 }
