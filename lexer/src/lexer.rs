@@ -35,7 +35,6 @@ impl Lexer {
             let item = self.input.get(self.read_position..self.read_position + 1);
             match item {
                 Some(val) => {
-                    println!("line 38: {:?}", val);
                     self.ch = Some(String::from(val));
                 }
                 None => {}
@@ -135,11 +134,6 @@ impl Lexer {
                     self.extract_token_from_alphabet()
                 };
 
-                println!(
-                    "line 138  position {:?} read position {:?} token found {:?}",
-                    self.position, self.read_position, tok,
-                );
-
                 self.move_current_position_and_read();
                 tok
             }
@@ -193,13 +187,6 @@ impl Lexer {
                 .get(self.position + 2..self.read_position + 2)
                 .unwrap();
 
-            println!(
-                "Line 196 Current Char {:?} : Next Char {:?} : Next two step chars {:?}",
-                self.input.get(self.position..self.read_position).unwrap(),
-                next_char,
-                next_two_step_char
-            );
-
             if (*current_char == 0x46 || *current_char == 0x66)
                 && (*next_char.as_bytes().first().unwrap() == 0x6e
                     || *next_char.as_bytes().first().unwrap() == 0x4e)
@@ -212,10 +199,9 @@ impl Lexer {
         };
 
         match &self.ch {
-            Some(literal) => {
+            Some(_literal) => {
                 let next_char = next_char_fn(self.position + 1, self.read_position + 1);
 
-                println!("line 184 next char: {:?}", next_char);
                 if is_space(next_char.as_bytes().first().unwrap())
                     || next_char == tokens::COMMA
                     || next_char == tokens::RPAREN
@@ -227,13 +213,6 @@ impl Lexer {
                         .get(self.identifier_start_read_position as usize..self.read_position)
                     {
                         Some(ident) => {
-                            println!(
-                                "line 202 {:?} position {:?} read position {:?} identifier position {:?} identifier {:?}",
-                                literal,
-                                self.position,
-                                self.read_position,
-                                self.identifier_start_read_position, ident
-                            );
                             let ident_owned = ident.clone().to_string();
                             let tok = if ident == tokens::INT {
                                 tokens::Token::new(tokens::IndentifierKind::INTTYPE, ident_owned)
@@ -298,13 +277,6 @@ impl Lexer {
                         tokens::Token::new(tokens::IndentifierKind::UNKNOWN, String::new())
                     }
                 } else {
-                    println!(
-                        "line 224 {:?} position {:?} read position {:?} identifier position {:?}",
-                        literal,
-                        self.position,
-                        self.read_position,
-                        self.identifier_start_read_position
-                    );
                     self.move_current_position_and_read();
                     self.extract_token_from_alphabet()
                 }
@@ -484,7 +456,7 @@ mod tests {
     }
 
     #[test]
-    fn should_read_multiline() {
+    fn should_read_multiline0() {
         let mut lx = Lexer::new(String::from(
             "
         let sum @int = 1 + 2;
@@ -546,7 +518,7 @@ mod tests {
     }
 
     #[test]
-    fn should_read_multiline0() {
+    fn should_read_multiline1() {
         let mut lx = Lexer::new(String::from(
             "
         let add = fn(x, y) {
