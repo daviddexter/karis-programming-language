@@ -154,7 +154,6 @@ impl Lexer {
 
     fn skip_whitespace(&mut self) {
         let v = self.ch.as_ref().unwrap();
-        println!("line 158: {:?}", v);
         if is_space(v.as_bytes().first().unwrap()) || is_newline(v.as_bytes().first().unwrap()) {
             self.move_current_position_and_read();
             self.skip_whitespace()
@@ -180,11 +179,47 @@ impl Lexer {
         // peek forward
         let next_char_fn = |begin: usize, end: usize| self.input.get(begin..end).unwrap();
 
+        let is_func_identifier = |next_char: &str| {
+            let current_char = self
+                .input
+                .get(self.position..self.read_position)
+                .unwrap()
+                .as_bytes()
+                .first()
+                .unwrap();
+
+            let next_two_step_char = self
+                .input
+                .get(self.position + 2..self.read_position + 2)
+                .unwrap();
+
+            println!(
+                "Line 196 Current Char {:?} : Next Char {:?} : Next two step chars {:?}",
+                self.input.get(self.position..self.read_position).unwrap(),
+                next_char,
+                next_two_step_char
+            );
+
+            if (*current_char == 0x46 || *current_char == 0x66)
+                && (*next_char.as_bytes().first().unwrap() == 0x6e
+                    || *next_char.as_bytes().first().unwrap() == 0x4e)
+                && (next_two_step_char == tokens::LPAREN)
+            {
+                return true;
+            } else {
+                return false;
+            }
+        };
+
         match &self.ch {
             Some(literal) => {
                 let next_char = next_char_fn(self.position + 1, self.read_position + 1);
+
                 println!("line 184 next char: {:?}", next_char);
-                if is_space(next_char.as_bytes().first().unwrap()) || next_char == tokens::SEMICOLON
+                if is_space(next_char.as_bytes().first().unwrap())
+                    || next_char == tokens::COMMA
+                    || next_char == tokens::RPAREN
+                    || next_char == tokens::SEMICOLON
                 {
                     // read the identifier then update the literal and the token
                     match self
@@ -246,6 +281,22 @@ impl Lexer {
                         }
                         None => tokens::Token::new(tokens::IndentifierKind::UNKNOWN, String::new()),
                     }
+                } else if is_func_identifier(next_char) {
+                    let ident = self
+                        .input
+                        .get(self.identifier_start_read_position as usize..self.read_position + 1)
+                        .unwrap();
+                    // println!("line 274 funcs chars: {:?}", x);
+                    if ident == tokens::FUNCTION {
+                        // reset identifier start read position
+                        self.identifier_start_read_position = -0x1;
+                        // move the cursor forward
+                        self.position = self.position + 1;
+                        self.read_position = self.read_position + 1;
+                        tokens::Token::new(tokens::IndentifierKind::FUNCTION, String::from(ident))
+                    } else {
+                        tokens::Token::new(tokens::IndentifierKind::UNKNOWN, String::new())
+                    }
                 } else {
                     println!(
                         "line 224 {:?} position {:?} read position {:?} identifier position {:?}",
@@ -306,11 +357,6 @@ fn is_allowed_alphanumeric_and_char(chr: u8) -> bool {
 // checks if byte is ASCII : space or tab
 fn is_space(chr: &u8) -> bool {
     *chr == b' ' || *chr == b'\t'
-}
-
-// checks if byte is ASCII : n or N
-fn is_letter_n(chr: &u8) -> bool {
-    *chr == 0x6e || *chr == 0x4e
 }
 
 // checks if byte is ASCII : space or tab
@@ -499,27 +545,38 @@ mod tests {
         );
     }
 
-    // #[test]
-    // fn should_read_multiline0() {
-    //     let mut lx = Lexer::new(String::from(
-    //         "
+    #[test]
+    fn should_read_multiline0() {
+        let mut lx = Lexer::new(String::from(
+            "
+        let add = fn(x, y) {
+            return x + y;
+        };
+        ",
+        ));
 
-    //     let add = fn(x, y) {
-    //         return x + y;
-    //     };
-
-    //     ",
-    //     ));
-
-    //     assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::LET);
-    //     assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::VARIABLE);
-    //     assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::ASSIGN);
-    //     assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::FUNCTION);
-    //     assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::ASSIGN);
-    //     assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::FALSE);
-    //     assert_eq!(
-    //         lx.new_token().token_type,
-    //         tokens::IndentifierKind::SEMICOLON
-    //     );
-    // }
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::LET);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::VARIABLE);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::ASSIGN);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::FUNCTION);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::LPAREN);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::VARIABLE);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::COMMA);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::VARIABLE);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::RPAREN);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::LBRACE);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::RETURN);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::VARIABLE);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::PLUS);
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::VARIABLE);
+        assert_eq!(
+            lx.new_token().token_type,
+            tokens::IndentifierKind::SEMICOLON
+        );
+        assert_eq!(lx.new_token().token_type, tokens::IndentifierKind::RBRACE);
+        assert_eq!(
+            lx.new_token().token_type,
+            tokens::IndentifierKind::SEMICOLON
+        );
+    }
 }
