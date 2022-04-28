@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 // non-alphanumeric symbols
 pub const COMMA: &str = ",";
 pub const SEMICOLON: &str = ";";
@@ -20,20 +18,29 @@ pub const NOTEQ: &str = "!=";
 pub const GTOREQ: &str = ">=";
 pub const LTOREQ: &str = "<=";
 pub const NULL: &str = "NULL";
+
 pub const INT: &str = "@int";
 pub const STRING: &str = "@string";
 pub const BOOLEAN: &str = "@bool";
-pub const ARRAY: &str = "@array";
-pub const MAP: &str = "@map";
+pub const LET: &str = "let";
+pub const FUNCTION: &str = "fn";
+pub const TRUE: &str = "true";
+pub const FALSE: &str = "false";
+pub const IF: &str = "if";
+pub const ELSE: &str = "else";
+pub const RETURN: &str = "return";
 
 #[derive(Debug, PartialEq, Clone, Copy)]
-pub enum TokenTypeKind {
+pub enum IndentifierKind {
     UNKNOWN,
     EOF,
 
     // Identifiers + literals
-    IDENT, // add, foobar, x, y, ...
-    INT,   // 1343456
+    VARIABLE,    // add, foobar, x, y, ...
+    INT,         // 1343456, 1.22, 23.781
+    INTTYPE,     // @int
+    STRINGTYPE,  // @string
+    BOOLEANTYPE, //@bool
 
     // Delimiters
     COMMA,     // ","
@@ -65,52 +72,20 @@ pub enum TokenTypeKind {
     IF,       // "IF"
     ELSE,     // "ELSE"
     RETURN,   // "RETURN"
-
-    // types
-    INTTYPE,
-    DECIMALTYPE,
-    STRINGTYPE,
-    BOOLEANTYPE,
-    ARRAYTYPE,
-    MAPTYPE,
 }
 
 /// Token is an identifiable single unit
 #[derive(Debug, PartialEq, Clone)]
 pub struct Token {
-    pub token_type: TokenTypeKind,
+    pub token_type: IndentifierKind,
     pub literal: String,
 }
 
 impl Token {
-    pub fn new(token_type: TokenTypeKind, literal: String) -> Token {
+    pub fn new(token_type: IndentifierKind, literal: String) -> Token {
         Self {
             token_type,
             literal,
         }
     }
-}
-
-pub fn keyword_lookup(ident: String) -> Option<TokenTypeKind> {
-    let keywords = get_keywords();
-    let key = ident.as_str();
-    match keywords.get(key) {
-        Some(t) => {
-            let t0 = t.to_owned();
-            Some(t0)
-        }
-        None => None,
-    }
-}
-
-fn get_keywords() -> HashMap<&'static str, TokenTypeKind> {
-    HashMap::from([
-        ("fn", TokenTypeKind::FUNCTION),
-        ("let", TokenTypeKind::LET),
-        ("true", TokenTypeKind::TRUE),
-        ("false", TokenTypeKind::FALSE),
-        ("if", TokenTypeKind::IF),
-        ("else", TokenTypeKind::ELSE),
-        ("return", TokenTypeKind::RETURN),
-    ])
 }
