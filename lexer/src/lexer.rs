@@ -66,35 +66,32 @@ impl Lexer {
         match &self.ch {
             Some(ch) => {
                 let ch_owned = ch.clone();
-                let tok = if ch == tokens::COMMA {
-                    Ok(tokens::Token::new(tokens::IndentifierKind::COMMA, ch_owned))
-                } else if ch == tokens::SEMICOLON {
-                    Ok(tokens::Token::new(
+
+                let tok = match ch.as_str() {
+                    tokens::COMMA => {
+                        Ok(tokens::Token::new(tokens::IndentifierKind::COMMA, ch_owned))
+                    }
+                    tokens::SEMICOLON => Ok(tokens::Token::new(
                         tokens::IndentifierKind::SEMICOLON,
                         ch_owned,
-                    ))
-                } else if ch == tokens::LPAREN {
-                    Ok(tokens::Token::new(
+                    )),
+                    tokens::LPAREN => Ok(tokens::Token::new(
                         tokens::IndentifierKind::LPAREN,
                         ch_owned,
-                    ))
-                } else if ch == tokens::RPAREN {
-                    Ok(tokens::Token::new(
+                    )),
+                    tokens::RPAREN => Ok(tokens::Token::new(
                         tokens::IndentifierKind::RPAREN,
                         ch_owned,
-                    ))
-                } else if ch == tokens::LBRACE {
-                    Ok(tokens::Token::new(
+                    )),
+                    tokens::LBRACE => Ok(tokens::Token::new(
                         tokens::IndentifierKind::LBRACE,
                         ch_owned,
-                    ))
-                } else if ch == tokens::RBRACE {
-                    Ok(tokens::Token::new(
+                    )),
+                    tokens::RBRACE => Ok(tokens::Token::new(
                         tokens::IndentifierKind::RBRACE,
                         ch_owned,
-                    ))
-                } else if ch == tokens::ASSIGN {
-                    match self.forward_is_equal_token() {
+                    )),
+                    tokens::ASSIGN => match self.forward_is_equal_token() {
                         Some(val) => {
                             if val {
                                 self.move_current_position_and_read();
@@ -110,13 +107,12 @@ impl Lexer {
                             tokens::IndentifierKind::ASSIGN,
                             ch_owned,
                         )),
+                    },
+                    tokens::PLUS => Ok(tokens::Token::new(tokens::IndentifierKind::PLUS, ch_owned)),
+                    tokens::MINUS => {
+                        Ok(tokens::Token::new(tokens::IndentifierKind::MINUS, ch_owned))
                     }
-                } else if ch == tokens::PLUS {
-                    Ok(tokens::Token::new(tokens::IndentifierKind::PLUS, ch_owned))
-                } else if ch == tokens::MINUS {
-                    Ok(tokens::Token::new(tokens::IndentifierKind::MINUS, ch_owned))
-                } else if ch == tokens::BANG {
-                    match self.forward_is_equal_token() {
+                    tokens::BANG => match self.forward_is_equal_token() {
                         Some(val) => {
                             if val {
                                 self.move_current_position_and_read();
@@ -126,16 +122,15 @@ impl Lexer {
                             }
                         }
                         None => Ok(tokens::Token::new(tokens::IndentifierKind::BANG, ch_owned)),
-                    }
-                } else if ch == tokens::ASTERISK {
-                    Ok(tokens::Token::new(
+                    },
+                    tokens::ASTERISK => Ok(tokens::Token::new(
                         tokens::IndentifierKind::ASTERISK,
                         ch_owned,
-                    ))
-                } else if ch == tokens::SLASH {
-                    Ok(tokens::Token::new(tokens::IndentifierKind::SLASH, ch_owned))
-                } else if ch == tokens::LT {
-                    match self.forward_is_equal_token() {
+                    )),
+                    tokens::SLASH => {
+                        Ok(tokens::Token::new(tokens::IndentifierKind::SLASH, ch_owned))
+                    }
+                    tokens::LT => match self.forward_is_equal_token() {
                         Some(val) => {
                             if val {
                                 self.move_current_position_and_read();
@@ -148,9 +143,8 @@ impl Lexer {
                             }
                         }
                         None => Ok(tokens::Token::new(tokens::IndentifierKind::LT, ch_owned)),
-                    }
-                } else if ch == tokens::GT {
-                    match self.forward_is_equal_token() {
+                    },
+                    tokens::GT => match self.forward_is_equal_token() {
                         Some(val) => {
                             if val {
                                 self.move_current_position_and_read();
@@ -163,22 +157,21 @@ impl Lexer {
                             }
                         }
                         None => Ok(tokens::Token::new(tokens::IndentifierKind::GT, ch_owned)),
-                    }
-                } else if ch == tokens::NULL {
-                    Ok(tokens::Token::new(
+                    },
+                    tokens::NULL => Ok(tokens::Token::new(
                         tokens::IndentifierKind::EOF,
                         String::new(),
-                    ))
-                } else {
-                    // update identifier_start_read_position so that we know where we
-                    // are when slicing to retrieve the exact identifier.
-                    // This is usually the same as the current position that we are at
-                    if self.identifier_start_read_position == -1 {
-                        self.identifier_start_read_position = self.position as isize;
+                    )),
+                    _ => {
+                        // update identifier_start_read_position so that we know where we
+                        // are when slicing to retrieve the exact identifier.
+                        // This is usually the same as the current position that we are at
+                        if self.identifier_start_read_position == -1 {
+                            self.identifier_start_read_position = self.position as isize;
+                        }
+                        self.extract_token_from_alphabet()
                     }
-                    self.extract_token_from_alphabet()
                 };
-
                 self.move_current_position_and_read();
                 tok
             }
@@ -240,22 +233,22 @@ impl Lexer {
                 .get(self.position + 2..self.read_position + 2)
                 .unwrap_or(tokens::NULL);
 
-            if (*current_char == 0x46 || *current_char == 0x66)
+            (*current_char == 0x46 || *current_char == 0x66)
                 && (*next_char.as_bytes().first().unwrap() == 0x6e
                     || *next_char.as_bytes().first().unwrap() == 0x4e)
                 && (next_two_step_char == tokens::LPAREN)
-            {
-                return true;
-            } else {
-                return false;
-            }
         };
 
         match &self.ch {
-            Some(_literal) => {
+            Some(literal) => {
                 let next_char = next_char_fn(self.position + 1, self.read_position + 1);
 
-                if is_space(next_char.as_bytes().first().unwrap())
+                if is_quotation_mark(literal) && is_alphanumeric_only(next_char) {
+                    self.move_current_position_and_read();
+                    self.extract_token_from_alphabet()
+                } else if is_alphanumeric_only(literal) && is_quotation_mark(next_char) {
+                    todo!("implementing this")
+                } else if is_space(next_char.as_bytes().first().unwrap())
                     || next_char == tokens::COMMA
                     || next_char == tokens::RPAREN
                     || next_char == tokens::SEMICOLON
@@ -266,81 +259,65 @@ impl Lexer {
                         .get(self.identifier_start_read_position as usize..self.read_position)
                     {
                         Some(ident) => {
-                            let ident_owned = ident.clone().to_string();
-                            let tok = if ident == tokens::INT {
-                                Ok(tokens::Token::new(
+                            let ident_owned = String::from(ident);
+
+                            let tok = match ident {
+                                tokens::INT => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::INTTYPE,
-                                    ident_owned,
-                                ))
-                            } else if ident == tokens::STRING {
-                                Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::STRINGTYPE,
-                                    ident_owned,
-                                ))
-                            } else if ident == tokens::BOOLEAN {
-                                Ok(tokens::Token::new(
+                                    String::from(ident),
+                                )),
+                                tokens::STRING => Ok(tokens::Token::new(
+                                    tokens::IndentifierKind::INTTYPE,
+                                    String::from(ident),
+                                )),
+                                tokens::BOOLEAN => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::BOOLEANTYPE,
-                                    ident_owned,
-                                ))
-                            } else if ident == tokens::LET {
-                                Ok(tokens::Token::new(
+                                    String::from(ident),
+                                )),
+                                tokens::LET => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::LET,
-                                    ident_owned,
-                                ))
-                            } else if ident == tokens::FUNCTION {
-                                Ok(tokens::Token::new(
+                                    String::from(ident),
+                                )),
+                                tokens::FUNCTION => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::FUNCTION,
-                                    ident_owned,
-                                ))
-                            } else if ident == tokens::TRUE {
-                                Ok(tokens::Token::new(
+                                    String::from(ident),
+                                )),
+                                tokens::TRUE => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::TRUE,
-                                    ident_owned,
-                                ))
-                            } else if ident == tokens::FALSE {
-                                Ok(tokens::Token::new(
+                                    String::from(ident),
+                                )),
+                                tokens::FALSE => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::FALSE,
-                                    ident_owned,
-                                ))
-                            } else if ident == tokens::IF {
-                                Ok(tokens::Token::new(tokens::IndentifierKind::IF, ident_owned))
-                            } else if ident == tokens::ELSE {
-                                Ok(tokens::Token::new(
+                                    String::from(ident),
+                                )),
+                                tokens::IF => Ok(tokens::Token::new(
+                                    tokens::IndentifierKind::IF,
+                                    String::from(ident),
+                                )),
+
+                                tokens::ELSE => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::ELSE,
-                                    ident_owned,
-                                ))
-                            } else if ident == tokens::RETURN {
-                                Ok(tokens::Token::new(
+                                    String::from(ident),
+                                )),
+                                tokens::RETURN => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::RETURN,
-                                    ident_owned,
-                                ))
-                            } else if ident == tokens::INT {
-                                Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::INTTYPE,
-                                    ident_owned,
-                                ))
-                            } else if ident == tokens::STRING {
-                                Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::STRINGTYPE,
-                                    ident_owned,
-                                ))
-                            } else if ident == tokens::BOOLEAN {
-                                Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::BOOLEANTYPE,
-                                    ident_owned,
-                                ))
-                            } else if is_intergers_only(ident) {
-                                Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::INT,
-                                    ident_owned,
-                                ))
-                            } else if is_alphanumeric_only(ident) {
-                                Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::VARIABLE,
-                                    ident_owned,
-                                ))
-                            } else {
-                                self.unknown_token_error(ident)
+                                    String::from(ident),
+                                )),
+                                _ => {
+                                    if is_intergers_only(ident) {
+                                        Ok(tokens::Token::new(
+                                            tokens::IndentifierKind::INTLITERAL,
+                                            ident_owned,
+                                        ))
+                                    } else if is_alphanumeric_only(ident) {
+                                        Ok(tokens::Token::new(
+                                            tokens::IndentifierKind::VARIABLE,
+                                            ident_owned,
+                                        ))
+                                    } else {
+                                        self.unknown_token_error(ident)
+                                    }
+                                }
                             };
 
                             // reset identifier start read position
@@ -354,13 +331,13 @@ impl Lexer {
                         .input
                         .get(self.identifier_start_read_position as usize..self.read_position + 1)
                         .unwrap();
-                    // println!("line 274 funcs chars: {:?}", x);
+
                     if ident == tokens::FUNCTION {
                         // reset identifier start read position
                         self.identifier_start_read_position = -0x1;
                         // move the cursor forward
-                        self.position = self.position + 1;
-                        self.read_position = self.read_position + 1;
+                        self.position += 1;
+                        self.read_position += 1;
                         Ok(tokens::Token::new(
                             tokens::IndentifierKind::FUNCTION,
                             String::from(ident),
@@ -388,27 +365,32 @@ fn is_alphanumeric_only(i: &str) -> bool {
             not_valid_count += 1;
         }
     }
-    if not_valid_count != 0 {
-        false
-    } else {
-        true
-    }
+
+    not_valid_count == 0
 }
 
 // checks if the identifier is composed of intergers only
 // these intergers will be parsed correctly when performing arthemetic operations
 fn is_intergers_only(i: &str) -> bool {
-    let mut not_valid_count = 0;
     for x in i.as_bytes() {
         if !is_digit(*x) {
-            not_valid_count += 1;
+            return false;
+        } else {
+            continue;
         }
     }
-    if not_valid_count != 0 {
-        false
-    } else {
-        true
+    true
+}
+
+fn is_quotation_mark(i: &str) -> bool {
+    for x in i.as_bytes() {
+        if *x == 0x22 {
+            return true;
+        } else {
+            continue;
+        }
     }
+    false
 }
 
 /// check if byte is ASCII alphanumeric: A-Z, a-z, 0-9, _,
@@ -430,12 +412,12 @@ fn is_newline(chr: &u8) -> bool {
 
 /// check if byte is ASCII alphabetic: A-Z, a-z
 fn is_alphabetic(chr: u8) -> bool {
-    (chr >= 0x41 && chr <= 0x5A) || (chr >= 0x61 && chr <= 0x7A)
+    (0x41..=0x5A).contains(&chr) || (0x61..=0x7A).contains(&chr)
 }
 
 /// check if byte is ASCII digit: 0-9
 fn is_digit(chr: u8) -> bool {
-    chr >= 0x30 && chr <= 0x39
+    (0x30..=0x39).contains(&chr)
 }
 
 // check if byte is an ASCII underscore
@@ -623,7 +605,7 @@ mod tests {
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::INT
+            tokens::IndentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
@@ -631,7 +613,7 @@ mod tests {
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::INT
+            tokens::IndentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
@@ -660,7 +642,7 @@ mod tests {
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::INT
+            tokens::IndentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
@@ -668,7 +650,7 @@ mod tests {
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::INT
+            tokens::IndentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
@@ -714,7 +696,7 @@ mod tests {
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::INT
+            tokens::IndentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
@@ -722,7 +704,7 @@ mod tests {
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::INT
+            tokens::IndentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
@@ -746,7 +728,7 @@ mod tests {
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::INT
+            tokens::IndentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
