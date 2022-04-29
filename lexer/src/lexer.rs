@@ -365,7 +365,6 @@ fn is_alphanumeric_only(i: &str) -> bool {
             not_valid_count += 1;
         }
     }
-
     not_valid_count == 0
 }
 

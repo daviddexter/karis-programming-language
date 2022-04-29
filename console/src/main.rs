@@ -17,7 +17,7 @@ fn start(t: &str) -> io::Result<()> {
 
         let text = input.trim();
 
-        if is_exit(text) {
+        if text == EXIT {
             println!("Closing interactive console. Catch you later :) ");
             process::exit(0)
         }
@@ -29,9 +29,8 @@ fn start(t: &str) -> io::Result<()> {
 
         let without_generator = || {
             let resp = evaluate(text).err();
-            match resp {
-                Some(err) => println!("Error: {}", err),
-                _ => {}
+            if let Some(err) = resp {
+                println!("Error: {}", err)
             }
         };
 
@@ -50,14 +49,6 @@ fn evaluate(input: &str) -> io::Result<()> {
     let token = lx.new_token()?;
     println!("{:?}", token);
     Ok(())
-}
-
-fn is_exit(x: &str) -> bool {
-    if x == EXIT {
-        true
-    } else {
-        false
-    }
 }
 
 fn main() -> io::Result<()> {
