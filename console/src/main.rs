@@ -5,12 +5,13 @@ use lexer::lexer;
 
 const PROMPT: &str = ">>>";
 const EXIT: &str = "exit";
+const WG: &str = ":g";
 
-fn start() -> io::Result<()> {
+fn start(t: &str) -> io::Result<()> {
     let mut input = String::new();
 
     loop {
-        println!("{}", PROMPT);
+        print!("{} ", PROMPT);
 
         io::stdin().read_line(&mut input)?;
 
@@ -21,7 +22,24 @@ fn start() -> io::Result<()> {
             process::exit(0)
         }
 
-        let _ = evaluate(text);
+        let with_generator = || {
+            let mut lx = lexer::Lexer::new(String::from(text));
+            lx.generate();
+        };
+
+        let without_generator = || {
+            let resp = evaluate(text).err();
+            match resp {
+                Some(err) => println!("Error: {}", err),
+                _ => {}
+            }
+        };
+
+        if t == WG {
+            with_generator();
+        } else {
+            without_generator();
+        }
 
         input.clear();
     }
@@ -29,9 +47,8 @@ fn start() -> io::Result<()> {
 
 fn evaluate(input: &str) -> io::Result<()> {
     let mut lx = lexer::Lexer::new(String::from(input));
-    let token = lx.new_token();
+    let token = lx.new_token()?;
     println!("{:?}", token);
-
     Ok(())
 }
 
@@ -44,6 +61,14 @@ fn is_exit(x: &str) -> bool {
 }
 
 fn main() -> io::Result<()> {
-    println!("Welcome to Wanja Lang (v0.1.0) Interactive Console");
-    start()
+    println!("Welcome to Wanja Lang (v0.1.0) Interactive Console\n");
+    println!("Type  :g  to extract tokens with generator (useful for long sequences)  \n");
+    println!("or  \n");
+    println!("Type  :ng  to extract tokens once (returns only a single token from a sequence)  \n");
+
+    let mut input = String::new();
+    io::stdin().read_line(&mut input)?;
+
+    println!("Let's begin \n");
+    start(input.trim())
 }
