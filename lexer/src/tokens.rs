@@ -18,6 +18,7 @@ pub const NOTEQ: &str = "!=";
 pub const GTOREQ: &str = ">=";
 pub const LTOREQ: &str = "<=";
 pub const NULL: &str = "NULL";
+pub const QUOTEMARK: &str = "'";
 
 pub const INT: &str = "@int";
 pub const STRING: &str = "@string";
@@ -36,11 +37,12 @@ pub enum IndentifierKind {
     EOF,
 
     // Identifiers + literals
-    VARIABLE,    // add, foobar, x, y, ...
-    INT,         // 1343456, 1.22, 23.781
-    INTTYPE,     // @int
-    STRINGTYPE,  // @string
-    BOOLEANTYPE, //@bool
+    VARIABLE,      // add, foobar, x, y, ...
+    INTLITERAL,    // 1343456, 1.22, 23.781
+    STRINGLITERAL, // "alice", "in", "wonderland"
+    INTTYPE,       // @int
+    STRINGTYPE,    // @string
+    BOOLEANTYPE,   //@bool
 
     // Delimiters
     COMMA,     // ","

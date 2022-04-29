@@ -61,7 +61,7 @@ fn is_exit(x: &str) -> bool {
 }
 
 fn main() -> io::Result<()> {
-    println!("Welcome to Wanja Lang (v0.1.0) Interactive Console\n");
+    println!("Welcome to Karis Lang (v0.1.0) Interactive Console\n");
     println!("Type  :g  to extract tokens with generator (useful for long sequences)  \n");
     println!("or  \n");
     println!("Type  :ng  to extract tokens once (returns only a single token from a sequence)  \n");
