@@ -34,3 +34,25 @@ impl From<LexerError> for io::Error {
         )
     }
 }
+
+#[derive(Debug, Copy, Clone)]
+pub enum ParserErrorType {
+    UnknownDeclaration,
+    Internal,
+}
+
+#[derive(Debug, Clone)]
+pub struct ParserError {
+    pub error_type: ParserErrorType,
+    pub message: String,
+}
+
+impl fmt::Display for ParserError {
+    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
+        let err_msg = format!(
+            "An error occured while processing. Details \n \t\t\t Type : {:?} \n \t\t\t Message : {:?}",
+            self.error_type, self.message
+        );
+        write!(fmt, "{}", err_msg)
+    }
+}
