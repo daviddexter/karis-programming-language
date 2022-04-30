@@ -24,7 +24,7 @@ fn start(t: &str) -> io::Result<()> {
 
         let with_generator = || {
             let mut lx = lexer::Lexer::new(String::from(text));
-            lx.generate();
+            lx.generate_and_print();
         };
 
         let without_generator = || {
@@ -46,12 +46,20 @@ fn start(t: &str) -> io::Result<()> {
 
 fn evaluate(input: &str) -> io::Result<()> {
     let mut lx = lexer::Lexer::new(String::from(input));
-    let token = lx.new_token()?;
+    let token = lx.generate()?;
     println!("{:?}", token);
     Ok(())
 }
 
 fn main() -> io::Result<()> {
+    println!(
+        "
+        ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+        ██░█▀▄█░▄▄▀█░▄▄▀██▄██░▄▄
+        ██░▄▀██░▀▀░█░▀▀▄██░▄█▄▄▀
+        ██░██░█▄██▄█▄█▄▄█▄▄▄█▄▄▄
+        ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"
+    );
     println!("Welcome to Karis Lang (v0.1.0) Interactive Console\n");
     println!("Type  :g  to extract tokens with generator (useful for long sequences)  \n");
     println!("or  \n");

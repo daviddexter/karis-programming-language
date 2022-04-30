@@ -10,6 +10,7 @@ pub const PLUS: &str = "+";
 pub const MINUS: &str = "-";
 pub const BANG: &str = "!";
 pub const ASTERISK: &str = "*";
+pub const AT: &str = "@";
 pub const SLASH: &str = "/";
 pub const LT: &str = "<";
 pub const GT: &str = ">";
@@ -23,6 +24,7 @@ pub const QUOTEMARK: &str = "'";
 pub const INT: &str = "@int";
 pub const STRING: &str = "@string";
 pub const BOOLEAN: &str = "@bool";
+pub const MAIN: &str = "@main";
 pub const LET: &str = "let";
 pub const FUNCTION: &str = "fn";
 pub const TRUE: &str = "true";
@@ -74,6 +76,7 @@ pub enum IndentifierKind {
     IF,       // "IF"
     ELSE,     // "ELSE"
     RETURN,   // "RETURN"
+    MAIN,
 }
 
 /// Token is an identifiable single unit
