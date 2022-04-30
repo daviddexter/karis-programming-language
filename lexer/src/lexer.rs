@@ -1,5 +1,5 @@
-use crate::errors;
 use crate::tokens;
+use errors::errors;
 
 pub struct Lexer {
     // input that is fed to the lexer for tokenization
@@ -40,6 +40,7 @@ impl Lexer {
         }
     }
 
+    #[allow(clippy::never_loop)]
     pub fn generate(&mut self) -> Result<tokens::Token, errors::LexerError> {
         'gen: loop {
             if self.position >= self.input.len() {
