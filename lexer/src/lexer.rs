@@ -29,7 +29,7 @@ impl Lexer {
         }
     }
 
-    pub fn generate(&mut self) {
+    pub fn generate_and_print(&mut self) {
         while self.position < self.input.len() {
             match self.new_token() {
                 Ok(token) => {
@@ -40,11 +40,25 @@ impl Lexer {
         }
     }
 
+    pub fn generate(&mut self) -> Result<tokens::Token, errors::LexerError> {
+        'gen: loop {
+            if self.position >= self.input.len() {
+                break 'gen;
+            }
+            return self.new_token();
+        }
+
+        Ok(tokens::Token::new(
+            tokens::IndentifierKind::EOF,
+            String::new(),
+        ))
+    }
+
     fn read_char(&mut self) {
         if self.read_position >= self.input.len() {
             self.ch = Some(String::from(tokens::NULL));
         } else {
-            let item = self.input.get(self.read_position..self.read_position + 1);
+            let item = self.input.get(self.read_position..self.read_position + 0x1);
             match item {
                 Some(val) => {
                     self.ch = Some(String::from(val));
@@ -53,11 +67,11 @@ impl Lexer {
             }
         }
 
-        self.read_position += 1;
+        self.read_position += 0x1;
     }
 
-    pub fn new_token(&mut self) -> Result<tokens::Token, errors::LexerError> {
-        if self.read_position == 0 {
+    fn new_token(&mut self) -> Result<tokens::Token, errors::LexerError> {
+        if self.read_position == 0x0 {
             self.read_char();
         }
 
@@ -166,7 +180,7 @@ impl Lexer {
                         // update identifier_start_read_position so that we know where we
                         // are when slicing to retrieve the exact identifier.
                         // This is usually the same as the current position that we are at
-                        if self.identifier_start_read_position == -1 {
+                        if self.identifier_start_read_position == -0x1 {
                             self.identifier_start_read_position = self.position as isize;
                         }
                         self.extract_token_from_alphabet()
@@ -217,7 +231,7 @@ impl Lexer {
     fn extract_token_from_alphabet(&mut self) -> Result<tokens::Token, errors::LexerError> {
         // peek forward
         let next_char_fn =
-            |begin: usize, end: usize| self.input.get(begin..end).unwrap_or(tokens::SEMICOLON);
+            |begin: usize, end: usize, default| self.input.get(begin..end).unwrap_or(default);
 
         let is_func_identifier = |next_char: &str| {
             let current_char = self
@@ -228,10 +242,8 @@ impl Lexer {
                 .first()
                 .unwrap();
 
-            let next_two_step_char = self
-                .input
-                .get(self.position + 2..self.read_position + 2)
-                .unwrap_or(tokens::NULL);
+            let next_two_step_char =
+                next_char_fn(self.position + 0x2, self.read_position + 0x2, tokens::NULL);
 
             (*current_char == 0x46 || *current_char == 0x66)
                 && (*next_char.as_bytes().first().unwrap() == 0x6e
@@ -240,17 +252,71 @@ impl Lexer {
         };
 
         match &self.ch {
-            Some(literal) => {
-                let next_char = next_char_fn(self.position + 1, self.read_position + 1);
+            Some(current_literal) => {
+                let next_char = next_char_fn(
+                    self.position + 0x1,
+                    self.read_position + 0x1,
+                    tokens::SEMICOLON,
+                );
 
-                if is_quotation_mark(literal) && is_alphanumeric_only(next_char) {
+                if is_quotation_mark(current_literal) && is_alphanumeric_only(next_char) {
                     self.move_current_position_and_read();
                     self.extract_token_from_alphabet()
-                } else if is_alphanumeric_only(literal) && is_quotation_mark(next_char) {
-                    todo!("implementing this")
+                } else if is_alphanumeric_only(current_literal)
+                    && is_quotation_mark(next_char)
+                    && next_char_fn(self.position + 0x2, self.read_position + 0x2, tokens::NULL)
+                        == tokens::SEMICOLON
+                {
+                    // read the identifier then update the literal and the token
+                    match self
+                        .input
+                        .get(self.identifier_start_read_position as usize..self.read_position + 0x1)
+                    {
+                        Some(ident) => {
+                            // reset identifier start read position
+                            self.identifier_start_read_position = -0x1;
+                            self.position += 0x1;
+                            self.read_position += 0x1;
+
+                            let ident_owned = String::from(ident);
+                            Ok(tokens::Token::new(
+                                tokens::IndentifierKind::STRINGLITERAL,
+                                ident_owned,
+                            ))
+                        }
+
+                        None => self.unknown_token_error(tokens::NULL),
+                    }
+                } else if current_literal == tokens::AT
+                    && next_char_fn(self.position, self.read_position + 0x4, tokens::NULL)
+                        == tokens::MAIN
+                    && next_char_fn(self.position + 0x5, self.read_position + 0x5, tokens::NULL)
+                        == tokens::LBRACE
+                {
+                    // read the identifier then update the literal and the token
+                    match self
+                        .input
+                        .get(self.identifier_start_read_position as usize..self.read_position + 0x4)
+                    {
+                        Some(ident) => {
+                            // reset identifier start read position
+                            self.identifier_start_read_position = -0x1;
+                            self.position += 0x4;
+                            self.read_position += 0x4;
+
+                            let ident_owned = String::from(ident);
+                            Ok(tokens::Token::new(
+                                tokens::IndentifierKind::MAIN,
+                                ident_owned,
+                            ))
+                        }
+
+                        None => self.unknown_token_error(tokens::NULL),
+                    }
                 } else if is_space(next_char.as_bytes().first().unwrap())
                     || next_char == tokens::COMMA
                     || next_char == tokens::RPAREN
+                    || next_char == tokens::AT
                     || next_char == tokens::SEMICOLON
                 {
                     // read the identifier then update the literal and the token
@@ -267,7 +333,7 @@ impl Lexer {
                                     String::from(ident),
                                 )),
                                 tokens::STRING => Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::INTTYPE,
+                                    tokens::IndentifierKind::STRINGTYPE,
                                     String::from(ident),
                                 )),
                                 tokens::BOOLEAN => Ok(tokens::Token::new(
@@ -324,7 +390,7 @@ impl Lexer {
                             self.identifier_start_read_position = -0x1;
                             tok
                         }
-                        None => self.unknown_token_error(""),
+                        None => self.unknown_token_error(tokens::NULL),
                     }
                 } else if is_func_identifier(next_char) {
                     let ident = self
@@ -350,7 +416,7 @@ impl Lexer {
                     self.extract_token_from_alphabet()
                 }
             }
-            None => self.unknown_token_error(""),
+            None => self.unknown_token_error(tokens::NULL),
         }
     }
 }
@@ -658,6 +724,31 @@ mod tests {
     }
 
     #[test]
+    fn should_read_equal_token7() {
+        let mut lx = Lexer::new(String::from("let name = \"alice\"; "));
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::LET
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::VARIABLE
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::ASSIGN
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::STRINGLITERAL
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::SEMICOLON
+        );
+    }
+
+    #[test]
     fn should_return_err() {
         let mut lx = Lexer::new(String::from("#"));
         assert!(lx.new_token().is_err(),);
@@ -789,7 +880,7 @@ mod tests {
     fn should_read_multiline1() {
         let mut lx = Lexer::new(String::from(
             "
-        let add = fn(x @int, y @int) {
+        let add = fn(x @int, y @int) @int {
             return x + y;
         };
         ",
@@ -841,6 +932,10 @@ mod tests {
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::INTTYPE
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
             tokens::IndentifierKind::LBRACE
         );
         assert_eq!(
@@ -877,7 +972,7 @@ mod tests {
     fn should_read_multiline2() {
         let mut lx = Lexer::new(String::from(
             "
-        let greater = fn(x @int, y @int) {
+        let greater = fn(x @int, y @int) @int {
             if x > y {
                 return x;
             }
@@ -932,6 +1027,10 @@ mod tests {
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::INTTYPE
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
             tokens::IndentifierKind::LBRACE
         );
         assert_eq!(
@@ -977,6 +1076,98 @@ mod tests {
         assert_eq!(
             lx.new_token().unwrap().token_type,
             tokens::IndentifierKind::VARIABLE
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::SEMICOLON
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::RBRACE
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::SEMICOLON
+        );
+    }
+
+    #[test]
+    fn should_read_multiline3() {
+        let mut lx = Lexer::new(String::from(
+            "
+        fn()@main{
+            let x @int = 5;            
+            let name @string = \"Karis\";       
+            
+        };  
+            
+            
+        ",
+        ));
+
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::FUNCTION
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::LPAREN
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::RPAREN
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::MAIN
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::LBRACE
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::LET
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::VARIABLE
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::INTTYPE
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::ASSIGN
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::INTLITERAL
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::SEMICOLON
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::LET
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::VARIABLE
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::STRINGTYPE
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::ASSIGN
+        );
+        assert_eq!(
+            lx.new_token().unwrap().token_type,
+            tokens::IndentifierKind::STRINGLITERAL
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
