@@ -229,11 +229,11 @@ impl Lexer {
         })
     }
 
-    fn extract_token_from_alphabet(&mut self) -> Result<tokens::Token, errors::LexerError> {
-        // peek forward
-        let next_char_fn =
-            |begin: usize, end: usize, default| self.input.get(begin..end).unwrap_or(default);
+    fn peek_forward_or_backward<'a>(&'a self, begin: usize, end: usize, default: &'a str) -> &str {
+        self.input.get(begin..end).unwrap_or(default)
+    }
 
+    fn extract_token_from_alphabet(&mut self) -> Result<tokens::Token, errors::LexerError> {
         let is_func_identifier = |next_char: &str| {
             let current_char = self
                 .input
@@ -243,8 +243,11 @@ impl Lexer {
                 .first()
                 .unwrap();
 
-            let next_two_step_char =
-                next_char_fn(self.position + 0x2, self.read_position + 0x2, tokens::NULL);
+            let next_two_step_char = self.peek_forward_or_backward(
+                self.position + 0x2,
+                self.read_position + 0x2,
+                tokens::NULL,
+            );
 
             (*current_char == 0x46 || *current_char == 0x66)
                 && (*next_char.as_bytes().first().unwrap() == 0x6e
@@ -254,7 +257,7 @@ impl Lexer {
 
         match &self.ch {
             Some(current_literal) => {
-                let next_char = next_char_fn(
+                let next_char = self.peek_forward_or_backward(
                     self.position + 0x1,
                     self.read_position + 0x1,
                     tokens::SEMICOLON,
@@ -265,8 +268,11 @@ impl Lexer {
                     self.extract_token_from_alphabet()
                 } else if is_alphanumeric_only(current_literal)
                     && is_quotation_mark(next_char)
-                    && next_char_fn(self.position + 0x2, self.read_position + 0x2, tokens::NULL)
-                        == tokens::SEMICOLON
+                    && self.peek_forward_or_backward(
+                        self.position + 0x2,
+                        self.read_position + 0x2,
+                        tokens::NULL,
+                    ) == tokens::SEMICOLON
                 {
                     // read the identifier then update the literal and the token
                     match self
@@ -289,10 +295,16 @@ impl Lexer {
                         None => self.unknown_token_error(tokens::NULL),
                     }
                 } else if current_literal == tokens::AT
-                    && next_char_fn(self.position, self.read_position + 0x4, tokens::NULL)
-                        == tokens::MAIN
-                    && next_char_fn(self.position + 0x5, self.read_position + 0x5, tokens::NULL)
-                        == tokens::LBRACE
+                    && self.peek_forward_or_backward(
+                        self.position,
+                        self.read_position + 0x4,
+                        tokens::NULL,
+                    ) == tokens::MAIN
+                    && self.peek_forward_or_backward(
+                        self.position + 0x5,
+                        self.read_position + 0x5,
+                        tokens::NULL,
+                    ) == tokens::LBRACE
                 {
                     // read the identifier then update the literal and the token
                     match self

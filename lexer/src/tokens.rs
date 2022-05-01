@@ -36,7 +36,8 @@ pub const RETURN: &str = "return";
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IndentifierKind {
     UNKNOWN,
-    EOF,
+    EOF, // end of file. Nothoing more to read
+    EOS, // end of statement for block
 
     // Identifiers + literals
     VARIABLE,      // add, foobar, x, y, ...

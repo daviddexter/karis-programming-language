@@ -17,14 +17,14 @@ let div = fn(x @int, y @int)@int{
 
 let echo = fn(name @string)@string{
     return format("Hi #name");
-}
+};
 
 let max = fn(x @int, y @int)@int{
     if x > y{
         return x;
     }
     return y;
-}
+};
 
 
 fn()@main{
