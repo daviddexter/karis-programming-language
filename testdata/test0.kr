@@ -1,52 +1,14 @@
-
-let add = fn(x @int, y @int)@int{
+let add = fn(x @int, y @int) @int{
     return x + y;
 };
 
-let sub = fn(x @int, y @int)@int{
-    return x - y;
+
+let x @int = 5;
+
+let y @int = 7;
+
+let name @string = "Karis";
+
+let echo = fn(name @string){
+    print("Name #name")
 };
-
-let mul = fn(x @int, y @int)@int{
-    return x * y;
-};
-
-let div = fn(x @int, y @int)@int{
-    return x * y;
-};
-
-let echo = fn(name @string)@string{
-    return format("Hi #name");
-};
-
-let max = fn(x @int, y @int)@int{
-    if x > y{
-        return x;
-    }
-    return y;
-};
-
-
-fn()@main{
-    let x @int = 5;
-    let y @int = 7;
-    let name @string = "Karis";
-
-    let result0 @int = add(x,y);
-    let result1 @int = sub(x,y);
-    let result2 @int = mul(x,y);
-    let result3 @int = div(x,y);
-    let result4 @string = echo(name);
-    let result5 @int = echo(x,y);
-
-
-    print(result0);
-    print(result1);
-    print(result2);
-    print(result3);
-    print(result4);
-    print(result5);
-
-    print("#result0 #result1 #result2 #result3 #result4 #result5");
-};
-

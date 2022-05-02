@@ -20,11 +20,13 @@ pub const GTOREQ: &str = ">=";
 pub const LTOREQ: &str = "<=";
 pub const NULL: &str = "NULL";
 pub const QUOTEMARK: &str = "'";
+pub const HASH: &str = "#";
 
 pub const INT: &str = "@int";
 pub const STRING: &str = "@string";
 pub const BOOLEAN: &str = "@bool";
 pub const MAIN: &str = "@main";
+pub const END: &str = "@end";
 pub const LET: &str = "let";
 pub const FUNCTION: &str = "fn";
 pub const TRUE: &str = "true";
@@ -32,6 +34,8 @@ pub const FALSE: &str = "false";
 pub const IF: &str = "if";
 pub const ELSE: &str = "else";
 pub const RETURN: &str = "return";
+pub const FORMAT: &str = "format";
+pub const PRINT: &str = "print";
 
 #[derive(Debug, PartialEq, Clone, Copy)]
 pub enum IndentifierKind {
@@ -54,6 +58,7 @@ pub enum IndentifierKind {
     RPAREN,    // ")"
     LBRACE,    // "{"
     RBRACE,    // "}"
+    HASH,      // "#"}"
 
     // Operators
     ASSIGN,   //  "="
@@ -78,6 +83,9 @@ pub enum IndentifierKind {
     ELSE,     // "ELSE"
     RETURN,   // "RETURN"
     MAIN,
+    END,
+    FORMAT,
+    PRINT,
 }
 
 /// Token is an identifiable single unit
@@ -85,13 +93,18 @@ pub enum IndentifierKind {
 pub struct Token {
     pub token_type: IndentifierKind,
     pub literal: String,
+    pub line_number:usize,
+    pub column_number:usize,
 }
 
 impl Token {
-    pub fn new(token_type: IndentifierKind, literal: String) -> Token {
+    pub fn new(token_type: IndentifierKind, literal: String,
+        line_number:usize,column_number:usize) -> Token {
         Self {
             token_type,
             literal,
+            line_number,
+            column_number,
         }
     }
 }

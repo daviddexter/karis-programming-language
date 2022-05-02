@@ -5,7 +5,7 @@ use crate::objects::Objects;
 // this will be at the top of the AST
 #[derive(Debug, Clone)]
 pub struct ProgramDeclaration {
-    pub body: Option<Vec<Objects>>,
+    pub body: Vec<Objects>,
 }
 
 impl Declaration for ProgramDeclaration {
@@ -15,14 +15,15 @@ impl Declaration for ProgramDeclaration {
 }
 
 impl ProgramDeclaration {
-    pub fn new(body: Option<Vec<Objects>>) -> ProgramDeclaration {
-        Self { body }
+    pub fn new() -> ProgramDeclaration {
+        Self { body : Vec::new() }
+    }
+
+    pub fn add_object(&mut self, object: Objects){
+        self.body.push(object)
     }
 
     pub fn count(&self) -> usize {
-        match &self.body {
-            Some(i) => i.len(),
-            None => 0,
-        }
+        self.body.len()
     }
 }

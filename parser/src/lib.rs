@@ -1,3 +1,4 @@
+pub mod binary_expression;
 pub mod declarations;
 pub mod identifier_declaration;
 pub mod literal_declaration;
