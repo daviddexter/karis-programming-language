@@ -2,18 +2,26 @@ use std::fmt;
 use std::io;
 
 #[derive(Debug, Copy, Clone)]
-pub enum LexerErrorType {
+pub enum KarisErrorType {
     UnknownToken,
+    UnknownDeclaration,
     Internal,
+    NotImplemented,
+    MissingVariableName,
+    TypeMismatch,
+    TokenNotFound,
+    AssignmentMismatch,
+    LHSMissing,
+    RHSMissing,
 }
 
 #[derive(Debug, Clone)]
-pub struct LexerError {
-    pub error_type: LexerErrorType,
+pub struct KarisError {
+    pub error_type: KarisErrorType,
     pub message: String,
 }
 
-impl fmt::Display for LexerError {
+impl fmt::Display for KarisError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let err_msg = format!(
             "An error occured while processing. Details \n \t\t\t Type : {:?} \n \t\t\t Message : {:?}",
@@ -23,8 +31,8 @@ impl fmt::Display for LexerError {
     }
 }
 
-impl From<LexerError> for io::Error {
-    fn from(err: LexerError) -> Self {
+impl From<KarisError> for io::Error {
+    fn from(err: KarisError) -> Self {
         io::Error::new(
             io::ErrorKind::InvalidData,
             format!(
@@ -32,27 +40,5 @@ impl From<LexerError> for io::Error {
                 err.error_type, err.message
             ),
         )
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub enum ParserErrorType {
-    UnknownDeclaration,
-    Internal,
-}
-
-#[derive(Debug, Clone)]
-pub struct ParserError {
-    pub error_type: ParserErrorType,
-    pub message: String,
-}
-
-impl fmt::Display for ParserError {
-    fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
-        let err_msg = format!(
-            "An error occured while processing. Details \n \t\t\t Type : {:?} \n \t\t\t Message : {:?}",
-            self.error_type, self.message
-        );
-        write!(fmt, "{}", err_msg)
     }
 }

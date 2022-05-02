@@ -7,6 +7,7 @@ pub enum DeclarationType {
     VariableDeclarator,
     Identifier,
     Literal,
+    BinaryExpression,
 }
 
 #[derive(Debug, Clone)]
