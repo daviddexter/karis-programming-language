@@ -5,13 +5,7 @@ use errors::errors;
 use lexer::lexer::Lexer;
 use lexer::tokens::{IndentifierKind, Token};
 
-// use crate::declarations;
-// use crate::identifier_declaration::IdentifierDeclaration;
-// use crate::literal_declaration::LiteralDeclaration;
-use crate::objects::Objects;
-use crate::program_declaration::ProgramDeclaration;
-// use crate::variable_declaration::VariableDeclaration;
-// use crate::variable_declarator::VariableDeclarator;
+use crate::objects::{Program, Objects};
 
 pub struct Tracker {
     main_start_position: usize,  
@@ -27,7 +21,7 @@ pub struct Parser {
     bucket: Vec<Token>,    
 
     // the program tree that will be built when parsing    
-    program : ProgramDeclaration
+    program : Program
 }
 
 impl Parser {
@@ -35,11 +29,12 @@ impl Parser {
         Self {
             lexer,
             bucket: Vec::new(),                      
-            program: ProgramDeclaration::new(),
+            program: Program::default(),
         }
     }
 
     pub fn parse(&mut self) -> Result<Objects, errors::KarisError> {
+        // add all tokens to a bucket cache. This will be used later when doing the actual parsing
         loop {
             let token = self.lexer.generate()?;
             if token.token_type == IndentifierKind::EOF {
@@ -49,9 +44,13 @@ impl Parser {
             }
         } 
 
+        // group statements. This is done by using the criteria of, get all tokens until a `EOS` is encountered.
+        // when a `EOS` is encountered, gather all token prior and add them as a unit in the statements cache
         let statements = Rc::new(RefCell::new(Vec::new()));
         self.combine_statements(0x0,&statements,
         &Tracker{seen_main:false,main_start_position: 0x0 ,let_start_position:0x0});
+        
+        self.parse_statement_tokens(&statements)?;
 
         Err(errors::KarisError{error_type: errors::KarisErrorType::MissingVariableName,
             message: String::from("expected a variable name to bind the literal string") })
@@ -98,7 +97,47 @@ impl Parser {
             }
             _ => self.combine_statements(index+0x1,statements,track),
         }
-    }   
+    }
+    
+    // responsible for constructing an expression from grouped tokens
+    fn parse_statement_tokens(&mut self,statements: &Rc<RefCell<Vec<Vec<Token>>>>) -> Result<(), errors::KarisError>{
+        let statement_clone = statements.clone();
+        let sts = statement_clone.borrow();
+        for statement in sts.iter() {
+            let obj = self.build_expression(statement)?;
+            self.program.body.push(obj);
+        }
+        Ok(())
+    }
+
+
+    /// build an expression that speaks to how token relate to each other
+    /// These trees will be added to the program, which is the root of the tree
+    /// consider these trees as nodes of the program
+    fn build_expression(&self,tokens:&Vec<Token>)-> Result<Objects, errors::KarisError>{  
+        let default = Token::default();      
+        let first = tokens.first().unwrap_or(&default);
+
+        if first.token_type == IndentifierKind::MAIN{
+            todo!("main defs")
+        }else if first.token_type == IndentifierKind::LET {
+            self.parse_let_expressions(tokens)
+        } else{
+            let msg = format!("expected `Let` or `main`l found {:?}", first.token_type);
+            let err = errors::KarisError{ error_type: errors::KarisErrorType::UnknownToken,message: msg   };
+            Err(err)
+        }    
+    }
+
+    // recursively parses and build an expression tree from a let expression
+    // results in either :
+    // - LiteralExpression
+    // - FunctionExpression
+    // - CallExpression
+    // - ReturnExpression
+    fn parse_let_expressions(&self,_tokens:&Vec<Token>) -> Result<Objects, errors::KarisError>{
+        todo!("implement")
+    }
 
 }
 

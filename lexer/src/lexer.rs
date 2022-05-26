@@ -1137,6 +1137,8 @@ mod tests {
             return x + y;
         };
 
+        add(1,3);
+
         ",
         ));
 
@@ -1224,6 +1226,47 @@ mod tests {
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::EOS
         );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::VARIABLE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::LPAREN
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::INTLITERAL
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::COMMA
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::INTLITERAL
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::RPAREN
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::SEMICOLON
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::EOS
+        );
+
     }
 
     #[test]
@@ -1360,7 +1403,7 @@ mod tests {
             let x @int = 5;            
             let name @string = \"Karis\";       
             
-        }@end;            
+        }@end;           
             
         ",
         ));
