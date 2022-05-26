@@ -37,9 +37,11 @@ pub const RETURN: &str = "return";
 pub const FORMAT: &str = "format";
 pub const PRINT: &str = "print";
 
-#[derive(Debug, PartialEq, Clone, Copy)]
+#[derive(Debug, Default, PartialEq,Eq, Clone, Copy)]
 pub enum IndentifierKind {
+    #[default]
     UNKNOWN,
+
     EOF, // end of file. Nothoing more to read
     EOS, // end of statement for block
 
@@ -89,7 +91,7 @@ pub enum IndentifierKind {
 }
 
 /// Token is an identifiable single unit
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug,Default, PartialEq,Eq, Clone)]
 pub struct Token {
     pub token_type: IndentifierKind,
     pub literal: String,

@@ -2,7 +2,6 @@ let add = fn(x @int, y @int) @int{
     return x + y;
 };
 
-
 let x @int = 5;
 
 let y @int = 7;
