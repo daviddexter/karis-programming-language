@@ -2,11 +2,11 @@
 pub enum DeclarationType {
     #[default]
     Program,
-
     LiteralExpression,  
     FunctionExpression,  
     BinaryExpression,
     IfExpression,
+    ReturnExpression,
 }
 
 #[derive(Debug, Clone)]
@@ -34,8 +34,9 @@ pub enum Objects {
     TyProgram(Program),
     TyLiteralExpression(LiteralExpression), 
     TyFunctionExpression(FunctionExpression), 
-    // TyBinaryExpression(BinaryExpression),
-    // TyIfExpression(IfExpression),
+    TyBinaryExpression(BinaryExpression),
+    TyIfExpression(IfExpression),
+    TyReturnExpression(ReturnExpression)
 }
 
 
@@ -45,8 +46,9 @@ impl Declaration for Objects {
             Objects::TyProgram(i) => i.which(),
             Objects::TyLiteralExpression(i) => i.which(),  
             Objects::TyFunctionExpression(i) => i.which(), 
-            // Objects::TyBinaryExpression(i) => i.which(), 
-            // Objects::TyIfExpression(i) => i.which(),        
+            Objects::TyBinaryExpression(i) => i.which(), 
+            Objects::TyIfExpression(i) => i.which(),
+            Objects::TyReturnExpression(i) => i.which(),        
         }
     }
 }
@@ -138,9 +140,9 @@ impl FunctionExpression {
 // BinaryExpression ...
 #[derive(Debug, Default,Clone)]
 pub struct BinaryExpression {    
-    pub lhs:  Option<Objects>,
+    pub lhs:  Option<Box<Objects>>,
     pub operator: Option<String>,
-    pub rhs:  Option<Objects>,   
+    pub rhs:  Option<Box<Objects>>,   
 }
 
 impl Declaration for BinaryExpression {
@@ -151,7 +153,7 @@ impl Declaration for BinaryExpression {
 
 impl BinaryExpression {    
     pub fn add_lhs(&mut self,lhs: Objects) {
-        self.lhs = Some(lhs);
+        self.lhs = Some(Box::new(lhs));
     }
 
     pub fn add_operator(&mut self,operator: String) {
@@ -159,7 +161,7 @@ impl BinaryExpression {
     }
 
     pub fn add_rhs(&mut self,rhs: Objects) {
-        self.rhs = Some(rhs);
+        self.rhs = Some(Box::new(rhs));
     }    
 }
 
@@ -167,8 +169,8 @@ impl BinaryExpression {
 // IfExpression ...
 #[derive(Debug, Default,Clone)]
 pub struct IfExpression {    
-    pub test:  Option<Objects>,
-    pub consequent: Option<Objects>,      
+    pub test:  Option<Box<Objects>>,
+    pub consequent: Option<Box<Objects>>,      
 }
 
 impl Declaration for IfExpression {
@@ -179,10 +181,29 @@ impl Declaration for IfExpression {
 
 impl IfExpression {    
     pub fn add_test(&mut self,test: Objects) {
-        self.test = Some(test);
+        self.test = Some(Box::new(test));
     }
 
     pub fn add_consequent(&mut self,consequent: Objects) {
-        self.consequent = Some(consequent);
+        self.consequent = Some(Box::new(consequent));
     }       
+}
+
+
+// ReturnExpression ...
+#[derive(Debug, Default,Clone)]
+pub struct ReturnExpression {    
+    pub argument:  Option<Box<Objects>>,         
+}
+
+impl Declaration for ReturnExpression {
+    fn which(&self) -> DeclarationType {
+        DeclarationType::IfExpression
+    }
+}
+
+impl ReturnExpression {    
+    pub fn add_argument(&mut self,arg: Objects) {
+        self.argument = Some(Box::new(arg));
+    }          
 }
