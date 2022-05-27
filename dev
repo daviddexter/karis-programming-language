@@ -1,0 +1,13 @@
+#!/bin/bash
+
+if [ -z "$(which cargo-make)" ]; then
+    echo "Installing cargo-make..."
+    cargo install --force cargo-make
+fi
+
+if [ $# -eq 0 ] || [ "$1" == "-h" ] || [ "$1" ==  "--help" ]; then
+    cargo make --makefile dev.toml --list-all-steps
+    exit 0
+fi
+
+cargo make --makefile dev.toml "$@"

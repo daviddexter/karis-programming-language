@@ -10,3 +10,5 @@ repository = "https://github.com/daviddexter/wanja-programming-language/parser/"
 [dependencies]
 lexer = { path = "../lexer" }
 errors = { path = "../errors" }
+enum-as-inner = "0.5.0"
+itertools = "0.10.3"

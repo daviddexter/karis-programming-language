@@ -1,0 +1,35 @@
+# Refer to the documentation : https://crates.io/crates/cargo-make
+
+[env]
+CARGO_MAKE_EXTEND_WORKSPACE_MAKEFILE = true
+
+[tasks.format]
+install_crate = "rustfmt"
+command = "cargo"
+args = ["fmt", "--", "--emit=files"]
+
+[tasks.clippy]
+install_crate = "rustfmt"
+command = "cargo"
+args = ["clippy", "--","-D","warnings"]
+dependencies = ["format"]
+
+[tasks.clean]
+command = "cargo"
+args = ["clean"]
+
+[tasks.build]
+command = "cargo"
+args = ["build"]
+dependencies = ["clean"]
+
+[tasks.test]
+install_crate = "cargo-nextest"
+command = "cargo"
+args = ["nextest", "run"]
+dependencies = ["clean"]
+
+[tasks.runner]
+run_task = [
+    { name = ["format", "clippy","clean","build","test"] },
+]

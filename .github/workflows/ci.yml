@@ -1,0 +1,48 @@
+# Based on https://github.com/actions-rs/meta/blob/master/recipes/quickstart.md
+#
+# While our "example" application has the platform-specific code,
+# for simplicity we are compiling and testing everything on the Ubuntu environment only.
+# For multi-OS testing see the `cross.yml` workflow.
+
+on: [push, pull_request]
+
+name: Quickstart
+
+jobs:
+  ci-stable:
+    name: Stable release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          components: clippy     
+
+      - name: Runner
+        run: |
+          echo "🔥🔥🔥 Running the runner 🔥🔥🔥" && ./dev runner
+
+  ci-nightly:
+    name: Nightly release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install nightly toolchain with clippy available
+        uses: actions-rs/toolchain@v1
+        with:
+          profile: minimal
+          toolchain: nightly
+          override: true
+          components: clippy
+
+      - name: Runner
+        run: |
+           echo "🔥🔥🔥 Running the runner 🔥🔥🔥" && ./dev runner
