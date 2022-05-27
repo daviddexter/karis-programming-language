@@ -1,4 +1,4 @@
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum DeclarationType {
     Unknown,
     Program,
@@ -17,7 +17,7 @@ impl Default for DeclarationType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TypingKind {
     Int,
     String,
@@ -76,7 +76,7 @@ impl Default for Objects {
 }
 
 // Represents literal values definitions
-#[derive(Debug, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub enum LiteralObjects {
     ObjIntergerValue(IntergerValue),
     ObjBooleanValue(BooleanValue),
@@ -94,7 +94,7 @@ impl Value for LiteralObjects {
 }
 
 // Interger values representation
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, PartialEq, Eq, Default, Clone)]
 pub struct IntergerValue {
     pub value: Option<isize>,
 }
@@ -112,7 +112,7 @@ impl IntergerValue {
 }
 
 // Boolean values representation
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, PartialEq, Eq, Default, Clone)]
 pub struct BooleanValue {
     pub value: Option<bool>,
 }
@@ -130,7 +130,7 @@ impl BooleanValue {
 }
 
 // String values representation
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, PartialEq, Eq, Default, Clone)]
 pub struct StringValue {
     pub value: Option<String>,
 }
@@ -179,7 +179,18 @@ impl Program {
 pub struct LiteralExpression {
     pub identifier: Option<String>,
     pub typing: Option<TypingKind>,
+
+    // for simle literals, this field will be populated
+    // Example:
+    // let y @int = 7;
+    // let active @bool = true;
     pub value: Option<LiteralObjects>,
+
+    // for expression values, this field will be populated
+    // Example:
+    // let y @int = 1 + 1;
+    // let x @int = 2 * 2 + 1;
+    pub value_expression: Option<Box<Objects>>,
 }
 
 impl Declaration for LiteralExpression {
@@ -199,6 +210,10 @@ impl LiteralExpression {
 
     pub fn add_value(&mut self, value: LiteralObjects) {
         self.value = Some(value);
+    }
+
+    pub fn add_value_expression(&mut self, value: Objects) {
+        self.value_expression = Some(Box::new(value));
     }
 }
 

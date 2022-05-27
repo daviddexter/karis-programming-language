@@ -5,7 +5,7 @@ use errors::errors;
 use lexer::lexer::Lexer;
 use lexer::tokens::{IndentifierKind, Token};
 
-use crate::objects::{Objects, Program};
+use crate::objects::*;
 
 pub struct Tracker {
     main_start_position: usize,
@@ -57,12 +57,10 @@ impl Parser {
             },
         );
 
-        self.parse_statement_tokens(&statements)?;
-
-        Err(errors::KarisError {
-            error_type: errors::KarisErrorType::MissingVariableName,
-            message: String::from("expected a variable name to bind the literal string"),
-        })
+        match self.parse_statement_tokens(&statements) {
+            Ok(_) => Ok(Objects::TyProgram(self.program.clone())),
+            Err(e) => Err(e),
+        }
     }
 
     fn combine_statements(
@@ -144,18 +142,20 @@ impl Parser {
         let default = Token::default();
         let first = tokens.first().unwrap_or(&default);
 
-        if first.token_type == IndentifierKind::MAIN {
-            todo!("main defs")
-        } else if first.token_type == IndentifierKind::LET {
-            let obj = Rc::new(RefCell::new(Objects::TyUnknown));
-            self.parse_let_expressions(tokens, 0, &obj)
-        } else {
-            let msg = format!("expected `Let` or `main`l found {:?}", first.token_type);
-            let err = errors::KarisError {
-                error_type: errors::KarisErrorType::UnknownToken,
-                message: msg,
-            };
-            Err(err)
+        match first.token_type {
+            IndentifierKind::MAIN => todo!("main defs"),
+            IndentifierKind::LET => {
+                let obj = Rc::new(RefCell::new(Objects::TyUnknown));
+                self.parse_let_expressions(tokens, 0, &obj)
+            }
+            _ => {
+                let msg = format!("expected `Let` or `main` found {:?}", first.token_type);
+                let err = errors::KarisError {
+                    error_type: errors::KarisErrorType::UnknownToken,
+                    message: msg,
+                };
+                Err(err)
+            }
         }
     }
 
@@ -171,13 +171,22 @@ impl Parser {
         index: usize,
         object: &Rc<RefCell<Objects>>,
     ) -> Result<Objects, errors::KarisError> {
-        let objects_clone = object.clone();
-        let obj_ref = objects_clone.borrow();
-
         // base case: reached end of the bucket
         if index == tokens.len() {
+            let objects_clone = object.clone();
+            let obj_ref = objects_clone.borrow();
             let obj = &*obj_ref;
-            return Ok(obj.clone());
+
+            if obj.which() == DeclarationType::Unknown {
+                let msg = format!("parse error : invalid syntax `{:?}`", tokens);
+                let err = errors::KarisError {
+                    error_type: errors::KarisErrorType::InvalidSyntax,
+                    message: msg,
+                };
+                return Err(err);
+            } else {
+                return Ok(obj.clone());
+            }
         }
 
         let token = &tokens[index];
@@ -189,8 +198,149 @@ impl Parser {
             | IndentifierKind::STRINGTYPE
             | IndentifierKind::BOOLEANTYPE => self.parse_let_expressions(tokens, index + 1, object),
 
+            IndentifierKind::ASSIGN => {
+                // literals : intergers, string, booleans
+                let next_token = &tokens[index + 1];
+
+                // Example: let num @int = 123;
+                if next_token.token_type == IndentifierKind::INTLITERAL {
+                    self.interger_literal_expression(tokens, object)?;
+                }
+
+                // Example: let name @string = "greyworm";
+                if next_token.token_type == IndentifierKind::STRINGLITERAL {
+                    self.string_literal_expression(tokens, object)?;
+                }
+
+                // Example: let active @bool = true;
+                // Example: let active @bool = false;
+                if next_token.token_type == IndentifierKind::TRUE
+                    || next_token.token_type == IndentifierKind::FALSE
+                {
+                    self.boolean_literal_expression(tokens, object)?;
+                }
+
+                self.parse_let_expressions(tokens, index + 1, object)
+            }
+
             _ => self.parse_let_expressions(tokens, index + 1, object),
         }
+    }
+
+    fn interger_literal_expression(
+        &self,
+        tokens: &[Token],
+        object: &Rc<RefCell<Objects>>,
+    ) -> Result<(), errors::KarisError> {
+        // assert the type is of an INT and not missing
+        let res = self.typing_mismatch(&tokens[0x02], IndentifierKind::INTTYPE);
+        if let Err(err) = res {
+            return Err(err);
+        }
+
+        let objects_clone = object.clone();
+        let mut obj_ref = objects_clone.borrow_mut();
+
+        let variable_name = &tokens[0x01].literal;
+        let mut lit = LiteralExpression::default();
+        lit.add_identifier(variable_name.to_string());
+        lit.add_typing(TypingKind::Int);
+
+        let semicolon_position_token = &tokens[0x05];
+
+        if semicolon_position_token.token_type != IndentifierKind::SEMICOLON {
+            //  parse expression
+            todo!("implement parse expression")
+        } else {
+            let val = &tokens[0x04].literal;
+            let val0 = val.parse::<isize>().unwrap();
+            let mut val1 = IntergerValue::default();
+            val1.add_value(val0);
+            lit.add_value(LiteralObjects::ObjIntergerValue(val1));
+        }
+
+        *obj_ref = Objects::TyLiteralExpression(lit);
+
+        Ok(())
+    }
+
+    fn string_literal_expression(
+        &self,
+        tokens: &[Token],
+        object: &Rc<RefCell<Objects>>,
+    ) -> Result<(), errors::KarisError> {
+        // assert the type is of an STRING and not missing
+        let res = self.typing_mismatch(&tokens[0x02], IndentifierKind::STRINGTYPE);
+        if let Err(err) = res {
+            return Err(err);
+        }
+
+        let objects_clone = object.clone();
+        let mut obj_ref = objects_clone.borrow_mut();
+
+        let variable_name = &tokens[0x01].literal;
+        let mut lit = LiteralExpression::default();
+        lit.add_identifier(variable_name.to_string());
+        lit.add_typing(TypingKind::String);
+
+        let val0 = &tokens[0x04].literal;
+        let mut val1 = StringValue::default();
+        val1.add_value(val0.to_string());
+        lit.add_value(LiteralObjects::ObjStringValue(val1));
+
+        *obj_ref = Objects::TyLiteralExpression(lit);
+
+        Ok(())
+    }
+
+    fn boolean_literal_expression(
+        &self,
+        tokens: &[Token],
+        object: &Rc<RefCell<Objects>>,
+    ) -> Result<(), errors::KarisError> {
+        // assert the type is of an BOOL and not missing
+        let res = self.typing_mismatch(&tokens[0x02], IndentifierKind::BOOLEANTYPE);
+        if let Err(err) = res {
+            return Err(err);
+        }
+
+        let objects_clone = object.clone();
+        let mut obj_ref = objects_clone.borrow_mut();
+
+        let variable_name = &tokens[0x01].literal;
+        let mut lit = LiteralExpression::default();
+        lit.add_identifier(variable_name.to_string());
+        lit.add_typing(TypingKind::Boolean);
+
+        let val0 = &tokens[0x04].literal;
+        let mut val1 = BooleanValue::default();
+        val1.add_value(val0.parse::<bool>().unwrap());
+        lit.add_value(LiteralObjects::ObjBooleanValue(val1));
+
+        *obj_ref = Objects::TyLiteralExpression(lit);
+
+        Ok(())
+    }
+
+    fn typing_mismatch(
+        &self,
+        typing_position_token: &Token,
+        matcher: IndentifierKind,
+    ) -> Result<(), errors::KarisError> {
+        if typing_position_token.token_type != matcher {
+            let msg = format!(
+                "parse error : expected `@int` at position 2. Found {:?} Ln {}, Col {}",
+                typing_position_token.token_type,
+                typing_position_token.line_number,
+                typing_position_token.column_number
+            );
+            let err = errors::KarisError {
+                error_type: errors::KarisErrorType::MissingTypeInfo,
+                message: msg,
+            };
+            return Err(err);
+        }
+        Ok(())
     }
 }
 
@@ -201,22 +351,185 @@ mod tests {
 
     #[test]
     fn should_parse1() {
-        let lx = Lexer::new(String::from("let name = \"alice\";"));
+        let lx = Lexer::new(String::from("let num @int = 1;"));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
-        assert!(res.is_err())
+        assert!(res.is_ok())
     }
 
     #[test]
-    fn should_parse2() {
+    fn should_parse2() -> std::io::Result<()> {
+        let lx = Lexer::new(String::from("let num @int = 1;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse()?;
+        assert_eq!(res.which(), DeclarationType::Program);
+        match res {
+            Objects::TyProgram(p) => {
+                assert_eq!(p.body.len(), 1);
+                let first = &p.body[0];
+                assert_eq!(first.which(), DeclarationType::LiteralExpression);
+                match first {
+                    Objects::TyLiteralExpression(l) => {
+                        assert_eq!(l.identifier.as_ref().unwrap(), &String::from("num"));
+                        assert_eq!(l.typing.as_ref().unwrap(), &TypingKind::Int);
+
+                        let value = l.value.as_ref().unwrap();
+                        assert_eq!(value.which(), TypingKind::Int);
+                        match value {
+                            LiteralObjects::ObjIntergerValue(s) => {
+                                let v = s.value.as_ref().unwrap();
+                                let t = 1 as isize;
+                                assert_eq!(v, &t);
+                            }
+                            _ => panic!("expected `IntergerValue` but found {:?}", value),
+                        }
+                    }
+                    _ => panic!("expected `LiteralExpression` but found {:?}", first),
+                }
+            }
+            _ => panic!("expected `Program` but found {:?}", res),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn should_parse3() {
+        let lx = Lexer::new(String::from("let num = 1;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_err());
+        let err = res.unwrap_err();
+        println!("{:?}", err.message);
+        assert_eq!(
+            err.message,
+            "parse error : expected `@int` at position 2. Found ASSIGN Ln 1, Col 8"
+        );
+        assert_eq!(err.error_type, errors::KarisErrorType::MissingTypeInfo)
+    }
+
+    #[test]
+    fn should_parse4() {
+        let lx = Lexer::new(String::from("let num 1;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_err());
+        let err = res.unwrap_err();
+        println!("{:?}", err.message);
+        assert_eq!(err.error_type, errors::KarisErrorType::InvalidSyntax)
+    }
+
+    #[test]
+    fn should_parse5() -> std::io::Result<()> {
         let lx = Lexer::new(String::from("let name @string = \"alice\";"));
         let mut parser = Parser::new(lx);
-        let _res = parser.parse();
-        assert_eq!(parser.bucket.len(), 7);
-        if let Some(last) = parser.bucket.last() {
-            assert_eq!(last.token_type, IndentifierKind::EOS);
+        let res = parser.parse()?;
+        assert_eq!(res.which(), DeclarationType::Program);
+        match res {
+            Objects::TyProgram(p) => {
+                assert_eq!(p.body.len(), 1);
+                let first = &p.body[0];
+                assert_eq!(first.which(), DeclarationType::LiteralExpression);
+                match first {
+                    Objects::TyLiteralExpression(l) => {
+                        assert_eq!(l.identifier.as_ref().unwrap(), &String::from("name"));
+                        assert_eq!(l.typing.as_ref().unwrap(), &TypingKind::String);
+
+                        let value = l.value.as_ref().unwrap();
+                        assert_eq!(value.which(), TypingKind::String);
+                        match value {
+                            LiteralObjects::ObjStringValue(s) => {
+                                let v = s.value.as_ref().unwrap();
+                                assert_eq!(v, &String::from("alice"));
+                            }
+                            _ => panic!("expected `StringValue` but found {:?}", value),
+                        }
+                    }
+                    _ => panic!("expected `LiteralExpression` but found {:?}", first),
+                }
+            }
+            _ => panic!("expected `Program` but found {:?}", res),
         }
+        Ok(())
     }
+
+    #[test]
+    fn should_parse6() -> std::io::Result<()> {
+        let lx = Lexer::new(String::from("let active @bool = true;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse()?;
+        assert_eq!(res.which(), DeclarationType::Program);
+        match res {
+            Objects::TyProgram(p) => {
+                assert_eq!(p.body.len(), 1);
+                let first = &p.body[0];
+                assert_eq!(first.which(), DeclarationType::LiteralExpression);
+                match first {
+                    Objects::TyLiteralExpression(l) => {
+                        assert_eq!(l.identifier.as_ref().unwrap(), &String::from("active"));
+                        assert_eq!(l.typing.as_ref().unwrap(), &TypingKind::Boolean);
+
+                        let value = l.value.as_ref().unwrap();
+                        assert_eq!(value.which(), TypingKind::Boolean);
+                        match value {
+                            LiteralObjects::ObjBooleanValue(s) => {
+                                let v = s.value.as_ref().unwrap();
+                                assert_eq!(v, &true);
+                            }
+                            _ => panic!("expected `BooleanValue` but found {:?}", value),
+                        }
+                    }
+                    _ => panic!("expected `LiteralExpression` but found {:?}", first),
+                }
+            }
+            _ => panic!("expected `Program` but found {:?}", res),
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn should_parse7() -> std::io::Result<()> {
+        let lx = Lexer::new(String::from("let active @bool = false;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse()?;
+        assert_eq!(res.which(), DeclarationType::Program);
+        match res {
+            Objects::TyProgram(p) => {
+                assert_eq!(p.body.len(), 1);
+                let first = &p.body[0];
+                assert_eq!(first.which(), DeclarationType::LiteralExpression);
+                match first {
+                    Objects::TyLiteralExpression(l) => {
+                        assert_eq!(l.identifier.as_ref().unwrap(), &String::from("active"));
+                        assert_eq!(l.typing.as_ref().unwrap(), &TypingKind::Boolean);
+
+                        let value = l.value.as_ref().unwrap();
+                        assert_eq!(value.which(), TypingKind::Boolean);
+                        match value {
+                            LiteralObjects::ObjBooleanValue(s) => {
+                                let v = s.value.as_ref().unwrap();
+                                assert_eq!(v, &false);
+                            }
+                            _ => panic!("expected `BooleanValue` but found {:?}", value),
+                        }
+                    }
+                    _ => panic!("expected `LiteralExpression` but found {:?}", first),
+                }
+            }
+            _ => panic!("expected `Program` but found {:?}", res),
+        }
+        Ok(())
+    }
+
+    // #[test]
+    // fn should_parse3() {
+    //     let lx = Lexer::new(String::from("let name @string = \"alice\";"));
+    //     let mut parser = Parser::new(lx);
+    //     let _res = parser.parse();
+    //     assert_eq!(parser.bucket.len(), 7);
+    //     if let Some(last) = parser.bucket.last() {
+    //         assert_eq!(last.token_type, IndentifierKind::EOS);
+    //     }
+    // }
 
     // #[test]
     // fn should_parse_file() -> std::io::Result<()>{

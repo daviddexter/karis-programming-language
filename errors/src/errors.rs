@@ -1,10 +1,12 @@
 use std::fmt;
 use std::io;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum KarisErrorType {
     UnknownToken,
     MissingVariableName,
+    MissingTypeInfo,
+    InvalidSyntax,
 }
 
 #[derive(Debug, Clone)]
