@@ -1,25 +1,25 @@
 
-let add = fn(x @int, y @int) @int{
+let add @int = fn(x @int, y @int){
     return x + y;
 };
 
-let sub = fn(x @int, y @int) @int{
+let sub @int = fn(x @int, y @int){
     return x - y;
 };
 
-let mul = fn(x @int, y @int) @int{
+let mul @int = fn(x @int, y @int){
     return x * y;
 };
 
-let div = fn(x @int, y @int) @int{
+let div @int = fn(x @int, y @int){
     return x * y;
 };
 
-let echo = fn(name @string) @string{
+let echo @string = fn(name @string){
     return name;
 };
 
-let max = fn(x @int, y @int) @int{
+let max @int = fn(x @int, y @int){
     if x > y{
         return x;
     }
@@ -31,7 +31,7 @@ let max = fn(x @int, y @int) @int{
     let x @int = 5;
     let y @int = 7;
     let name @string = "Karis";
-
+    
     let result0 @int = add(x,y);
     let result1 @int = sub(x,y);
     let result2 @int = mul(x,y);

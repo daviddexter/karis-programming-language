@@ -56,7 +56,7 @@ impl Parser {
             message: String::from("expected a variable name to bind the literal string") })
     }
 
-    fn combine_statements(&self, index:usize, statements: &Rc<RefCell<Vec<Vec<Token>>>>,track:&Tracker){
+    fn combine_statements(&self, index:usize, statements: &Rc<RefCell<Vec<Vec<Token>>>>,track:&Tracker){        
         // base case: reached end of the bucket
         if index == self.bucket.len(){
             return;
@@ -121,7 +121,8 @@ impl Parser {
         if first.token_type == IndentifierKind::MAIN{
             todo!("main defs")
         }else if first.token_type == IndentifierKind::LET {
-            self.parse_let_expressions(tokens)
+            let obj = Rc::new(RefCell::new(Objects::TyUnknown));
+            self.parse_let_expressions(tokens,0,&obj)
         } else{
             let msg = format!("expected `Let` or `main`l found {:?}", first.token_type);
             let err = errors::KarisError{ error_type: errors::KarisErrorType::UnknownToken,message: msg   };
@@ -135,8 +136,28 @@ impl Parser {
     // - FunctionExpression
     // - CallExpression
     // - ReturnExpression
-    fn parse_let_expressions(&self,_tokens:&Vec<Token>) -> Result<Objects, errors::KarisError>{
-        todo!("implement")
+    fn parse_let_expressions(&self,tokens:&Vec<Token>, index: usize, 
+        object: &Rc<RefCell<Objects>>) -> Result<Objects, errors::KarisError>{
+        let objects_clone = object.clone();
+        let obj_ref = objects_clone.borrow();   
+
+        // base case: reached end of the bucket
+        if index == tokens.len(){    
+            let obj = &*obj_ref;
+            return Ok(obj.clone());
+        }
+
+        let token = &tokens[index];
+
+        match token.token_type {
+            IndentifierKind::LET | IndentifierKind::VARIABLE | 
+            IndentifierKind::INTTYPE | IndentifierKind::STRINGTYPE | 
+            IndentifierKind::BOOLEANTYPE => self.parse_let_expressions(tokens, index+1, object),            
+
+            _ => self.parse_let_expressions(tokens, index+1, object)
+        }
+
+        
     }
 
 }
@@ -147,7 +168,7 @@ mod tests {
     use super::*;   
 
     #[test]
-    fn should_statement1() {
+    fn should_parse1() {
         let lx = Lexer::new(String::from("let name = \"alice\";"));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
@@ -155,7 +176,7 @@ mod tests {
     }
 
     #[test]
-    fn should_statement2() {
+    fn should_parse2() {
         let lx = Lexer::new(String::from("let name @string = \"alice\";"));
         let mut parser = Parser::new(lx);
         let _res = parser.parse();
@@ -165,16 +186,17 @@ mod tests {
         }        
     }
 
-    #[test]
-    fn should_statement3() -> std::io::Result<()>{         
-        let cwd = std::env::current_dir()?;
-        let parent = cwd.parent().unwrap();       
-        let path = parent.join("testdata/test1.kr");        
-        let file = std::fs::read_to_string(path)?;
-        let lx = Lexer::new(file);        
-        let mut parser = Parser::new(lx);
-        let res = parser.parse();
-        assert!(res.is_err());
-        Ok(())
-    }
+    // #[test]
+    // fn should_parse_file() -> std::io::Result<()>{         
+    //     let cwd = std::env::current_dir()?;
+    //     let parent = cwd.parent().unwrap();       
+    //     let path = parent.join("testdata/test1.kr");        
+    //     let file = std::fs::read_to_string(path)?;
+    //     let lx = Lexer::new(file);        
+    //     let mut parser = Parser::new(lx);
+    //     let res = parser.parse();
+    //     assert!(res.is_err());
+    //     Ok(())
+    // }
+
 }

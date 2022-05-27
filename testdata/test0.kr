@@ -1,4 +1,4 @@
-let add = fn(x @int, y @int) @int{
+let add @int = fn(x @int, y @int){
     return x + y;
 };
 
@@ -6,8 +6,12 @@ let x @int = 5;
 
 let y @int = 7;
 
+let number @array:int = [1,2,3,4,5];
+
+let number @map:int:string = {0 : "0", 1 : "1", 2 : "2"};
+
 let name @string = "Karis";
 
-let echo = fn(name @string){
+let echo @unit = fn(name @string){
     print("Name #name")
 };
