@@ -1,9 +1,8 @@
 use std::io;
-use std::process;
 use std::path::Path;
+use std::process;
 
 use lexer::lexer as lex;
-
 
 const PROMPT: &str = ">>>";
 const EXIT: &str = "exit";
@@ -60,7 +59,7 @@ fn start_from_file(file: &str) -> io::Result<()> {
     let file = std::fs::read_to_string(path_str)?;
     let mut lx = lex::Lexer::new(file);
     lx.generate_and_print();
-    Ok(())    
+    Ok(())
 }
 
 fn main() -> io::Result<()> {
@@ -73,22 +72,24 @@ fn main() -> io::Result<()> {
         ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"
     );
     println!("Welcome to Karis Lang (v0.1.0) Interactive Console\n");
-    println!("
+    println!(
+        "
     Type  :g  to extract tokens with generator (useful for long sequences) or
     Type  :ng  to extract tokens once (returns only a single token from a sequence) or 
-    Type  :f  for file input");    
+    Type  :f  for file input"
+    );
 
     let mut input = String::new();
     io::stdin().read_line(&mut input)?;
-    let trimmed_input = input.trim();    
+    let trimmed_input = input.trim();
 
     if trimmed_input == WF {
         println!("Paste the file path then press enter");
         let mut file_path = String::new();
         io::stdin().read_line(&mut file_path)?;
         start_from_file(file_path.trim())
-    }else{        
+    } else {
         println!("Let's begin \n");
         start(trimmed_input)
-    }    
+    }
 }

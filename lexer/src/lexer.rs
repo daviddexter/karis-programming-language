@@ -33,7 +33,7 @@ impl Lexer {
         Lexer {
             input,
             position: 0,
-            line_number:1,
+            line_number: 1,
             read_position: 0,
             ch: None,
             identifier_start_read_position: -1,
@@ -66,7 +66,7 @@ impl Lexer {
             tokens::IndentifierKind::EOF,
             String::new(),
             self.line_number,
-            self.position,      
+            self.position,
         ))
     }
 
@@ -77,21 +77,20 @@ impl Lexer {
                 Ok(tokens::Token::new(
                     tokens::IndentifierKind::EOS,
                     String::from(""),
-                    self.line_number,  
-                    self.position, 
+                    self.line_number,
+                    self.position,
                 ))
             }
             false => {
                 let res = self.new_token();
                 if let Ok(tok) = &res {
                     if tok.token_type == tokens::IndentifierKind::SEMICOLON {
-                        let default =
-                            tokens::Token::new(
-                                tokens::IndentifierKind::UNKNOWN,
-                                 String::new(),
-                                 self.line_number,
-                                 self.position, 
-                            );
+                        let default = tokens::Token::new(
+                            tokens::IndentifierKind::UNKNOWN,
+                            String::new(),
+                            self.line_number,
+                            self.position,
+                        );
 
                         let last_tok = self.last_read_token.as_ref().unwrap_or(&default);
 
@@ -101,7 +100,7 @@ impl Lexer {
                             | tokens::IndentifierKind::TRUE
                             | tokens::IndentifierKind::FALSE
                             | tokens::IndentifierKind::RPAREN
-                            | tokens::IndentifierKind::RBRACE 
+                            | tokens::IndentifierKind::RBRACE
                             | tokens::IndentifierKind::END => {
                                 self.eos = true;
                             }
@@ -147,34 +146,41 @@ impl Lexer {
                 let ch_owned = ch.clone();
 
                 let tok = match ch.as_str() {
-                    tokens::COMMA => {
-                        Ok(tokens::Token::new(tokens::IndentifierKind::COMMA, ch_owned,self.line_number,
-                            self.position, ))
-                    }
+                    tokens::COMMA => Ok(tokens::Token::new(
+                        tokens::IndentifierKind::COMMA,
+                        ch_owned,
+                        self.line_number,
+                        self.position,
+                    )),
                     tokens::SEMICOLON => Ok(tokens::Token::new(
                         tokens::IndentifierKind::SEMICOLON,
-                        ch_owned,self.line_number,
-                        self.position, 
+                        ch_owned,
+                        self.line_number,
+                        self.position,
                     )),
                     tokens::LPAREN => Ok(tokens::Token::new(
                         tokens::IndentifierKind::LPAREN,
-                        ch_owned,self.line_number,
-                        self.position, 
+                        ch_owned,
+                        self.line_number,
+                        self.position,
                     )),
                     tokens::RPAREN => Ok(tokens::Token::new(
                         tokens::IndentifierKind::RPAREN,
-                        ch_owned,self.line_number,
-                        self.position, 
+                        ch_owned,
+                        self.line_number,
+                        self.position,
                     )),
                     tokens::LBRACE => Ok(tokens::Token::new(
                         tokens::IndentifierKind::LBRACE,
-                        ch_owned,self.line_number,
-                        self.position, 
+                        ch_owned,
+                        self.line_number,
+                        self.position,
                     )),
                     tokens::RBRACE => Ok(tokens::Token::new(
                         tokens::IndentifierKind::RBRACE,
-                        ch_owned,self.line_number,
-                        self.position, 
+                        ch_owned,
+                        self.line_number,
+                        self.position,
                     )),
 
                     // is the current char is `=`, check is the next character is `=`, therefore asserting
@@ -183,53 +189,81 @@ impl Lexer {
                         Some(val) => {
                             if val {
                                 self.move_current_position_and_read();
-                                Ok(tokens::Token::new(tokens::IndentifierKind::EQ, ch_owned,self.line_number,
-                                    self.position, ))
+                                Ok(tokens::Token::new(
+                                    tokens::IndentifierKind::EQ,
+                                    ch_owned,
+                                    self.line_number,
+                                    self.position,
+                                ))
                             } else {
                                 Ok(tokens::Token::new(
                                     tokens::IndentifierKind::ASSIGN,
-                                    ch_owned,self.line_number,
-                                    self.position, 
+                                    ch_owned,
+                                    self.line_number,
+                                    self.position,
                                 ))
                             }
                         }
                         None => Ok(tokens::Token::new(
                             tokens::IndentifierKind::ASSIGN,
-                            ch_owned,self.line_number,
-                            self.position, 
+                            ch_owned,
+                            self.line_number,
+                            self.position,
                         )),
                     },
-                    tokens::PLUS => Ok(tokens::Token::new(tokens::IndentifierKind::PLUS, ch_owned,self.line_number,
-                        self.position, )),
-                    tokens::MINUS => {
-                        Ok(tokens::Token::new(tokens::IndentifierKind::MINUS, ch_owned,self.line_number,
-                            self.position, ))
-                    }
+                    tokens::PLUS => Ok(tokens::Token::new(
+                        tokens::IndentifierKind::PLUS,
+                        ch_owned,
+                        self.line_number,
+                        self.position,
+                    )),
+                    tokens::MINUS => Ok(tokens::Token::new(
+                        tokens::IndentifierKind::MINUS,
+                        ch_owned,
+                        self.line_number,
+                        self.position,
+                    )),
 
-                     // is the current char is `!`, check is the next character is `=`, therefore asserting
+                    // is the current char is `!`, check is the next character is `=`, therefore asserting
                     // whether the combination is `!=`
                     tokens::BANG => match self.forward_is_any_token(vec![tokens::ASSIGN]) {
                         Some(val) => {
                             if val {
                                 self.move_current_position_and_read();
-                                Ok(tokens::Token::new(tokens::IndentifierKind::NOTEQ, ch_owned,self.line_number,
-                                    self.position, ))
+                                Ok(tokens::Token::new(
+                                    tokens::IndentifierKind::NOTEQ,
+                                    ch_owned,
+                                    self.line_number,
+                                    self.position,
+                                ))
                             } else {
-                                Ok(tokens::Token::new(tokens::IndentifierKind::BANG, ch_owned,self.line_number,
-                                    self.position, ))
+                                Ok(tokens::Token::new(
+                                    tokens::IndentifierKind::BANG,
+                                    ch_owned,
+                                    self.line_number,
+                                    self.position,
+                                ))
                             }
                         }
-                        None => Ok(tokens::Token::new(tokens::IndentifierKind::BANG, ch_owned,self.line_number,
-                            self.position, )),
+                        None => Ok(tokens::Token::new(
+                            tokens::IndentifierKind::BANG,
+                            ch_owned,
+                            self.line_number,
+                            self.position,
+                        )),
                     },
                     tokens::ASTERISK => Ok(tokens::Token::new(
                         tokens::IndentifierKind::ASTERISK,
-                        ch_owned,self.line_number,self.position, 
+                        ch_owned,
+                        self.line_number,
+                        self.position,
                     )),
-                    tokens::SLASH => {
-                        Ok(tokens::Token::new(tokens::IndentifierKind::SLASH, ch_owned,self.line_number,
-                            self.position, ))
-                    }
+                    tokens::SLASH => Ok(tokens::Token::new(
+                        tokens::IndentifierKind::SLASH,
+                        ch_owned,
+                        self.line_number,
+                        self.position,
+                    )),
 
                     // is the current char is `<`, check is the next character is `=`, therefore asserting
                     // whether the combination is `<=`
@@ -239,16 +273,25 @@ impl Lexer {
                                 self.move_current_position_and_read();
                                 Ok(tokens::Token::new(
                                     tokens::IndentifierKind::LTOREQ,
-                                    ch_owned,self.line_number,
-                                    self.position, 
+                                    ch_owned,
+                                    self.line_number,
+                                    self.position,
                                 ))
                             } else {
-                                Ok(tokens::Token::new(tokens::IndentifierKind::LT, ch_owned,self.line_number,
-                                    self.position, ))
+                                Ok(tokens::Token::new(
+                                    tokens::IndentifierKind::LT,
+                                    ch_owned,
+                                    self.line_number,
+                                    self.position,
+                                ))
                             }
                         }
-                        None => Ok(tokens::Token::new(tokens::IndentifierKind::LT, ch_owned,self.line_number,
-                            self.position, )),
+                        None => Ok(tokens::Token::new(
+                            tokens::IndentifierKind::LT,
+                            ch_owned,
+                            self.line_number,
+                            self.position,
+                        )),
                     },
 
                     // is the current char is `>`, check is the next character is `=`, therefore asserting
@@ -259,21 +302,31 @@ impl Lexer {
                                 self.move_current_position_and_read();
                                 Ok(tokens::Token::new(
                                     tokens::IndentifierKind::GTOREQ,
-                                    ch_owned,self.line_number,
-                                    self.position, 
+                                    ch_owned,
+                                    self.line_number,
+                                    self.position,
                                 ))
                             } else {
-                                Ok(tokens::Token::new(tokens::IndentifierKind::GT, ch_owned,self.line_number,
-                                    self.position, ))
+                                Ok(tokens::Token::new(
+                                    tokens::IndentifierKind::GT,
+                                    ch_owned,
+                                    self.line_number,
+                                    self.position,
+                                ))
                             }
                         }
-                        None => Ok(tokens::Token::new(tokens::IndentifierKind::GT, ch_owned,self.line_number,
-                            self.position, )),
-                    },                    
+                        None => Ok(tokens::Token::new(
+                            tokens::IndentifierKind::GT,
+                            ch_owned,
+                            self.line_number,
+                            self.position,
+                        )),
+                    },
                     tokens::NULL => Ok(tokens::Token::new(
                         tokens::IndentifierKind::EOF,
-                        String::new(),self.line_number,
-                        self.position, 
+                        String::new(),
+                        self.line_number,
+                        self.position,
                     )),
                     _ => {
                         // update identifier_start_read_position so that we know where we
@@ -298,16 +351,17 @@ impl Lexer {
     }
 
     fn skip_whitespace_and_string_escape(&mut self) {
-        let current = self.ch.as_ref().unwrap(); 
-        
-        if is_newline(current.as_bytes().first().unwrap()){
-            self.line_number+=0x1;
+        let current = self.ch.as_ref().unwrap();
+
+        if is_newline(current.as_bytes().first().unwrap()) {
+            self.line_number += 0x1;
             self.move_current_position_and_read();
             return self.skip_whitespace_and_string_escape();
         }
 
-        if is_space(current.as_bytes().first().unwrap()) || 
-            is_newline(current.as_bytes().first().unwrap())          {
+        if is_space(current.as_bytes().first().unwrap())
+            || is_newline(current.as_bytes().first().unwrap())
+        {
             self.move_current_position_and_read();
             self.skip_whitespace_and_string_escape()
         }
@@ -338,13 +392,13 @@ impl Lexer {
     }
 
     // move the length of a string literal untill encounter a closing quatation
-    fn traverse_to_closing_quotations(&self,begin:usize) -> usize {  
+    fn traverse_to_closing_quotations(&self, begin: usize) -> usize {
         let next = self.input.get(begin..begin + 0x1).unwrap();
-        if is_quotation_mark(next){
+        if is_quotation_mark(next) {
             begin
-        }else{
+        } else {
             self.traverse_to_closing_quotations(begin + 0x1)
-        }        
+        }
     }
 
     fn extract_token_from_alphabet(&mut self) -> Result<tokens::Token, errors::KarisError> {
@@ -376,24 +430,30 @@ impl Lexer {
                     self.position + 0x1,
                     self.read_position + 0x1,
                     tokens::SEMICOLON,
-                );                
+                );
 
                 // if encountered an opengin quatation mark, moving along the sequence until a closing quatation mark is encountered
-                if is_quotation_mark(current_literal){
-                    let string_literal_ending = self.traverse_to_closing_quotations(self.position+ 0x1);
-                    let string_literal = self.input.get(self.position+0x1..string_literal_ending).unwrap();                    
+                if is_quotation_mark(current_literal) {
+                    let string_literal_ending =
+                        self.traverse_to_closing_quotations(self.position + 0x1);
+                    let string_literal = self
+                        .input
+                        .get(self.position + 0x1..string_literal_ending)
+                        .unwrap();
                     // reset identifier start read position
                     self.identifier_start_read_position = -0x1;
                     self.position = string_literal_ending;
-                    self.read_position = string_literal_ending + 0x1;                    
+                    self.read_position = string_literal_ending + 0x1;
                     Ok(tokens::Token::new(
-                                tokens::IndentifierKind::STRINGLITERAL,
-                                String::from(string_literal),self.line_number,
-                                self.position, 
-                    ))                       
+                        tokens::IndentifierKind::STRINGLITERAL,
+                        String::from(string_literal),
+                        self.line_number,
+                        self.position,
+                    ))
                 } else if current_literal == tokens::AT
                     && next_char_fn(self.position, self.read_position + 0x4, tokens::NULL)
-                        == tokens::MAIN {
+                        == tokens::MAIN
+                {
                     // read the identifier then update the literal and the token
                     match self
                         .input
@@ -401,25 +461,27 @@ impl Lexer {
                     {
                         Some(ident) => {
                             // reset identifier start read position
-                            self.identifier_start_read_position = -0x1;                       
+                            self.identifier_start_read_position = -0x1;
 
                             self.position += 0x4;
-                            self.read_position += 0x4; 
-                            
+                            self.read_position += 0x4;
+
                             let ident_owned = String::from(ident);
                             Ok(tokens::Token::new(
                                 tokens::IndentifierKind::MAIN,
-                                ident_owned,self.line_number,
-                                self.position, 
+                                ident_owned,
+                                self.line_number,
+                                self.position,
                             ))
-                            
                         }
                         None => self.unknown_token_error(tokens::NULL),
                     }
-                } else if current_literal == tokens::AT && 
-                    next_char_fn(self.position, self.read_position + 0x3, tokens::NULL) == tokens::END  {
-                        // read the identifier then update the literal and the token
-                        match self
+                } else if current_literal == tokens::AT
+                    && next_char_fn(self.position, self.read_position + 0x3, tokens::NULL)
+                        == tokens::END
+                {
+                    // read the identifier then update the literal and the token
+                    match self
                         .input
                         .get(self.identifier_start_read_position as usize..self.read_position + 0x3)
                     {
@@ -427,18 +489,19 @@ impl Lexer {
                             // reset identifier start read position
                             self.identifier_start_read_position = -0x1;
                             self.position += 0x3;
-                            self.read_position += 0x3;                       
+                            self.read_position += 0x3;
 
                             let ident_owned = String::from(ident);
                             Ok(tokens::Token::new(
                                 tokens::IndentifierKind::END,
-                                ident_owned,self.line_number,
-                                self.position, 
+                                ident_owned,
+                                self.line_number,
+                                self.position,
                             ))
                         }
                         None => self.unknown_token_error(tokens::NULL),
                     }
-                }else if is_space(next_char.as_bytes().first().unwrap())
+                } else if is_space(next_char.as_bytes().first().unwrap())
                     || next_char == tokens::COMMA
                     || next_char == tokens::LBRACE
                     || next_char == tokens::RPAREN
@@ -457,82 +520,97 @@ impl Lexer {
                             let tok = match ident {
                                 tokens::INT => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::INTTYPE,
-                                    String::from(ident),self.line_number,
-                                    self.position, 
+                                    String::from(ident),
+                                    self.line_number,
+                                    self.position,
                                 )),
                                 tokens::STRING => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::STRINGTYPE,
-                                    String::from(ident),self.line_number,
-                                    self.position, 
+                                    String::from(ident),
+                                    self.line_number,
+                                    self.position,
                                 )),
                                 tokens::BOOLEAN => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::BOOLEANTYPE,
-                                    String::from(ident),self.line_number,
-                                    self.position, 
+                                    String::from(ident),
+                                    self.line_number,
+                                    self.position,
                                 )),
                                 tokens::UNIT => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::UNITTYPE,
-                                    String::from(ident),self.line_number,
-                                    self.position, 
+                                    String::from(ident),
+                                    self.line_number,
+                                    self.position,
                                 )),
                                 tokens::LET => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::LET,
-                                    String::from(ident),self.line_number,
-                                    self.position, 
+                                    String::from(ident),
+                                    self.line_number,
+                                    self.position,
                                 )),
                                 tokens::FUNCTION => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::FUNCTION,
-                                    String::from(ident),self.line_number,
-                                    self.position, 
+                                    String::from(ident),
+                                    self.line_number,
+                                    self.position,
                                 )),
                                 tokens::TRUE => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::TRUE,
-                                    String::from(ident),self.line_number,
-                                    self.position, 
+                                    String::from(ident),
+                                    self.line_number,
+                                    self.position,
                                 )),
                                 tokens::FALSE => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::FALSE,
-                                    String::from(ident),self.line_number,
-                                    self.position, 
+                                    String::from(ident),
+                                    self.line_number,
+                                    self.position,
                                 )),
                                 tokens::IF => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::IF,
-                                    String::from(ident),self.line_number,
-                                    self.position, 
+                                    String::from(ident),
+                                    self.line_number,
+                                    self.position,
                                 )),
 
                                 tokens::ELSE => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::ELSE,
-                                    String::from(ident),self.line_number,
-                                    self.position, 
+                                    String::from(ident),
+                                    self.line_number,
+                                    self.position,
                                 )),
                                 tokens::RETURN => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::RETURN,
-                                    String::from(ident),self.line_number,
-                                    self.position, 
+                                    String::from(ident),
+                                    self.line_number,
+                                    self.position,
                                 )),
                                 tokens::FORMAT => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::FORMAT,
-                                    String::from(ident),self.line_number,
-                                    self.position, 
+                                    String::from(ident),
+                                    self.line_number,
+                                    self.position,
                                 )),
                                 tokens::PRINT => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::PRINT,
-                                    String::from(ident),self.line_number,
-                                    self.position, 
+                                    String::from(ident),
+                                    self.line_number,
+                                    self.position,
                                 )),
                                 _ => {
                                     if is_intergers_only(ident) {
                                         Ok(tokens::Token::new(
                                             tokens::IndentifierKind::INTLITERAL,
-                                            ident_owned,self.line_number,
-                                            self.position, 
+                                            ident_owned,
+                                            self.line_number,
+                                            self.position,
                                         ))
                                     } else if is_alphanumeric_only(ident) {
                                         Ok(tokens::Token::new(
                                             tokens::IndentifierKind::VARIABLE,
-                                            ident_owned,self.line_number,
-                                            self.position, 
+                                            ident_owned,
+                                            self.line_number,
+                                            self.position,
                                         ))
                                     } else {
                                         self.unknown_token_error(ident)
@@ -560,8 +638,9 @@ impl Lexer {
                         self.read_position += 1;
                         Ok(tokens::Token::new(
                             tokens::IndentifierKind::FUNCTION,
-                            String::from(ident),self.line_number,
-                            self.position, 
+                            String::from(ident),
+                            self.line_number,
+                            self.position,
                         ))
                     } else {
                         self.unknown_token_error(ident)
@@ -712,7 +791,7 @@ mod tests {
         assert_eq!(
             lx.new_token().unwrap().token_type,
             tokens::IndentifierKind::GT
-        );        
+        );
     }
 
     #[test]
@@ -817,7 +896,7 @@ mod tests {
         assert_eq!(
             lx.new_token().unwrap().token_type,
             tokens::IndentifierKind::SLASH
-        );        
+        );
         assert!(lx.new_token().is_err());
         assert_eq!(
             lx.new_token().unwrap().token_type,
@@ -971,7 +1050,7 @@ mod tests {
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::LPAREN
-        );        
+        );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::STRINGLITERAL
@@ -979,7 +1058,7 @@ mod tests {
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::RPAREN
-        );  
+        );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::SEMICOLON
@@ -1194,7 +1273,7 @@ mod tests {
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::RPAREN
-        );        
+        );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::LBRACE
@@ -1271,7 +1350,6 @@ mod tests {
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::EOS
         );
-
     }
 
     #[test]
@@ -1333,7 +1411,7 @@ mod tests {
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::RPAREN
-        );        
+        );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::LBRACE
@@ -1400,8 +1478,6 @@ mod tests {
         );
     }
 
-
-
     #[test]
     fn should_read_multiline3() {
         let mut lx = Lexer::new(String::from(
@@ -1437,19 +1513,19 @@ mod tests {
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::LPAREN
-        ); 
+        );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::VARIABLE
-        );  
+        );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::STRINGTYPE
-        );       
+        );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::RPAREN
-        );        
+        );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::LBRACE
@@ -1480,32 +1556,32 @@ mod tests {
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::EOS
-        );   
-        
+        );
+
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::LET
-        ); 
+        );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::VARIABLE
-        ); 
+        );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::STRINGTYPE
-        ); 
+        );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::ASSIGN
-        ); 
+        );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::FORMAT
-        ); 
+        );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
@@ -1526,12 +1602,12 @@ mod tests {
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::SEMICOLON
         );
-        
+
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::EOS
-        );       
-        
+        );
+
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::RBRACE
@@ -1545,8 +1621,6 @@ mod tests {
             tokens::IndentifierKind::EOS
         );
     }
-
-
 
     #[test]
     fn should_read_multiline4() {
@@ -1578,7 +1652,7 @@ mod tests {
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::RPAREN
         );
-        
+
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::LBRACE

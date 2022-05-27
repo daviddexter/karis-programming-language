@@ -5,19 +5,6 @@ use std::io;
 pub enum KarisErrorType {
     UnknownToken,
     MissingVariableName,
-
-
-    // UnknownDeclaration,
-    // Internal,
-    // NotImplemented,
-
-
-    
-    // TypeMismatch,
-    // TokenNotFound,
-    // AssignmentMismatch,
-    // LHSMissing,
-    // RHSMissing,
 }
 
 #[derive(Debug, Clone)]
