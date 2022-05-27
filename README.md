@@ -12,5 +12,6 @@ This project is dedicated to my parents who have always supported me.
 - Source code must be in one file
 - Can only be used to build executable logic. That is, `main` must be provided
 - No string concatenation
-- code comments
+- Code comments
+- Decimal types
 
