@@ -25,6 +25,7 @@ pub const HASH: &str = "#";
 pub const INT: &str = "@int";
 pub const STRING: &str = "@string";
 pub const BOOLEAN: &str = "@bool";
+pub const UNIT: &str = "@unit";
 pub const MAIN: &str = "@main";
 pub const END: &str = "@end";
 pub const LET: &str = "let";
@@ -37,9 +38,8 @@ pub const RETURN: &str = "return";
 pub const FORMAT: &str = "format";
 pub const PRINT: &str = "print";
 
-#[derive(Debug, Default, PartialEq,Eq, Clone, Copy)]
-pub enum IndentifierKind {
-    #[default]
+#[derive(Debug, PartialEq,Eq, Clone, Copy)]
+pub enum IndentifierKind {    
     UNKNOWN,
 
     EOF, // end of file. Nothoing more to read
@@ -52,6 +52,7 @@ pub enum IndentifierKind {
     INTTYPE,       // @int
     STRINGTYPE,    // @string
     BOOLEANTYPE,   //@bool
+    UNITTYPE,      //@unit
 
     // Delimiters
     COMMA,     // ","
@@ -88,6 +89,10 @@ pub enum IndentifierKind {
     END,
     FORMAT,
     PRINT,
+}
+
+impl Default for IndentifierKind {
+    fn default() -> Self { IndentifierKind::UNKNOWN }
 }
 
 /// Token is an identifiable single unit

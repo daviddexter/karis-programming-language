@@ -470,6 +470,11 @@ impl Lexer {
                                     String::from(ident),self.line_number,
                                     self.position, 
                                 )),
+                                tokens::UNIT => Ok(tokens::Token::new(
+                                    tokens::IndentifierKind::UNITTYPE,
+                                    String::from(ident),self.line_number,
+                                    self.position, 
+                                )),
                                 tokens::LET => Ok(tokens::Token::new(
                                     tokens::IndentifierKind::LET,
                                     String::from(ident),self.line_number,
@@ -1133,7 +1138,7 @@ mod tests {
     fn should_read_multiline1() {
         let mut lx = Lexer::new(String::from(
             "
-        let add = fn(x @int, y @int) @int{
+        let add @int = fn(x @int, y @int){
             return x + y;
         };
 
@@ -1149,6 +1154,10 @@ mod tests {
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::VARIABLE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::INTTYPE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
@@ -1185,11 +1194,7 @@ mod tests {
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::RPAREN
-        );
-        assert_eq!(
-            lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTTYPE
-        );
+        );        
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::LBRACE
@@ -1273,7 +1278,7 @@ mod tests {
     fn should_read_multiline2() {
         let mut lx = Lexer::new(String::from(
             "
-        let greater = fn(x @int, y @int) @int {
+        let greater @int = fn(x @int, y @int) {
             if x > y {
                 return x;
             }
@@ -1288,6 +1293,10 @@ mod tests {
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::VARIABLE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::INTTYPE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
@@ -1324,11 +1333,7 @@ mod tests {
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::RPAREN
-        );
-        assert_eq!(
-            lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTTYPE
-        );
+        );        
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IndentifierKind::LBRACE
@@ -1395,8 +1400,156 @@ mod tests {
         );
     }
 
+
+
     #[test]
     fn should_read_multiline3() {
+        let mut lx = Lexer::new(String::from(
+            "
+        let greater @unit = fn(name @string) {
+            print(\"Hi you\");
+            let msg @string = format(\"Hi you #name\");
+        };  
+        
+        ",
+        ));
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::LET
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::VARIABLE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::UNITTYPE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::ASSIGN
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::FUNCTION
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::LPAREN
+        ); 
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::VARIABLE
+        );  
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::STRINGTYPE
+        );       
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::RPAREN
+        );        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::LBRACE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::PRINT
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::LPAREN
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::STRINGLITERAL
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::RPAREN
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::SEMICOLON
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::EOS
+        );   
+        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::LET
+        ); 
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::VARIABLE
+        ); 
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::STRINGTYPE
+        ); 
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::ASSIGN
+        ); 
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::FORMAT
+        ); 
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::LPAREN
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::STRINGLITERAL
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::RPAREN
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::SEMICOLON
+        );
+        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::EOS
+        );       
+        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::RBRACE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::SEMICOLON
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IndentifierKind::EOS
+        );
+    }
+
+
+
+    #[test]
+    fn should_read_multiline4() {
         let mut lx = Lexer::new(String::from(
             "
         @main fn(){
