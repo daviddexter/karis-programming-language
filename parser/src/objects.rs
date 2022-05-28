@@ -1,3 +1,5 @@
+use enum_as_inner::EnumAsInner;
+
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum DeclarationType {
     Unknown,
@@ -40,7 +42,7 @@ pub trait Value {
     fn which(&self) -> TypingKind;
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, EnumAsInner, Clone)]
 pub enum Objects {
     TyUnknown,
     TyProgram(Program),
@@ -76,7 +78,7 @@ impl Default for Objects {
 }
 
 // Represents literal values definitions
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, EnumAsInner, PartialEq, Eq, Clone)]
 pub enum LiteralObjects {
     ObjIntergerValue(IntergerValue),
     ObjBooleanValue(BooleanValue),
@@ -168,6 +170,40 @@ impl Program {
     }
 }
 
+#[derive(Debug, Clone)]
+pub enum Operators {
+    Unknown,
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+}
+
+impl Default for Operators {
+    fn default() -> Self {
+        Operators::Unknown
+    }
+}
+
+#[derive(Debug, Default, Clone)]
+pub struct PrecedenceTree {
+    pub operator: Option<Operators>,
+    pub value: isize,
+    pub lhs: Option<Box<PrecedenceTree>>,
+    pub rhs: Option<Box<PrecedenceTree>>,
+}
+
+impl PrecedenceTree {
+    pub fn new_with_value(value: isize) -> PrecedenceTree {
+        PrecedenceTree {
+            operator: None,
+            value,
+            lhs: None,
+            rhs: None,
+        }
+    }
+}
+
 // LiteralExpression are `let` binding. These expressions have an identifier, a type information, and the value
 // Example
 //      let y @int = 7;
@@ -190,7 +226,7 @@ pub struct LiteralExpression {
     // Example:
     // let y @int = 1 + 1;
     // let x @int = 2 * 2 + 1;
-    pub value_expression: Option<Box<Objects>>,
+    pub value_expression: Option<PrecedenceTree>,
 }
 
 impl Declaration for LiteralExpression {
@@ -212,8 +248,8 @@ impl LiteralExpression {
         self.value = Some(value);
     }
 
-    pub fn add_value_expression(&mut self, value: Objects) {
-        self.value_expression = Some(Box::new(value));
+    pub fn add_value_expression(&mut self, value: PrecedenceTree) {
+        self.value_expression = Some(value);
     }
 }
 
