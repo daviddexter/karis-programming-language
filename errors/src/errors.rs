@@ -7,6 +7,7 @@ pub enum KarisErrorType {
     MissingVariableName,
     MissingTypeInfo,
     InvalidSyntax,
+    MalformedProgram,
 }
 
 #[derive(Debug, Clone)]
