@@ -212,8 +212,12 @@ impl Parser {
                 // literals : intergers, string, booleans
                 let next_token = &tokens[index + 1];
 
-                // Example: let num @int = 123;
-                if next_token.token_type == IndentifierKind::INTLITERAL {
+                // Example:
+                //   let num @int = 123;
+                //   let num @int = -123;
+                if next_token.token_type == IndentifierKind::INTLITERAL
+                    || next_token.token_type == IndentifierKind::MINUS
+                {
                     self.interger_literal_expression(tokens, object)?;
                 }
 
@@ -282,14 +286,14 @@ impl Parser {
 
         if semicolon_position_token.token_type != IndentifierKind::SEMICOLON {
             //  parse expression
-            let interger_parts = tokens.get(0x04..tokens.len() - 0x02).unwrap_or_else(|| {
+            let rhs_parts = tokens.get(0x04..tokens.len() - 0x02).unwrap_or_else(|| {
                 panic!(
                     "failed to retrieve RHS of literal expression: Ln {}, Col {}",
                     tokens[0x04].line_number, tokens[0x04].column_number
                 )
             });
 
-            let tree = self.expression(interger_parts, 0, 0);
+            let tree = self.expression(rhs_parts, 0, 0);
             lit.add_value_expression(tree);
         } else {
             let val = &tokens[0x04].literal;
@@ -630,17 +634,62 @@ mod tests {
         assert!(literal.value_expression.is_some());
 
         let value = literal.value_expression.as_ref().unwrap();
-        println!("{:?},", value);
+        println!("{:?}", value);
 
-        // let interger = value
-        //     .as_obj_interger_value()
-        //     .unwrap_or_else(|| panic!("expected `IntergerValue`"));
-        // let v = interger.value.as_ref().unwrap();
-        // let t = 1 as isize;
-        // assert_eq!(v, &t);
+        assert_eq!(value.operator, Some(Operators::Add));
+        assert_eq!(value.lhs.as_ref().unwrap().value, 10 as isize);
+        assert_eq!(
+            value.rhs.as_ref().unwrap().operator,
+            Some(Operators::Multiply)
+        );
+        assert_eq!(
+            value.rhs.as_ref().unwrap().lhs.as_ref().unwrap().value,
+            5 as isize
+        );
+        assert_eq!(
+            value.rhs.as_ref().unwrap().rhs.as_ref().unwrap().value,
+            2 as isize
+        );
 
         Ok(())
     }
+
+    #[test]
+    fn should_parse9() -> std::io::Result<()> {
+        let lx = Lexer::new(String::from("let num @int = -10 + 5 * 2;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse()?;
+        assert_eq!(res.which(), DeclarationType::Program);
+
+        let program = res
+            .as_ty_program()
+            .unwrap_or_else(|| panic!("expected `Program`"));
+        assert_eq!(program.body.len(), 1);
+
+        let first = &program.body[0];
+        assert_eq!(first.which(), DeclarationType::LiteralExpression);
+
+        let literal = first
+            .as_ty_literal_expression()
+            .unwrap_or_else(|| panic!("expected `LiteralExpression`"));
+
+        assert_eq!(literal.identifier.as_ref().unwrap(), &String::from("num"));
+        assert_eq!(literal.typing.as_ref().unwrap(), &TypingKind::Int);
+        assert!(literal.value.is_none());
+        assert!(literal.value_expression.is_some());
+
+        let value = literal.value_expression.as_ref().unwrap();
+        println!("{:?}", value);
+
+        //assert_eq!(value.operator, Some(Operators::Add));
+        //assert_eq!(value.lhs.as_ref().unwrap().value, -10 as isize);
+        // assert_eq!(value.rhs.as_ref().unwrap().operator  , Some(Operators::Multiply));
+        // assert_eq!(value.rhs.as_ref().unwrap().lhs.as_ref().unwrap().value , 5 as isize );
+        // assert_eq!(value.rhs.as_ref().unwrap().rhs.as_ref().unwrap().value , 2 as isize );
+
+        Ok(())
+    }
+
     // #[test]
     // fn should_parse3() {
     //     let lx = Lexer::new(String::from("let name @string = \"alice\";"));

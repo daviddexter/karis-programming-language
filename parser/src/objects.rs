@@ -170,7 +170,7 @@ impl Program {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Eq, PartialEq, Clone)]
 pub enum Operators {
     Unknown,
     Add,
@@ -190,7 +190,7 @@ pub struct PrecedenceTree {
     pub operator: Option<Operators>,
     pub value: isize,
     pub lhs: Option<Box<PrecedenceTree>>,
-    pub rhs: Option<Box<PrecedenceTree>>,
+    pub rhs: Option<Box<PrecedenceTree>>,    
 }
 
 impl PrecedenceTree {
@@ -199,7 +199,7 @@ impl PrecedenceTree {
             operator: None,
             value,
             lhs: None,
-            rhs: None,
+            rhs: None,            
         }
     }
 }
