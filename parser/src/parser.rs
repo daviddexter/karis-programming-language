@@ -315,35 +315,60 @@ impl Parser {
         let nud_fn = || {
             let mut nud = PrecedenceTree::default();
             let current_token = &tokens[index];
-            let token_value = current_token
-                .literal
-                .parse::<isize>()
-                .unwrap_or_else(|_| panic!("failed to get NUD value"));
-            nud.value = token_value;
+
+            let token_value_fn = |token: &Token| {
+                token
+                    .literal
+                    .parse::<isize>()
+                    .unwrap_or_else(|_| panic!("failed to get NUD value"))
+            };
+
+            if current_token.token_type == IndentifierKind::MINUS {
+                let next_token = &tokens[index + 0x01];
+                nud.value = -token_value_fn(next_token);
+                nud.is_negated = true;
+            } else {
+                nud.value = token_value_fn(current_token);
+            }
+
             nud
         };
 
-        let led_fn = |left: PrecedenceTree, next_token: &Token| -> PrecedenceTree {
-            let operator = Some(
-                self.operator(next_token)
-                    .unwrap_or_else(|_| panic!("failed to get a valid operator")),
-            );
-            let rhs = self.expression(tokens, self.binding_power(next_token), index + 0x02);
+        let led_fn =
+            |left: PrecedenceTree, next_token: &Token, needle_index: usize| -> PrecedenceTree {
+                let operator = Some(
+                    self.operator(next_token)
+                        .unwrap_or_else(|_| panic!("failed to get a valid operator")),
+                );
+                let rhs =
+                    self.expression(tokens, self.binding_power(next_token), needle_index + 0x01);
 
-            PrecedenceTree {
-                lhs: Some(Box::new(left)),
-                operator,
-                rhs: Some(Box::new(rhs)),
-                ..Default::default()
+                PrecedenceTree {
+                    lhs: Some(Box::new(left)),
+                    operator,
+                    rhs: Some(Box::new(rhs)),
+                    ..Default::default()
+                }
+            };
+
+        let mut left = nud_fn();
+
+        let current_index = {
+            if left.is_negated {
+                index + 0x1
+            } else {
+                index
             }
         };
 
-        let mut left = nud_fn();
-        if let Some(next_token) = tokens.get(index + 0x01) {
-            if rbp < self.binding_power(next_token) {
-                left = led_fn(left, next_token)
+        if let Some(next_token_index) = self.move_needle_to_operator_index(tokens, current_index) {
+            if let Some(next_token) = tokens.get(next_token_index) {
+                if rbp < self.binding_power(next_token) {
+                    left = led_fn(left, next_token, next_token_index)
+                }
             }
         }
+
         left
     }
 
@@ -364,6 +389,25 @@ impl Parser {
             IndentifierKind::ASTERISK => Ok(Operators::Multiply),
             IndentifierKind::SLASH => Ok(Operators::Divide),
             _ => Err(anyhow::Error::msg("invalid operator")),
+        }
+    }
+
+    fn move_needle_to_operator_index(
+        &self,
+        tokens: &[Token],
+        current_index: usize,
+    ) -> Option<usize> {
+        if current_index == tokens.len() {
+            return None;
+        }
+        let next_token = &tokens[current_index];
+
+        match next_token.token_type {
+            IndentifierKind::PLUS
+            | IndentifierKind::MINUS
+            | IndentifierKind::ASTERISK
+            | IndentifierKind::SLASH => Some(current_index),
+            _ => self.move_needle_to_operator_index(tokens, current_index + 0x01),
         }
     }
 
@@ -634,7 +678,6 @@ mod tests {
         assert!(literal.value_expression.is_some());
 
         let value = literal.value_expression.as_ref().unwrap();
-        println!("{:?}", value);
 
         assert_eq!(value.operator, Some(Operators::Add));
         assert_eq!(value.lhs.as_ref().unwrap().value, 10 as isize);
@@ -681,11 +724,48 @@ mod tests {
         let value = literal.value_expression.as_ref().unwrap();
         println!("{:?}", value);
 
-        //assert_eq!(value.operator, Some(Operators::Add));
-        //assert_eq!(value.lhs.as_ref().unwrap().value, -10 as isize);
-        // assert_eq!(value.rhs.as_ref().unwrap().operator  , Some(Operators::Multiply));
-        // assert_eq!(value.rhs.as_ref().unwrap().lhs.as_ref().unwrap().value , 5 as isize );
-        // assert_eq!(value.rhs.as_ref().unwrap().rhs.as_ref().unwrap().value , 2 as isize );
+        assert_eq!(value.operator, Some(Operators::Add));
+        assert_eq!(value.lhs.as_ref().unwrap().value, -10 as isize);
+        assert_eq!(value.rhs.as_ref().unwrap().operator  , Some(Operators::Multiply));
+        assert_eq!(value.rhs.as_ref().unwrap().lhs.as_ref().unwrap().value , 5 as isize );
+        assert_eq!(value.rhs.as_ref().unwrap().rhs.as_ref().unwrap().value , 2 as isize );
+
+        Ok(())
+    }
+
+
+    #[test]
+    fn should_parse10() -> std::io::Result<()> {
+        let lx = Lexer::new(String::from("let num @int = 10 + -5 * 2;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse()?;
+        assert_eq!(res.which(), DeclarationType::Program);
+
+        let program = res
+            .as_ty_program()
+            .unwrap_or_else(|| panic!("expected `Program`"));
+        assert_eq!(program.body.len(), 1);
+
+        let first = &program.body[0];
+        assert_eq!(first.which(), DeclarationType::LiteralExpression);
+
+        let literal = first
+            .as_ty_literal_expression()
+            .unwrap_or_else(|| panic!("expected `LiteralExpression`"));
+
+        assert_eq!(literal.identifier.as_ref().unwrap(), &String::from("num"));
+        assert_eq!(literal.typing.as_ref().unwrap(), &TypingKind::Int);
+        assert!(literal.value.is_none());
+        assert!(literal.value_expression.is_some());
+
+        let value = literal.value_expression.as_ref().unwrap();
+        println!("{:?}", value);
+
+        assert_eq!(value.operator, Some(Operators::Add));
+        assert_eq!(value.lhs.as_ref().unwrap().value, 10 as isize);
+        assert_eq!(value.rhs.as_ref().unwrap().operator  , Some(Operators::Multiply));
+        assert_eq!(value.rhs.as_ref().unwrap().lhs.as_ref().unwrap().value , -5 as isize );
+        assert_eq!(value.rhs.as_ref().unwrap().rhs.as_ref().unwrap().value , 2 as isize );
 
         Ok(())
     }

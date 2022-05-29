@@ -190,7 +190,8 @@ pub struct PrecedenceTree {
     pub operator: Option<Operators>,
     pub value: isize,
     pub lhs: Option<Box<PrecedenceTree>>,
-    pub rhs: Option<Box<PrecedenceTree>>,    
+    pub rhs: Option<Box<PrecedenceTree>>,
+    pub is_negated: bool,
 }
 
 impl PrecedenceTree {
@@ -199,7 +200,8 @@ impl PrecedenceTree {
             operator: None,
             value,
             lhs: None,
-            rhs: None,            
+            rhs: None,
+            is_negated: false,
         }
     }
 }
