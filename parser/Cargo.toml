@@ -13,3 +13,5 @@ errors = { path = "../errors" }
 enum-as-inner = "0.5.0"
 itertools = "0.10.3"
 anyhow = "1.0.57"
+hashbrown = "0.12.1"
+either = "1.6.1"

@@ -63,7 +63,7 @@ impl Lexer {
         }
 
         Ok(tokens::Token::new(
-            tokens::IndentifierKind::EOF,
+            tokens::IdentifierKind::EOF,
             String::new(),
             self.line_number,
             self.position,
@@ -75,7 +75,7 @@ impl Lexer {
             true => {
                 self.eos = false;
                 Ok(tokens::Token::new(
-                    tokens::IndentifierKind::EOS,
+                    tokens::IdentifierKind::EOS,
                     String::from(""),
                     self.line_number,
                     self.position,
@@ -84,9 +84,9 @@ impl Lexer {
             false => {
                 let res = self.new_token();
                 if let Ok(tok) = &res {
-                    if tok.token_type == tokens::IndentifierKind::SEMICOLON {
+                    if tok.token_type == tokens::IdentifierKind::SEMICOLON {
                         let default = tokens::Token::new(
-                            tokens::IndentifierKind::UNKNOWN,
+                            tokens::IdentifierKind::UNKNOWN,
                             String::new(),
                             self.line_number,
                             self.position,
@@ -95,13 +95,13 @@ impl Lexer {
                         let last_tok = self.last_read_token.as_ref().unwrap_or(&default);
 
                         match last_tok.token_type {
-                            tokens::IndentifierKind::INTLITERAL
-                            | tokens::IndentifierKind::STRINGLITERAL
-                            | tokens::IndentifierKind::TRUE
-                            | tokens::IndentifierKind::FALSE
-                            | tokens::IndentifierKind::RPAREN
-                            | tokens::IndentifierKind::RBRACE
-                            | tokens::IndentifierKind::END => {
+                            tokens::IdentifierKind::INTLITERAL
+                            | tokens::IdentifierKind::STRINGLITERAL
+                            | tokens::IdentifierKind::TRUE
+                            | tokens::IdentifierKind::FALSE
+                            | tokens::IdentifierKind::RPAREN
+                            | tokens::IdentifierKind::RBRACE
+                            | tokens::IdentifierKind::END => {
                                 self.eos = true;
                             }
                             _ => {
@@ -147,37 +147,37 @@ impl Lexer {
 
                 let tok = match ch.as_str() {
                     tokens::COMMA => Ok(tokens::Token::new(
-                        tokens::IndentifierKind::COMMA,
+                        tokens::IdentifierKind::COMMA,
                         ch_owned,
                         self.line_number,
                         self.position,
                     )),
                     tokens::SEMICOLON => Ok(tokens::Token::new(
-                        tokens::IndentifierKind::SEMICOLON,
+                        tokens::IdentifierKind::SEMICOLON,
                         ch_owned,
                         self.line_number,
                         self.position,
                     )),
                     tokens::LPAREN => Ok(tokens::Token::new(
-                        tokens::IndentifierKind::LPAREN,
+                        tokens::IdentifierKind::LPAREN,
                         ch_owned,
                         self.line_number,
                         self.position,
                     )),
                     tokens::RPAREN => Ok(tokens::Token::new(
-                        tokens::IndentifierKind::RPAREN,
+                        tokens::IdentifierKind::RPAREN,
                         ch_owned,
                         self.line_number,
                         self.position,
                     )),
                     tokens::LBRACE => Ok(tokens::Token::new(
-                        tokens::IndentifierKind::LBRACE,
+                        tokens::IdentifierKind::LBRACE,
                         ch_owned,
                         self.line_number,
                         self.position,
                     )),
                     tokens::RBRACE => Ok(tokens::Token::new(
-                        tokens::IndentifierKind::RBRACE,
+                        tokens::IdentifierKind::RBRACE,
                         ch_owned,
                         self.line_number,
                         self.position,
@@ -190,14 +190,14 @@ impl Lexer {
                             if val {
                                 self.move_current_position_and_read();
                                 Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::EQ,
+                                    tokens::IdentifierKind::EQ,
                                     ch_owned,
                                     self.line_number,
                                     self.position,
                                 ))
                             } else {
                                 Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::ASSIGN,
+                                    tokens::IdentifierKind::ASSIGN,
                                     ch_owned,
                                     self.line_number,
                                     self.position,
@@ -205,20 +205,20 @@ impl Lexer {
                             }
                         }
                         None => Ok(tokens::Token::new(
-                            tokens::IndentifierKind::ASSIGN,
+                            tokens::IdentifierKind::ASSIGN,
                             ch_owned,
                             self.line_number,
                             self.position,
                         )),
                     },
                     tokens::PLUS => Ok(tokens::Token::new(
-                        tokens::IndentifierKind::PLUS,
+                        tokens::IdentifierKind::PLUS,
                         ch_owned,
                         self.line_number,
                         self.position,
                     )),
                     tokens::MINUS => Ok(tokens::Token::new(
-                        tokens::IndentifierKind::MINUS,
+                        tokens::IdentifierKind::MINUS,
                         ch_owned,
                         self.line_number,
                         self.position,
@@ -231,14 +231,14 @@ impl Lexer {
                             if val {
                                 self.move_current_position_and_read();
                                 Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::NOTEQ,
+                                    tokens::IdentifierKind::NOTEQ,
                                     ch_owned,
                                     self.line_number,
                                     self.position,
                                 ))
                             } else {
                                 Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::BANG,
+                                    tokens::IdentifierKind::BANG,
                                     ch_owned,
                                     self.line_number,
                                     self.position,
@@ -246,20 +246,20 @@ impl Lexer {
                             }
                         }
                         None => Ok(tokens::Token::new(
-                            tokens::IndentifierKind::BANG,
+                            tokens::IdentifierKind::BANG,
                             ch_owned,
                             self.line_number,
                             self.position,
                         )),
                     },
                     tokens::ASTERISK => Ok(tokens::Token::new(
-                        tokens::IndentifierKind::ASTERISK,
+                        tokens::IdentifierKind::ASTERISK,
                         ch_owned,
                         self.line_number,
                         self.position,
                     )),
                     tokens::SLASH => Ok(tokens::Token::new(
-                        tokens::IndentifierKind::SLASH,
+                        tokens::IdentifierKind::SLASH,
                         ch_owned,
                         self.line_number,
                         self.position,
@@ -272,14 +272,14 @@ impl Lexer {
                             if val {
                                 self.move_current_position_and_read();
                                 Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::LTOREQ,
+                                    tokens::IdentifierKind::LTOREQ,
                                     ch_owned,
                                     self.line_number,
                                     self.position,
                                 ))
                             } else {
                                 Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::LT,
+                                    tokens::IdentifierKind::LT,
                                     ch_owned,
                                     self.line_number,
                                     self.position,
@@ -287,7 +287,7 @@ impl Lexer {
                             }
                         }
                         None => Ok(tokens::Token::new(
-                            tokens::IndentifierKind::LT,
+                            tokens::IdentifierKind::LT,
                             ch_owned,
                             self.line_number,
                             self.position,
@@ -301,14 +301,14 @@ impl Lexer {
                             if val {
                                 self.move_current_position_and_read();
                                 Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::GTOREQ,
+                                    tokens::IdentifierKind::GTOREQ,
                                     ch_owned,
                                     self.line_number,
                                     self.position,
                                 ))
                             } else {
                                 Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::GT,
+                                    tokens::IdentifierKind::GT,
                                     ch_owned,
                                     self.line_number,
                                     self.position,
@@ -316,14 +316,14 @@ impl Lexer {
                             }
                         }
                         None => Ok(tokens::Token::new(
-                            tokens::IndentifierKind::GT,
+                            tokens::IdentifierKind::GT,
                             ch_owned,
                             self.line_number,
                             self.position,
                         )),
                     },
                     tokens::NULL => Ok(tokens::Token::new(
-                        tokens::IndentifierKind::EOF,
+                        tokens::IdentifierKind::EOF,
                         String::new(),
                         self.line_number,
                         self.position,
@@ -445,7 +445,7 @@ impl Lexer {
                     self.position = string_literal_ending;
                     self.read_position = string_literal_ending + 0x1;
                     Ok(tokens::Token::new(
-                        tokens::IndentifierKind::STRINGLITERAL,
+                        tokens::IdentifierKind::STRINGLITERAL,
                         String::from(string_literal),
                         self.line_number,
                         self.position,
@@ -468,7 +468,7 @@ impl Lexer {
 
                             let ident_owned = String::from(ident);
                             Ok(tokens::Token::new(
-                                tokens::IndentifierKind::MAIN,
+                                tokens::IdentifierKind::MAIN,
                                 ident_owned,
                                 self.line_number,
                                 self.position,
@@ -493,7 +493,7 @@ impl Lexer {
 
                             let ident_owned = String::from(ident);
                             Ok(tokens::Token::new(
-                                tokens::IndentifierKind::END,
+                                tokens::IdentifierKind::END,
                                 ident_owned,
                                 self.line_number,
                                 self.position,
@@ -519,80 +519,80 @@ impl Lexer {
 
                             let tok = match ident {
                                 tokens::INT => Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::INTTYPE,
+                                    tokens::IdentifierKind::INTTYPE,
                                     String::from(ident),
                                     self.line_number,
                                     self.position,
                                 )),
                                 tokens::STRING => Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::STRINGTYPE,
+                                    tokens::IdentifierKind::STRINGTYPE,
                                     String::from(ident),
                                     self.line_number,
                                     self.position,
                                 )),
                                 tokens::BOOLEAN => Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::BOOLEANTYPE,
+                                    tokens::IdentifierKind::BOOLEANTYPE,
                                     String::from(ident),
                                     self.line_number,
                                     self.position,
                                 )),
                                 tokens::UNIT => Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::UNITTYPE,
+                                    tokens::IdentifierKind::UNITTYPE,
                                     String::from(ident),
                                     self.line_number,
                                     self.position,
                                 )),
                                 tokens::LET => Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::LET,
+                                    tokens::IdentifierKind::LET,
                                     String::from(ident),
                                     self.line_number,
                                     self.position,
                                 )),
                                 tokens::FUNCTION => Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::FUNCTION,
+                                    tokens::IdentifierKind::FUNCTION,
                                     String::from(ident),
                                     self.line_number,
                                     self.position,
                                 )),
                                 tokens::TRUE => Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::TRUE,
+                                    tokens::IdentifierKind::TRUE,
                                     String::from(ident),
                                     self.line_number,
                                     self.position,
                                 )),
                                 tokens::FALSE => Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::FALSE,
+                                    tokens::IdentifierKind::FALSE,
                                     String::from(ident),
                                     self.line_number,
                                     self.position,
                                 )),
                                 tokens::IF => Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::IF,
+                                    tokens::IdentifierKind::IF,
                                     String::from(ident),
                                     self.line_number,
                                     self.position,
                                 )),
 
                                 tokens::ELSE => Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::ELSE,
+                                    tokens::IdentifierKind::ELSE,
                                     String::from(ident),
                                     self.line_number,
                                     self.position,
                                 )),
                                 tokens::RETURN => Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::RETURN,
+                                    tokens::IdentifierKind::RETURN,
                                     String::from(ident),
                                     self.line_number,
                                     self.position,
                                 )),
                                 tokens::FORMAT => Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::FORMAT,
+                                    tokens::IdentifierKind::FORMAT,
                                     String::from(ident),
                                     self.line_number,
                                     self.position,
                                 )),
                                 tokens::PRINT => Ok(tokens::Token::new(
-                                    tokens::IndentifierKind::PRINT,
+                                    tokens::IdentifierKind::PRINT,
                                     String::from(ident),
                                     self.line_number,
                                     self.position,
@@ -600,14 +600,14 @@ impl Lexer {
                                 _ => {
                                     if is_intergers_only(ident) {
                                         Ok(tokens::Token::new(
-                                            tokens::IndentifierKind::INTLITERAL,
+                                            tokens::IdentifierKind::INTLITERAL,
                                             ident_owned,
                                             self.line_number,
                                             self.position,
                                         ))
                                     } else if is_alphanumeric_only(ident) {
                                         Ok(tokens::Token::new(
-                                            tokens::IndentifierKind::VARIABLE,
+                                            tokens::IdentifierKind::VARIABLE,
                                             ident_owned,
                                             self.line_number,
                                             self.position,
@@ -637,7 +637,7 @@ impl Lexer {
                         self.position += 1;
                         self.read_position += 1;
                         Ok(tokens::Token::new(
-                            tokens::IndentifierKind::FUNCTION,
+                            tokens::IdentifierKind::FUNCTION,
                             String::from(ident),
                             self.line_number,
                             self.position,
@@ -738,59 +738,59 @@ mod tests {
         let mut lx = Lexer::new(String::from(",;(){}=+-!*/<>"));
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::COMMA
+            tokens::IdentifierKind::COMMA
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::LPAREN
+            tokens::IdentifierKind::LPAREN
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::RPAREN
+            tokens::IdentifierKind::RPAREN
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::LBRACE
+            tokens::IdentifierKind::LBRACE
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::RBRACE
+            tokens::IdentifierKind::RBRACE
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::ASSIGN
+            tokens::IdentifierKind::ASSIGN
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::PLUS
+            tokens::IdentifierKind::PLUS
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::MINUS
+            tokens::IdentifierKind::MINUS
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::BANG
+            tokens::IdentifierKind::BANG
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::ASTERISK
+            tokens::IdentifierKind::ASTERISK
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::SLASH
+            tokens::IdentifierKind::SLASH
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::LT
+            tokens::IdentifierKind::LT
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::GT
+            tokens::IdentifierKind::GT
         );
     }
 
@@ -799,11 +799,11 @@ mod tests {
         let mut lx0 = Lexer::new(String::from("; =="));
         assert_eq!(
             lx0.new_token().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx0.new_token().unwrap().token_type,
-            tokens::IndentifierKind::EQ
+            tokens::IdentifierKind::EQ
         );
     }
 
@@ -812,7 +812,7 @@ mod tests {
         let mut lx = Lexer::new(String::from("=="));
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::EQ
+            tokens::IdentifierKind::EQ
         );
     }
 
@@ -821,7 +821,7 @@ mod tests {
         let mut lx = Lexer::new(String::from(">="));
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::GTOREQ
+            tokens::IdentifierKind::GTOREQ
         );
     }
 
@@ -830,15 +830,15 @@ mod tests {
         let mut lx = Lexer::new(String::from("!=+>="));
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::NOTEQ
+            tokens::IdentifierKind::NOTEQ
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::PLUS
+            tokens::IdentifierKind::PLUS
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::GTOREQ
+            tokens::IdentifierKind::GTOREQ
         );
     }
 
@@ -847,60 +847,60 @@ mod tests {
         let mut lx = Lexer::new(String::from("==+>=!()=<>*<=-/~ -"));
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::EQ
+            tokens::IdentifierKind::EQ
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::PLUS
+            tokens::IdentifierKind::PLUS
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::GTOREQ
+            tokens::IdentifierKind::GTOREQ
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::BANG
+            tokens::IdentifierKind::BANG
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::LPAREN
+            tokens::IdentifierKind::LPAREN
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::RPAREN
+            tokens::IdentifierKind::RPAREN
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::ASSIGN
+            tokens::IdentifierKind::ASSIGN
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::LT
+            tokens::IdentifierKind::LT
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::GT
+            tokens::IdentifierKind::GT
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::ASTERISK
+            tokens::IdentifierKind::ASTERISK
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::LTOREQ
+            tokens::IdentifierKind::LTOREQ
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::MINUS
+            tokens::IdentifierKind::MINUS
         );
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::SLASH
+            tokens::IdentifierKind::SLASH
         );
         assert!(lx.new_token().is_err());
         assert_eq!(
             lx.new_token().unwrap().token_type,
-            tokens::IndentifierKind::MINUS
+            tokens::IdentifierKind::MINUS
         );
     }
 
@@ -909,35 +909,35 @@ mod tests {
         let mut lx = Lexer::new(String::from("let a = 1 + 2;"));
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LET
+            tokens::IdentifierKind::LET
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::ASSIGN
+            tokens::IdentifierKind::ASSIGN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTLITERAL
+            tokens::IdentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::PLUS
+            tokens::IdentifierKind::PLUS
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTLITERAL
+            tokens::IdentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::EOS
+            tokens::IdentifierKind::EOS
         );
     }
 
@@ -946,35 +946,35 @@ mod tests {
         let mut lx = Lexer::new(String::from("let a = 1 - 2;"));
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LET
+            tokens::IdentifierKind::LET
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::ASSIGN
+            tokens::IdentifierKind::ASSIGN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTLITERAL
+            tokens::IdentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::MINUS
+            tokens::IdentifierKind::MINUS
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTLITERAL
+            tokens::IdentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::EOS
+            tokens::IdentifierKind::EOS
         );
     }
 
@@ -983,35 +983,35 @@ mod tests {
         let mut lx = Lexer::new(String::from("let person_age @int = 1 + 2;"));
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LET
+            tokens::IdentifierKind::LET
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTTYPE
+            tokens::IdentifierKind::INTTYPE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::ASSIGN
+            tokens::IdentifierKind::ASSIGN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTLITERAL
+            tokens::IdentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::PLUS
+            tokens::IdentifierKind::PLUS
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTLITERAL
+            tokens::IdentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
     }
 
@@ -1020,23 +1020,23 @@ mod tests {
         let mut lx = Lexer::new(String::from("let name = \"alice\"; "));
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LET
+            tokens::IdentifierKind::LET
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::ASSIGN
+            tokens::IdentifierKind::ASSIGN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::STRINGLITERAL
+            tokens::IdentifierKind::STRINGLITERAL
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
     }
 
@@ -1045,27 +1045,27 @@ mod tests {
         let mut lx = Lexer::new(String::from("print(\"Name #name\"); "));
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::PRINT
+            tokens::IdentifierKind::PRINT
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LPAREN
+            tokens::IdentifierKind::LPAREN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::STRINGLITERAL
+            tokens::IdentifierKind::STRINGLITERAL
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::RPAREN
+            tokens::IdentifierKind::RPAREN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::EOS
+            tokens::IdentifierKind::EOS
         );
     }
 
@@ -1091,125 +1091,125 @@ mod tests {
         ));
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LET
+            tokens::IdentifierKind::LET
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTTYPE
+            tokens::IdentifierKind::INTTYPE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::ASSIGN
+            tokens::IdentifierKind::ASSIGN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTLITERAL
+            tokens::IdentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::PLUS
+            tokens::IdentifierKind::PLUS
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTLITERAL
+            tokens::IdentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::EOS
+            tokens::IdentifierKind::EOS
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LET
+            tokens::IdentifierKind::LET
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTTYPE
+            tokens::IdentifierKind::INTTYPE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::ASSIGN
+            tokens::IdentifierKind::ASSIGN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTLITERAL
+            tokens::IdentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::EOS
-        );
-
-        assert_eq!(
-            lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LET
-        );
-        assert_eq!(
-            lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
-        );
-        assert_eq!(
-            lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::BOOLEANTYPE
-        );
-        assert_eq!(
-            lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::ASSIGN
-        );
-        assert_eq!(
-            lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::TRUE
-        );
-        assert_eq!(
-            lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
-        );
-        assert_eq!(
-            lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::EOS
+            tokens::IdentifierKind::EOS
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LET
+            tokens::IdentifierKind::LET
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::BOOLEANTYPE
+            tokens::IdentifierKind::BOOLEANTYPE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::ASSIGN
+            tokens::IdentifierKind::ASSIGN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::FALSE
+            tokens::IdentifierKind::TRUE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::EOS
+            tokens::IdentifierKind::EOS
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LET
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::VARIABLE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::BOOLEANTYPE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::ASSIGN
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::FALSE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::SEMICOLON
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::EOS
         );
     }
 
@@ -1228,127 +1228,127 @@ mod tests {
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LET
+            tokens::IdentifierKind::LET
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTTYPE
+            tokens::IdentifierKind::INTTYPE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::ASSIGN
+            tokens::IdentifierKind::ASSIGN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::FUNCTION
+            tokens::IdentifierKind::FUNCTION
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LPAREN
+            tokens::IdentifierKind::LPAREN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTTYPE
+            tokens::IdentifierKind::INTTYPE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::COMMA
+            tokens::IdentifierKind::COMMA
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTTYPE
+            tokens::IdentifierKind::INTTYPE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::RPAREN
+            tokens::IdentifierKind::RPAREN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LBRACE
+            tokens::IdentifierKind::LBRACE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::RETURN
+            tokens::IdentifierKind::RETURN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::PLUS
+            tokens::IdentifierKind::PLUS
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::RBRACE
+            tokens::IdentifierKind::RBRACE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::EOS
-        );
-
-        assert_eq!(
-            lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::EOS
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LPAREN
+            tokens::IdentifierKind::VARIABLE
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTLITERAL
+            tokens::IdentifierKind::LPAREN
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::COMMA
+            tokens::IdentifierKind::INTLITERAL
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTLITERAL
+            tokens::IdentifierKind::COMMA
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::RPAREN
+            tokens::IdentifierKind::INTLITERAL
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::RPAREN
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::EOS
+            tokens::IdentifierKind::SEMICOLON
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::EOS
         );
     }
 
@@ -1366,115 +1366,115 @@ mod tests {
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LET
+            tokens::IdentifierKind::LET
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTTYPE
+            tokens::IdentifierKind::INTTYPE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::ASSIGN
+            tokens::IdentifierKind::ASSIGN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::FUNCTION
+            tokens::IdentifierKind::FUNCTION
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LPAREN
+            tokens::IdentifierKind::LPAREN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTTYPE
+            tokens::IdentifierKind::INTTYPE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::COMMA
+            tokens::IdentifierKind::COMMA
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTTYPE
+            tokens::IdentifierKind::INTTYPE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::RPAREN
+            tokens::IdentifierKind::RPAREN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LBRACE
+            tokens::IdentifierKind::LBRACE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::IF
+            tokens::IdentifierKind::IF
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::GT
+            tokens::IdentifierKind::GT
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LBRACE
+            tokens::IdentifierKind::LBRACE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::RETURN
+            tokens::IdentifierKind::RETURN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::RBRACE
+            tokens::IdentifierKind::RBRACE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::RETURN
+            tokens::IdentifierKind::RETURN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::RBRACE
+            tokens::IdentifierKind::RBRACE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::EOS
+            tokens::IdentifierKind::EOS
         );
     }
 
@@ -1482,143 +1482,158 @@ mod tests {
     fn should_read_multiline3() {
         let mut lx = Lexer::new(String::from(
             "
-        let greater @unit = fn(name @string) {
+        let greeter @unit = fn(name @string) {
             print(\"Hi you\");
             let msg @string = format(\"Hi you #name\");
         };  
+
+        greeter();
         
         ",
         ));
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LET
+            tokens::IdentifierKind::LET
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::UNITTYPE
+            tokens::IdentifierKind::UNITTYPE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::ASSIGN
+            tokens::IdentifierKind::ASSIGN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::FUNCTION
+            tokens::IdentifierKind::FUNCTION
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LPAREN
+            tokens::IdentifierKind::LPAREN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::STRINGTYPE
+            tokens::IdentifierKind::STRINGTYPE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::RPAREN
+            tokens::IdentifierKind::RPAREN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LBRACE
+            tokens::IdentifierKind::LBRACE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::PRINT
+            tokens::IdentifierKind::PRINT
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LPAREN
-        );
-
-        assert_eq!(
-            lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::STRINGLITERAL
+            tokens::IdentifierKind::LPAREN
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::RPAREN
-        );
-        assert_eq!(
-            lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::STRINGLITERAL
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::EOS
+            tokens::IdentifierKind::RPAREN
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::SEMICOLON
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LET
+            tokens::IdentifierKind::EOS
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::LET
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::STRINGTYPE
+            tokens::IdentifierKind::VARIABLE
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::ASSIGN
+            tokens::IdentifierKind::STRINGTYPE
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::FORMAT
+            tokens::IdentifierKind::ASSIGN
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LPAREN
+            tokens::IdentifierKind::FORMAT
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::STRINGLITERAL
+            tokens::IdentifierKind::LPAREN
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::RPAREN
+            tokens::IdentifierKind::STRINGLITERAL
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::RPAREN
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::EOS
+            tokens::IdentifierKind::SEMICOLON
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::RBRACE
+            tokens::IdentifierKind::EOS
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RBRACE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::EOS
+            tokens::IdentifierKind::EOS
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::VARIABLE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LPAREN
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RPAREN
         );
     }
 
@@ -1637,97 +1652,97 @@ mod tests {
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::MAIN
+            tokens::IdentifierKind::MAIN
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::FUNCTION
+            tokens::IdentifierKind::FUNCTION
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LPAREN
+            tokens::IdentifierKind::LPAREN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::RPAREN
+            tokens::IdentifierKind::RPAREN
         );
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LBRACE
+            tokens::IdentifierKind::LBRACE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LET
+            tokens::IdentifierKind::LET
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTTYPE
+            tokens::IdentifierKind::INTTYPE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::ASSIGN
+            tokens::IdentifierKind::ASSIGN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::INTLITERAL
+            tokens::IdentifierKind::INTLITERAL
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::EOS
+            tokens::IdentifierKind::EOS
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::LET
+            tokens::IdentifierKind::LET
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::VARIABLE
+            tokens::IdentifierKind::VARIABLE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::STRINGTYPE
+            tokens::IdentifierKind::STRINGTYPE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::ASSIGN
+            tokens::IdentifierKind::ASSIGN
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::STRINGLITERAL
+            tokens::IdentifierKind::STRINGLITERAL
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::EOS
+            tokens::IdentifierKind::EOS
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::RBRACE
+            tokens::IdentifierKind::RBRACE
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::END
+            tokens::IdentifierKind::END
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::SEMICOLON
+            tokens::IdentifierKind::SEMICOLON
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IndentifierKind::EOS
+            tokens::IdentifierKind::EOS
         );
     }
 }

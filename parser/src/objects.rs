@@ -1,33 +1,41 @@
+use std::cell::RefCell;
+use std::rc::Rc;
+
+use either::Either;
 use enum_as_inner::EnumAsInner;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
-pub enum DeclarationType {
-    Unknown,
-    Program,
-    LiteralExpression,
-    FunctionExpression,
-    BinaryExpression,
-    IfExpression,
-    ReturnExpression,
-    CallExpression,
-    MainExpression,
-}
+use errors::errors;
+use lexer::tokens::Token;
 
-impl Default for DeclarationType {
-    fn default() -> Self {
-        DeclarationType::Unknown
-    }
+use lexer::tokens::IdentifierKind;
+
+// function definition of a worker that does operations on the provided token
+type NudParserOp =
+    fn(Token, usize, Rc<RefCell<Vec<Token>>>) -> Result<(Objects, usize), errors::KarisError>;
+
+// operation that returns the right-hand side of an expression
+// It takes left Object `Objects`, the index of the token `usize` pointing to `=` and the bucket where the tokens are present
+type LedParserOp =
+    fn(Objects, usize, Rc<RefCell<Vec<Token>>>) -> Result<(Objects, usize), errors::KarisError>;
+
+#[derive(Debug, Default, Clone)]
+pub struct ParserType {
+    pub nud_fn: Option<NudParserOp>,
+
+    pub led_fn: Option<LedParserOp>,
+
+    pub binding_power: Option<usize>,
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum TypingKind {
+    Unknown,
     Int,
     String,
     Boolean,
 
     // TODO: add this in the lexer first
     Array,
-    Map,
 }
 
 // Declaration : an object must be to tell what is it
@@ -37,36 +45,32 @@ pub trait Declaration {
     fn which(&self) -> DeclarationType;
 }
 
-pub trait Value {
-    // returns the type of the current declaration object
-    fn which(&self) -> TypingKind;
+#[derive(Debug, PartialEq, Eq, Clone)]
+pub enum DeclarationType {
+    Unknown,
+    Program,
+    Node,
+}
+
+impl Default for DeclarationType {
+    fn default() -> Self {
+        DeclarationType::Unknown
+    }
 }
 
 #[derive(Debug, EnumAsInner, Clone)]
 pub enum Objects {
-    TyUnknown,
     TyProgram(Program),
-    TyLiteralExpression(LiteralExpression),
-    TyFunctionExpression(FunctionExpression),
-    TyBinaryExpression(BinaryExpression),
-    TyIfExpression(IfExpression),
-    TyReturnExpression(ReturnExpression),
-    TyCallExpression(CallExpression),
-    TyMainExpression(MainExpression),
+    TyNode(Node),
+    TyUnknown,
 }
 
 impl Declaration for Objects {
     fn which(&self) -> DeclarationType {
         match &self {
-            Objects::TyUnknown => DeclarationType::Unknown,
             Objects::TyProgram(i) => i.which(),
-            Objects::TyLiteralExpression(i) => i.which(),
-            Objects::TyFunctionExpression(i) => i.which(),
-            Objects::TyBinaryExpression(i) => i.which(),
-            Objects::TyIfExpression(i) => i.which(),
-            Objects::TyReturnExpression(i) => i.which(),
-            Objects::TyCallExpression(i) => i.which(),
-            Objects::TyMainExpression(i) => i.which(),
+            Objects::TyUnknown => DeclarationType::Unknown,
+            _ => panic!(""),
         }
     }
 }
@@ -77,82 +81,10 @@ impl Default for Objects {
     }
 }
 
-// Represents literal values definitions
-#[derive(Debug, EnumAsInner, PartialEq, Eq, Clone)]
-pub enum LiteralObjects {
-    ObjIntergerValue(IntergerValue),
-    ObjBooleanValue(BooleanValue),
-    ObjStringValue(StringValue),
-}
-
-impl Value for LiteralObjects {
-    fn which(&self) -> TypingKind {
-        match &self {
-            LiteralObjects::ObjIntergerValue(i) => i.which(),
-            LiteralObjects::ObjBooleanValue(i) => i.which(),
-            LiteralObjects::ObjStringValue(i) => i.which(),
-        }
-    }
-}
-
-// Interger values representation
-#[derive(Debug, PartialEq, Eq, Default, Clone)]
-pub struct IntergerValue {
-    pub value: Option<isize>,
-}
-
-impl Value for IntergerValue {
-    fn which(&self) -> TypingKind {
-        TypingKind::Int
-    }
-}
-
-impl IntergerValue {
-    pub fn add_value(&mut self, value: isize) {
-        self.value = Some(value);
-    }
-}
-
-// Boolean values representation
-#[derive(Debug, PartialEq, Eq, Default, Clone)]
-pub struct BooleanValue {
-    pub value: Option<bool>,
-}
-
-impl Value for BooleanValue {
-    fn which(&self) -> TypingKind {
-        TypingKind::Boolean
-    }
-}
-
-impl BooleanValue {
-    pub fn add_value(&mut self, value: bool) {
-        self.value = Some(value);
-    }
-}
-
-// String values representation
-#[derive(Debug, PartialEq, Eq, Default, Clone)]
-pub struct StringValue {
-    pub value: Option<String>,
-}
-
-impl Value for StringValue {
-    fn which(&self) -> TypingKind {
-        TypingKind::String
-    }
-}
-
-impl StringValue {
-    pub fn add_value(&mut self, value: String) {
-        self.value = Some(value);
-    }
-}
-
 // Program is the root declaration. It will be at the top of the AST
 #[derive(Debug, Default, Clone)]
 pub struct Program {
-    pub body: Vec<Objects>,
+    body: Vec<Objects>,
 }
 
 impl Declaration for Program {
@@ -170,259 +102,283 @@ impl Program {
     }
 }
 
-#[derive(Debug, Eq, PartialEq, Clone)]
-pub enum Operators {
-    Unknown,
-    Add,
-    Subtract,
-    Multiply,
-    Divide,
+pub trait Value {
+    // returns the type of the current declaration object
+    fn kind(&self) -> TypingKind;
 }
 
-impl Default for Operators {
-    fn default() -> Self {
-        Operators::Unknown
-    }
+// Represents literal values definitions
+#[derive(Debug, EnumAsInner, PartialEq, Eq, Clone)]
+pub enum LiteralObjects {
+    ObjIntergerValue(IntergerValue),
+    ObjBooleanValue(BooleanValue),
+    ObjStringValue(StringValue),
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct PrecedenceTree {
-    pub operator: Option<Operators>,
-    pub value: isize,
-    pub lhs: Option<Box<PrecedenceTree>>,
-    pub rhs: Option<Box<PrecedenceTree>>,
-    pub is_negated: bool,
-}
-
-impl PrecedenceTree {
-    pub fn new_with_value(value: isize) -> PrecedenceTree {
-        PrecedenceTree {
-            operator: None,
-            value,
-            lhs: None,
-            rhs: None,
-            is_negated: false,
+impl Value for LiteralObjects {
+    fn kind(&self) -> TypingKind {
+        match &self {
+            LiteralObjects::ObjIntergerValue(i) => i.kind(),
+            LiteralObjects::ObjBooleanValue(i) => i.kind(),
+            LiteralObjects::ObjStringValue(i) => i.kind(),
         }
     }
 }
 
-// LiteralExpression are `let` binding. These expressions have an identifier, a type information, and the value
-// Example
-//      let y @int = 7;
-//      let active @bool = true;
-//      let name @string = "Karis";
-//      let numbers @array:int = [1,2,3,4,5];
-//      let values @map:int:string = {0 : "0", 1 : "1", 2 : "2"};
+// Interger values representation
+#[derive(Debug, PartialEq, Eq, Default, Clone)]
+pub struct IntergerValue {
+    pub value: Option<isize>,
+}
+
+impl Value for IntergerValue {
+    fn kind(&self) -> TypingKind {
+        TypingKind::Int
+    }
+}
+
+// Boolean values representation
+#[derive(Debug, PartialEq, Eq, Default, Clone)]
+pub struct BooleanValue {
+    pub value: Option<bool>,
+}
+
+impl Value for BooleanValue {
+    fn kind(&self) -> TypingKind {
+        TypingKind::Boolean
+    }
+}
+
+// String values representation
+#[derive(Debug, PartialEq, Eq, Default, Clone)]
+pub struct StringValue {
+    pub value: Option<String>,
+}
+
+impl Value for StringValue {
+    fn kind(&self) -> TypingKind {
+        TypingKind::String
+    }
+}
+
 #[derive(Debug, Default, Clone)]
-pub struct LiteralExpression {
-    pub identifier: Option<String>,
-    pub typing: Option<TypingKind>,
+pub struct Node {
+    pub variable_name: Option<String>,
 
-    // for simle literals, this field will be populated
-    // Example:
-    // let y @int = 7;
-    // let active @bool = true;
-    pub value: Option<LiteralObjects>,
+    pub return_type: Option<TypingKind>,
 
-    // for expression values, this field will be populated
-    // Example:
-    // let y @int = 1 + 1;
-    // let x @int = 2 * 2 + 1;
-    pub value_expression: Option<PrecedenceTree>,
+    pub identifier_kind: Option<IdentifierKind>,
+
+    // type of `Node`
+    pub left_child: Option<Either<LiteralObjects, Box<Objects>>>,
+
+    // the RHS can either be a literal or a node
+    pub right_child: Option<Either<LiteralObjects, Box<Objects>>>,
+
+    // this is used to populates params of a function definition.
+    // This params can be of different types
+    // If the function has any other return type another than `@unit`, the return type will be evaluated
+    // to match that of the definition
+    pub func_params: Option<Vec<LiteralObjects>>,
+
+    // this is used for call expressions which can take the form of
+    //       func(1, 2, 3)
+    //       func(1,a,b) where a and b are variables of the same type
+    pub call_params: Option<Vec<Either<LiteralObjects, Objects>>>,
+
+    // this will be populated for the `main` block
+    pub children: Option<Vec<Node>>,
 }
 
-impl Declaration for LiteralExpression {
+impl Declaration for Node {
     fn which(&self) -> DeclarationType {
-        DeclarationType::LiteralExpression
+        DeclarationType::Node
     }
 }
 
-impl LiteralExpression {
-    pub fn add_identifier(&mut self, identifier: String) {
-        self.identifier = Some(identifier);
-    }
+// #[derive(Debug, Eq, PartialEq, Clone)]
+// pub enum Operator {
+//     Unknown,
+//     Add,
+//     Subtract,
+//     Multiply,
+//     Divide,
+// }
 
-    pub fn add_typing(&mut self, typing: TypingKind) {
-        self.typing = Some(typing);
-    }
+// impl Default for Operator {
+//     fn default() -> Self {
+//         Operator::Unknown
+//     }
+// }
 
-    pub fn add_value(&mut self, value: LiteralObjects) {
-        self.value = Some(value);
-    }
+// // FunctionExpression is a definition of a function that may take arguments and/or produce results often of the type
+// // `ReturnExpression`
+// // Example:
+// //      let add = fn(x @int, y @int) @int{
+// //          return x + y;
+// //      };
+// //
+// #[derive(Debug, Default, Clone)]
+// pub struct FunctionExpression {
+//     pub identifier: Option<String>,
+//     pub typing: Option<TypingKind>,
+//     pub params: Option<Vec<Objects>>,
+//     pub block: Option<Vec<Objects>>,
+// }
 
-    pub fn add_value_expression(&mut self, value: PrecedenceTree) {
-        self.value_expression = Some(value);
-    }
-}
+// impl Declaration for FunctionExpression {
+//     fn which(&self) -> DeclarationType {
+//         DeclarationType::FunctionExpression
+//     }
+// }
 
-// FunctionExpression is a definition of a function that may take arguments and/or produce results often of the type
-// `ReturnExpression`
-// Example:
-//      let add = fn(x @int, y @int) @int{
-//          return x + y;
-//      };
-//
-#[derive(Debug, Default, Clone)]
-pub struct FunctionExpression {
-    pub identifier: Option<String>,
-    pub typing: Option<TypingKind>,
-    pub params: Option<Vec<Objects>>,
-    pub block: Option<Vec<Objects>>,
-}
+// impl FunctionExpression {
+//     pub fn add_identifier(&mut self, identifier: String) {
+//         self.identifier = Some(identifier);
+//     }
 
-impl Declaration for FunctionExpression {
-    fn which(&self) -> DeclarationType {
-        DeclarationType::FunctionExpression
-    }
-}
+//     pub fn add_typing(&mut self, typing: TypingKind) {
+//         self.typing = Some(typing);
+//     }
 
-impl FunctionExpression {
-    pub fn add_identifier(&mut self, identifier: String) {
-        self.identifier = Some(identifier);
-    }
+//     pub fn add_params(&mut self, params: Vec<Objects>) {
+//         self.params = Some(params);
+//     }
+//     pub fn add_block(&mut self, body: Vec<Objects>) {
+//         self.block = Some(body);
+//     }
+// }
 
-    pub fn add_typing(&mut self, typing: TypingKind) {
-        self.typing = Some(typing);
-    }
+// // BinaryExpression takes different forms. At it's core, there is an `operator`
+// // that evaluates the `lhs` and `rhs`
+// // Example:
+// //     let x @int = 1 + 2;
+// // The first part (before the = ) is the identifier with typing information
+// // The second part (after the = ) we hav `1` on the lhs and `2` on the rhs. In the middle, `+` operator
+// //
+// #[derive(Debug, Default, Clone)]
+// pub struct BinaryExpression {
+//     pub identifier: Option<String>,
+//     pub typing: Option<TypingKind>,
+//     pub lhs: Option<Box<Objects>>,
+//     pub operator: Option<String>,
+//     pub rhs: Option<Box<Objects>>,
+// }
 
-    pub fn add_params(&mut self, params: Vec<Objects>) {
-        self.params = Some(params);
-    }
-    pub fn add_block(&mut self, body: Vec<Objects>) {
-        self.block = Some(body);
-    }
-}
+// impl Declaration for BinaryExpression {
+//     fn which(&self) -> DeclarationType {
+//         DeclarationType::BinaryExpression
+//     }
+// }
 
-// BinaryExpression takes different forms. At it's core, there is an `operator`
-// that evaluates the `lhs` and `rhs`
-// Example:
-//     let x @int = 1 + 2;
-// The first part (before the = ) is the identifier with typing information
-// The second part (after the = ) we hav `1` on the lhs and `2` on the rhs. In the middle, `+` operator
-//
-#[derive(Debug, Default, Clone)]
-pub struct BinaryExpression {
-    pub identifier: Option<String>,
-    pub typing: Option<TypingKind>,
-    pub lhs: Option<Box<Objects>>,
-    pub operator: Option<String>,
-    pub rhs: Option<Box<Objects>>,
-}
+// impl BinaryExpression {
+//     pub fn add_identifier(&mut self, identifier: String) {
+//         self.identifier = Some(identifier);
+//     }
 
-impl Declaration for BinaryExpression {
-    fn which(&self) -> DeclarationType {
-        DeclarationType::BinaryExpression
-    }
-}
+//     pub fn add_typing(&mut self, typing: TypingKind) {
+//         self.typing = Some(typing);
+//     }
 
-impl BinaryExpression {
-    pub fn add_identifier(&mut self, identifier: String) {
-        self.identifier = Some(identifier);
-    }
+//     pub fn add_operator(&mut self, operator: String) {
+//         self.operator = Some(operator);
+//     }
 
-    pub fn add_typing(&mut self, typing: TypingKind) {
-        self.typing = Some(typing);
-    }
+//     pub fn add_rhs(&mut self, rhs: Objects) {
+//         self.rhs = Some(Box::new(rhs));
+//     }
+// }
 
-    pub fn add_operator(&mut self, operator: String) {
-        self.operator = Some(operator);
-    }
+// // IfExpression ..
+// #[derive(Debug, Default, Clone)]
+// pub struct IfExpression {
+//     // the conditional to be meant
+//     pub test: Option<Box<Objects>>,
 
-    pub fn add_rhs(&mut self, rhs: Objects) {
-        self.rhs = Some(Box::new(rhs));
-    }
-}
+//     // this is the result if the `test` passes
+//     pub consequent: Option<Box<Objects>>,
 
-// IfExpression ..
-#[derive(Debug, Default, Clone)]
-pub struct IfExpression {
-    // the conditional to be meant
-    pub test: Option<Box<Objects>>,
+//     // this can be `else if` block or a tail `else` block
+//     pub alternate: Option<Box<Objects>>,
+// }
 
-    // this is the result if the `test` passes
-    pub consequent: Option<Box<Objects>>,
+// impl Declaration for IfExpression {
+//     fn which(&self) -> DeclarationType {
+//         DeclarationType::IfExpression
+//     }
+// }
 
-    // this can be `else if` block or a tail `else` block
-    pub alternate: Option<Box<Objects>>,
-}
+// impl IfExpression {
+//     pub fn add_test(&mut self, test: Objects) {
+//         self.test = Some(Box::new(test));
+//     }
 
-impl Declaration for IfExpression {
-    fn which(&self) -> DeclarationType {
-        DeclarationType::IfExpression
-    }
-}
+//     pub fn add_consequent(&mut self, consequent: Objects) {
+//         self.consequent = Some(Box::new(consequent));
+//     }
 
-impl IfExpression {
-    pub fn add_test(&mut self, test: Objects) {
-        self.test = Some(Box::new(test));
-    }
+//     pub fn add_alternate(&mut self, alternate: Objects) {
+//         self.alternate = Some(Box::new(alternate));
+//     }
+// }
 
-    pub fn add_consequent(&mut self, consequent: Objects) {
-        self.consequent = Some(Box::new(consequent));
-    }
+// // ReturnExpression ...
+// #[derive(Debug, Default, Clone)]
+// pub struct ReturnExpression {
+//     pub argument: Option<Box<Objects>>,
+// }
 
-    pub fn add_alternate(&mut self, alternate: Objects) {
-        self.alternate = Some(Box::new(alternate));
-    }
-}
+// impl Declaration for ReturnExpression {
+//     fn which(&self) -> DeclarationType {
+//         DeclarationType::IfExpression
+//     }
+// }
 
-// ReturnExpression ...
-#[derive(Debug, Default, Clone)]
-pub struct ReturnExpression {
-    pub argument: Option<Box<Objects>>,
-}
+// impl ReturnExpression {
+//     pub fn add_argument(&mut self, arg: Objects) {
+//         self.argument = Some(Box::new(arg));
+//     }
+// }
 
-impl Declaration for ReturnExpression {
-    fn which(&self) -> DeclarationType {
-        DeclarationType::IfExpression
-    }
-}
+// // CallExpression represent a call to a function that has been previously been defined.
+// // The function can take any number of optional arguments of type `LiteralObjects`.
+// // This expression will be used for built-in functions as well
+// #[derive(Debug, Default, Clone)]
+// pub struct CallExpression {
+//     pub identifier: Option<String>,
+//     pub arguments: Option<Vec<LiteralObjects>>,
+// }
 
-impl ReturnExpression {
-    pub fn add_argument(&mut self, arg: Objects) {
-        self.argument = Some(Box::new(arg));
-    }
-}
+// impl Declaration for CallExpression {
+//     fn which(&self) -> DeclarationType {
+//         DeclarationType::CallExpression
+//     }
+// }
 
-// CallExpression represent a call to a function that has been previously been defined.
-// The function can take any number of optional arguments of type `LiteralObjects`.
-// This expression will be used for built-in functions as well
-#[derive(Debug, Default, Clone)]
-pub struct CallExpression {
-    pub identifier: Option<String>,
-    pub arguments: Option<Vec<LiteralObjects>>,
-}
+// impl CallExpression {
+//     pub fn add_identifier(&mut self, ident: String) {
+//         self.identifier = Some(ident);
+//     }
 
-impl Declaration for CallExpression {
-    fn which(&self) -> DeclarationType {
-        DeclarationType::CallExpression
-    }
-}
+//     pub fn add_argument(&mut self, arguments: Vec<LiteralObjects>) {
+//         self.arguments = Some(arguments);
+//     }
+// }
 
-impl CallExpression {
-    pub fn add_identifier(&mut self, ident: String) {
-        self.identifier = Some(ident);
-    }
+// // MainExpression is the root of the program that will be executed
+// #[derive(Debug, Default, Clone)]
+// pub struct MainExpression {
+//     pub body: Option<Vec<Objects>>,
+// }
 
-    pub fn add_argument(&mut self, arguments: Vec<LiteralObjects>) {
-        self.arguments = Some(arguments);
-    }
-}
+// impl Declaration for MainExpression {
+//     fn which(&self) -> DeclarationType {
+//         DeclarationType::MainExpression
+//     }
+// }
 
-// MainExpression is the root of the program that will be executed
-#[derive(Debug, Default, Clone)]
-pub struct MainExpression {
-    pub body: Option<Vec<Objects>>,
-}
-
-impl Declaration for MainExpression {
-    fn which(&self) -> DeclarationType {
-        DeclarationType::MainExpression
-    }
-}
-
-impl MainExpression {
-    pub fn add_body(&mut self, body: Vec<Objects>) {
-        self.body = Some(body);
-    }
-}
+// impl MainExpression {
+//     pub fn add_body(&mut self, body: Vec<Objects>) {
+//         self.body = Some(body);
+//     }
+// }
