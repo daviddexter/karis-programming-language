@@ -4,10 +4,12 @@ use std::io;
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum KarisErrorType {
     UnknownToken,
+    MissingLetBinding,
     MissingVariableName,
     MissingTypeInfo,
     InvalidSyntax,
     MalformedProgram,
+    UnableToConvert,
 }
 
 #[derive(Debug, Clone)]

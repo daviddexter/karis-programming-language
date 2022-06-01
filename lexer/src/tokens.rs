@@ -38,8 +38,8 @@ pub const RETURN: &str = "return";
 pub const FORMAT: &str = "format";
 pub const PRINT: &str = "print";
 
-#[derive(Debug, PartialEq, Eq, Clone, Copy)]
-pub enum IndentifierKind {
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+pub enum IdentifierKind {
     UNKNOWN,
 
     EOF, // end of file. Nothoing more to read
@@ -49,10 +49,11 @@ pub enum IndentifierKind {
     VARIABLE,      // add, foobar, x, y, ...
     INTLITERAL,    // 1343456, 1.22, 23.781
     STRINGLITERAL, // "alice", "in", "wonderland"
-    INTTYPE,       // @int
-    STRINGTYPE,    // @string
-    BOOLEANTYPE,   //@bool
-    UNITTYPE,      //@unit
+
+    INTTYPE,     // @int
+    STRINGTYPE,  // @string
+    BOOLEANTYPE, //@bool
+    UNITTYPE,    //@unit
 
     // Delimiters
     COMMA,     // ","
@@ -89,18 +90,19 @@ pub enum IndentifierKind {
     END,
     FORMAT,
     PRINT,
+    CALL,
 }
 
-impl Default for IndentifierKind {
+impl Default for IdentifierKind {
     fn default() -> Self {
-        IndentifierKind::UNKNOWN
+        IdentifierKind::UNKNOWN
     }
 }
 
 /// Token is an identifiable single unit
 #[derive(Debug, Default, PartialEq, Eq, Clone)]
 pub struct Token {
-    pub token_type: IndentifierKind,
+    pub token_type: IdentifierKind,
     pub literal: String,
     pub line_number: usize,
     pub column_number: usize,
@@ -108,7 +110,7 @@ pub struct Token {
 
 impl Token {
     pub fn new(
-        token_type: IndentifierKind,
+        token_type: IdentifierKind,
         literal: String,
         line_number: usize,
         column_number: usize,
