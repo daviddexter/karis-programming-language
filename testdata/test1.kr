@@ -19,6 +19,10 @@ let echo @string = fn(name @string){
     return name;
 };
 
+let printer @unit = fn(name @string){
+    print("Name #name")
+};
+
 let max @int = fn(x @int, y @int){
     if x > y{
         return x;

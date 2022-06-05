@@ -122,7 +122,8 @@ impl Parser {
             if let Some(bp) = pt1.binding_power {
                 if rbp < bp {
                     if let Some(func) = pt1.led_fn {
-                        let res = func(left, worked_on_index + 0x01, bucket.clone())?;
+                        let idx = worked_on_index + 0x01;
+                        let res = func(left, idx, bucket.clone())?;
                         left = res.0;
                         worked_on_index = res.1;
                     } else {
@@ -312,7 +313,6 @@ mod tests {
         let lx = Lexer::new(String::from("let num @int = 10 / (2 * 3) + 20 - 3;"));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
-        println!("{:?}", res);
         assert!(res.is_ok())
     }
 
@@ -321,16 +321,133 @@ mod tests {
         let lx = Lexer::new(String::from("let num @int = (10 / (2 * 3)) + 20 - 3;"));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse16b() {
+        let lx = Lexer::new(String::from(
+            "let num @int = ( (10 - 5) / (2 * 3 + 50 / 4) ) + 20 - 3;",
+        ));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse16c() {
+        let lx = Lexer::new(String::from("let num @int = 10(23);"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse16d() {
+        let lx = Lexer::new(String::from("let num @int = 10(23 * (20 * 10 + 1));"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse16e() {
+        let lx = Lexer::new(String::from("let num @int = 10(23 * (true,false));"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_err())
+    }
+
+    #[test]
+    fn should_parse16f() {
+        let lx = Lexer::new(String::from("10(23;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
         println!("{:?}", res);
+        assert!(res.is_err())
+    }
+
+    #[test]
+    fn should_parse16g() {
+        let lx = Lexer::new(String::from("10(23 * (20 * 10 + 1))"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse17() {
+        let lx = Lexer::new(String::from("let num @int = sum() +  20 - 3;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse17b() {
+        let lx = Lexer::new(String::from("let num @int = 20 + sum() +  10 - 3;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse18() {
+        let lx = Lexer::new(String::from("let num @int = sum(1,2) +  20 - 3;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse19() {
+        let lx = Lexer::new(String::from(
+            "let num @int = sum(\"name\",\"age\") +  20 - 3;",
+        ));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse20() {
+        let lx = Lexer::new(String::from("let num @int = sum(\"name\",2) +  20 - 3;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse21() {
+        let lx = Lexer::new(String::from("let num @int = sum(true) +  20 - 3;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse22() {
+        let lx = Lexer::new(String::from("let num @int = sum(true,false) +  20 - 3;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse23() {
+        let lx = Lexer::new(String::from(
+            "let num @int = sum(\"name\",false,5) +  20 - 3;",
+        ));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
         assert!(res.is_ok())
     }
 
     // #[test]
-    // fn should_parse17() {
-    //     let lx = Lexer::new(String::from("let num @int = sum() +  20 - 3;"));
+    // fn should_parse24() {
+    //     let lx = Lexer::new(String::from("let num @int = sum(add(1,3),3) +  20 - 3;"));
     //     let mut parser = Parser::new(lx);
     //     let res = parser.parse();
-    //     println!("{:?}", res);
     //     assert!(res.is_ok())
     // }
 }
