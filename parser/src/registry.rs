@@ -1,6 +1,7 @@
 use std::cell::RefCell;
 use std::rc::Rc;
 
+use either::Either;
 use either::Either::{Left, Right};
 use hashbrown::HashMap;
 
@@ -55,8 +56,8 @@ impl TokenRegistry {
         self.add_infix(IdentifierKind::ASTERISK, 40);
         self.add_infix(IdentifierKind::SLASH, 40);
 
-        self.add_bracket_opening(IdentifierKind::LPAREN, 50);
-        self.add_bracket_closing(IdentifierKind::RPAREN, 55);
+        self.add_opening_parenthesis(IdentifierKind::LPAREN, 50);
+        self.add_closing_parenthesis(IdentifierKind::RPAREN, 55);
 
         self.add_infix(IdentifierKind::GT, 60);
         self.add_infix(IdentifierKind::GTOREQ, 60);
@@ -64,7 +65,7 @@ impl TokenRegistry {
         self.add_infix(IdentifierKind::LTOREQ, 60);
         self.add_infix(IdentifierKind::EQ, 60);
 
-        self.add_variable_declaration();
+        self.add_call_declaration();
         self.add_function_declaration();
         self.add_builtin_function(IdentifierKind::PRINT, 70);
     }
@@ -195,8 +196,9 @@ impl TokenRegistry {
         self.register(IdentifierKind::FUNCTION, obj);
     }
 
-    // parses function call expressions
-    fn add_variable_declaration(&mut self) {
+    // parses a funtion call expression
+    // A function call first identifier is of the type `VARIABLE`
+    fn add_call_declaration(&mut self) {
         let obj = ParserType {
             nud_fn: Some(Self::parse_function_call),
             led_fn: None,
@@ -214,19 +216,19 @@ impl TokenRegistry {
         self.register(symbol, obj);
     }
 
-    fn add_bracket_opening(&mut self, symbol: IdentifierKind, binding_power: usize) {
+    fn add_opening_parenthesis(&mut self, symbol: IdentifierKind, binding_power: usize) {
         let obj = ParserType {
-            nud_fn: Some(Self::parse_opening_bracket),
-            led_fn: None,
+            nud_fn: Some(Self::parse_opening_parenthesis),
+            led_fn: Some(Self::parse_infix_operator),
             binding_power: Some(binding_power),
         };
         self.register(symbol, obj);
     }
 
-    fn add_bracket_closing(&mut self, symbol: IdentifierKind, binding_power: usize) {
+    fn add_closing_parenthesis(&mut self, symbol: IdentifierKind, binding_power: usize) {
         let obj = ParserType {
             nud_fn: None,
-            led_fn: Some(Self::parse_closing_bracket),
+            led_fn: Some(Self::parse_closing_parenthesis),
             binding_power: Some(binding_power),
         };
         self.register(symbol, obj);
@@ -251,7 +253,7 @@ impl TokenRegistry {
     }
 }
 
-// parser implementations methods
+// parser implementations methods for NUD
 impl TokenRegistry {
     // Returns an Object of `Unknown` type and the index
     // Used fot tokens that have not effect or value to the generate AST
@@ -263,6 +265,13 @@ impl TokenRegistry {
         Ok((Objects::TyUnknown, index))
     }
 
+    // A function call can takes many forms
+    // Example:
+    //
+    // add(1, 2, 3)  -> args as literal
+    // add() -> without args
+    // add(one(),two()) - > args as function call
+    // add(x,y) -> args as variables.
     fn parse_function_call(
         tok: Token,
         index: usize,
@@ -270,7 +279,8 @@ impl TokenRegistry {
     ) -> Result<(Objects, usize), errors::KarisError> {
         let borrow = bucket.borrow();
 
-        let next_token = borrow.get(index + 0x01);
+        let next_index = index + 0x01;
+        let next_token = borrow.get(next_index);
         if next_token.is_none() {
             return Err(errors::KarisError {
                 error_type: errors::KarisErrorType::InvalidSyntax,
@@ -295,9 +305,9 @@ impl TokenRegistry {
 
         let closing_paren_index_fn = || -> usize {
             let mut idx: usize = 0x00;
-            for i in index + 0x01..borrow.len() - 1 {
+            for i in next_index..borrow.len() - 1 {
                 let t = borrow.get(i).unwrap();
-                if t.token_type != IdentifierKind::RPAREN {
+                if t.token_type == IdentifierKind::RPAREN {
                     idx = i;
                     break;
                 }
@@ -306,7 +316,18 @@ impl TokenRegistry {
         };
 
         let closing_paren_index = closing_paren_index_fn();
-        let params = borrow.get(index + 0x02..closing_paren_index).unwrap();
+        let params = borrow.get(index + 0x02..closing_paren_index);
+        if params.is_none() {
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: format!(
+                    "[MALFORMED PROGRAM] Failed to get call args. `{}. Ln {} Col {}  '",
+                    tok.literal, tok.line_number, tok.column_number
+                ),
+            });
+        }
+
+        let params = params.unwrap();
         if params.is_empty() {
             let node = Node {
                 identifier_kind: Some(IdentifierKind::CALL),
@@ -314,30 +335,60 @@ impl TokenRegistry {
             };
             Ok((Objects::TyNode(node), closing_paren_index))
         } else {
-            todo!("group args and parse their types")
+            let mut args: Vec<Either<LiteralObjects, Objects>> = Vec::new();
+
+            for t in params {
+                if t.token_type != IdentifierKind::COMMA {
+                    let mut param: Either<LiteralObjects, Objects> = Right(Objects::TyUnknown);
+                    if t.token_type == IdentifierKind::STRINGLITERAL {
+                        let obj = StringValue {
+                            value: Some(t.literal.clone()),
+                        };
+                        let literal: LiteralObjects = LiteralObjects::ObjStringValue(obj);
+                        param = Left(literal);
+                    } else if t.token_type == IdentifierKind::INTLITERAL {
+                        let value = t
+                            .literal
+                            .parse::<isize>()
+                            .unwrap_or_else(|_| panic!("Failed to parse to INT"));
+                        let obj = IntergerValue { value: Some(value) };
+                        let literal = LiteralObjects::ObjIntergerValue(obj);
+                        param = Left(literal);
+                    } else if t.token_type == IdentifierKind::TRUE
+                        || t.token_type == IdentifierKind::FALSE
+                    {
+                        let value = t
+                            .literal
+                            .parse::<bool>()
+                            .unwrap_or_else(|_| panic!("Failed to parse to BOOL"));
+                        let obj = BooleanValue { value: Some(value) };
+                        let literal = LiteralObjects::ObjBooleanValue(obj);
+                        param = Left(literal);
+                    } else if t.token_type == IdentifierKind::VARIABLE {
+                        todo!("implement this")
+                    }
+
+                    if param.is_right() && !param.as_ref().right().unwrap().is_ty_unknown() {
+                        args.push(param.clone());
+                    }
+                } else {
+                    continue;
+                }
+            }
+
+            let node = Node {
+                identifier_kind: Some(IdentifierKind::CALL),
+                call_params: Some(args),
+                ..Default::default()
+            };
+
+            Ok((Objects::TyNode(node), closing_paren_index))
         }
-    }
-
-    // evaluates a returns object enclosed in parentheses () as it's left children
-    fn parse_closing_bracket(
-        left: Objects,
-        token_index: usize,
-        bucket: Rc<RefCell<Vec<Token>>>,
-    ) -> Result<(Objects, usize), errors::KarisError> {
-        let borrow = bucket.borrow();
-        let current_token = borrow.get(token_index).unwrap();
-
-        let node = Node {
-            identifier_kind: Some(current_token.token_type),
-            left_child: Some(Right(Box::new(left))),
-            ..Default::default()
-        };
-        Ok((Objects::TyNode(node), token_index))
     }
 
     // evaluates when `(` is a the beginning of an expression
     // This is valid if the next token is either `int` or `call` expression
-    fn parse_opening_bracket(
+    fn parse_opening_parenthesis(
         tok: Token,
         index: usize,
         bucket: Rc<RefCell<Vec<Token>>>,
@@ -355,9 +406,40 @@ impl TokenRegistry {
             });
         }
 
+        fn traverse_forward_until(
+            idx: usize,
+            bucket: &Rc<RefCell<Vec<Token>>>,
+            cond: IdentifierKind,
+        ) -> Option<usize> {
+            let borrow = bucket.borrow();
+            if idx >= borrow.len() {
+                return None;
+            }
+
+            if let Some(t) = borrow.get(idx) {
+                if t.token_type == cond {
+                    return Some(idx);
+                }
+                return traverse_forward_until(idx + 0x01, bucket, cond);
+            }
+            traverse_forward_until(idx + 0x01, bucket, cond)
+        }
+
+        if traverse_forward_until(index, &bucket, IdentifierKind::RPAREN).is_none() {
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: format!(
+                    "[INVALID SYNTAX] Syntax not correct. Expected matching closing parentheses. Ln {} Col {}",
+                    tok.line_number,tok.column_number
+                ),
+            });
+        }
+
         let next_token = next_token.unwrap();
 
-        if next_token.token_type == IdentifierKind::INTLITERAL {
+        if next_token.token_type == IdentifierKind::INTLITERAL
+            || next_token.token_type == IdentifierKind::LPAREN
+        {
             let res = Parser::expression(0, index + 0x01, bucket.clone());
             if res.is_err() {
                 let err = res.err().unwrap();
@@ -373,13 +455,13 @@ impl TokenRegistry {
 
             Ok((Objects::TyNode(node), res.1))
         } else {
-            return Err(errors::KarisError {
+            Err(errors::KarisError {
                 error_type: errors::KarisErrorType::InvalidSyntax,
                 message: format!(
                     "[INVALID SYNTAX] Syntax not correct. Expected something after `{}. Ln {} Col {}  '",
                     tok.literal,tok.line_number,tok.column_number
                 ),
-            });
+            })
         }
     }
 
@@ -497,6 +579,7 @@ impl TokenRegistry {
         }
 
         let node = Node {
+            identifier_kind: Some(IdentifierKind::LET),
             variable_name: Some(variable_name_token.unwrap().literal.clone()),
             return_type: Some(Self::typing_kind(typing_token.unwrap())),
             ..Default::default()
@@ -525,21 +608,25 @@ impl TokenRegistry {
         let int = IntergerValue { value: Some(value) };
         let obj = LiteralObjects::ObjIntergerValue(int);
         let node = Node {
+            identifier_kind: Some(IdentifierKind::INTLITERAL),
             left_child: Some(Left(obj)),
             ..Default::default()
         };
         let obj_type = Objects::TyNode(node);
         Ok((obj_type, index))
     }
+}
 
-    // Evaluates the RHS of an arthemetic expression
-    fn parse_infix_operator(
-        left: Objects,
+// parser implementations methods for LEDs
+impl TokenRegistry {
+    fn preconditions(
         token_index: usize,
         bucket: Rc<RefCell<Vec<Token>>>,
-    ) -> Result<(Objects, usize), errors::KarisError> {
+        identifiers: Vec<IdentifierKind>,
+    ) -> Result<(Token, Token), errors::KarisError> {
         let borrow = bucket.borrow();
 
+        // defensive programming
         let current_token = borrow.get(token_index);
         if current_token.is_none() {
             return Err(errors::KarisError {
@@ -564,14 +651,7 @@ impl TokenRegistry {
 
         let next_token = next_token.unwrap();
 
-        if next_token.token_type == IdentifierKind::EOS
-            || next_token.token_type == IdentifierKind::EOF
-            || next_token.token_type == IdentifierKind::LET
-            || next_token.token_type == IdentifierKind::FUNCTION
-            || next_token.token_type == IdentifierKind::TRUE
-            || next_token.token_type == IdentifierKind::FALSE
-            || next_token.token_type == IdentifierKind::STRINGLITERAL
-        {
+        if identifiers.contains(&next_token.token_type) {
             return Err(errors::KarisError {
                 error_type: errors::KarisErrorType::InvalidSyntax,
                 message: format!(
@@ -581,13 +661,81 @@ impl TokenRegistry {
             });
         }
 
-        let res = Parser::expression(0x00, token_index + 0x01, bucket.clone());
-        if res.is_err() {
-            let err = res.err().unwrap();
-            return Err(err);
+        Ok((current_token.clone(), next_token.clone()))
+    }
+
+    // evaluates a returns object enclosed in parentheses () as it's left children
+    fn parse_closing_parenthesis(
+        left: Objects,
+        token_index: usize,
+        bucket: Rc<RefCell<Vec<Token>>>,
+    ) -> Result<(Objects, usize), errors::KarisError> {
+        let borrow = bucket.borrow();
+        println!("{:?}", borrow);
+        let current_token = borrow.get(token_index).unwrap();
+
+        if current_token.token_type != IdentifierKind::RPAREN {
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: format!(
+                    "[INVALID SYNTAX] Syntax not correct. Expected `)` found {}. Ln {} Col {}  '",
+                    current_token.literal, current_token.line_number, current_token.column_number
+                ),
+            });
         }
 
-        let res = res.unwrap();
+        let node = Node {
+            identifier_kind: Some(current_token.token_type),
+            left_child: Some(Right(Box::new(left))),
+            ..Default::default()
+        };
+        Ok((Objects::TyNode(node), token_index))
+    }
+
+    // Evaluates the RHS of an arthemetic expression
+    // These expressions can take varied forms.
+    // Example:
+    //      10 + 1 + 2 + 3;
+    //      (10 + 1) + 2 * 3
+    //      mul(2,3) / 10 + 1
+    //      10(23 * (20 * 10 + 1))
+    fn parse_infix_operator(
+        left: Objects,
+        token_index: usize,
+        bucket: Rc<RefCell<Vec<Token>>>,
+    ) -> Result<(Objects, usize), errors::KarisError> {
+
+        let (current_token, _next_token) = Self::preconditions(
+            token_index,
+            bucket.clone(),
+            vec![
+                IdentifierKind::EOS,
+                IdentifierKind::EOF,
+                IdentifierKind::LET,
+                IdentifierKind::FUNCTION,
+                IdentifierKind::TRUE,
+                IdentifierKind::FALSE,
+                IdentifierKind::STRINGLITERAL,
+            ],
+        )?;
+                
+
+        // if the current token is a opening parentheses, call it's NUD function instead
+        let res: (Objects, usize) = if current_token.token_type == IdentifierKind::LPAREN {
+            Self::parse_opening_parenthesis(
+                current_token.clone(),
+                token_index,
+                bucket,
+            )?
+        } else {
+            let result = Parser::expression(0x00, token_index + 0x01, bucket);
+            if result.is_err() {
+                let err = result.err().unwrap();
+                return Err(err);
+            }
+            result.unwrap()
+        };
+
         let node = Node {
             identifier_kind: Some(current_token.token_type),
             left_child: Some(Right(Box::new(left))),
@@ -609,46 +757,23 @@ impl TokenRegistry {
         token_index: usize,
         bucket: Rc<RefCell<Vec<Token>>>,
     ) -> Result<(Objects, usize), errors::KarisError> {
+        let (current_token, next_token) = Self::preconditions(
+            token_index,
+            bucket.clone(),
+            vec![
+                IdentifierKind::EOS,
+                IdentifierKind::EOF,
+                IdentifierKind::SEMICOLON,
+                IdentifierKind::LET,
+                IdentifierKind::GT,
+                IdentifierKind::LT,
+                IdentifierKind::GTOREQ,
+                IdentifierKind::LTOREQ,
+                IdentifierKind::EQ,
+            ],
+        )?;
+
         let borrow = bucket.borrow();
-
-        let current_token = borrow.get(token_index);
-        if current_token.is_none() {
-            return Err(errors::KarisError {
-                error_type: errors::KarisErrorType::InvalidSyntax,
-                message: "[INVALID SYNTAX] Syntax not correct. Expected position to have a token "
-                    .to_string(),
-            });
-        }
-
-        let current_token = current_token.unwrap();
-
-        let next_token = borrow.get(token_index + 0x01);
-        if next_token.is_none() {
-            return Err(errors::KarisError {
-                error_type: errors::KarisErrorType::InvalidSyntax,
-                message: "[INVALID SYNTAX] Syntax not correct. Expected something after `=`'"
-                    .to_string(),
-            });
-        }
-
-        let next_token = next_token.unwrap();
-
-        if next_token.token_type == IdentifierKind::EOS
-            || next_token.token_type == IdentifierKind::EOF
-            || next_token.token_type == IdentifierKind::SEMICOLON
-            || next_token.token_type == IdentifierKind::LET
-            || next_token.token_type == IdentifierKind::GT
-            || next_token.token_type == IdentifierKind::LT
-            || next_token.token_type == IdentifierKind::GTOREQ
-            || next_token.token_type == IdentifierKind::LTOREQ
-            || next_token.token_type == IdentifierKind::EQ
-        {
-            return Err(errors::KarisError {
-                error_type: errors::KarisErrorType::InvalidSyntax,
-                message: "[INVALID SYNTAX] Syntax not correct. Expected something after `=`'"
-                    .to_string(),
-            });
-        }
 
         // check if the next token, 2 steps forward is a semicolon. If true, it means we will return a literal
         let two_step_token = borrow.get(token_index + 0x02);
@@ -675,7 +800,7 @@ impl TokenRegistry {
 
                 if next_token.token_type == IdentifierKind::STRINGLITERAL {
                     let obj = StringValue {
-                        value: Some(next_token.literal.clone()),
+                        value: Some(next_token.literal),
                     };
                     let literal = LiteralObjects::ObjStringValue(obj);
 
@@ -690,26 +815,9 @@ impl TokenRegistry {
                     return Ok((Objects::TyNode(node), token_index + 0x02));
                 }
 
-                if next_token.token_type == IdentifierKind::TRUE {
-                    let value = next_token
-                        .literal
-                        .parse::<bool>()
-                        .unwrap_or_else(|_| panic!("Failed to parse to BOOL"));
-                    let obj = BooleanValue { value: Some(value) };
-                    let literal = LiteralObjects::ObjBooleanValue(obj);
-
-                    let node = Node {
-                        identifier_kind: Some(current_token.token_type),
-                        left_child: Some(Right(Box::new(left))),
-                        right_child: Some(Left(literal)),
-                        ..Default::default()
-                    };
-
-                    // move the cursor to the end. This will finish the recursive call stask and return to the caller
-                    return Ok((Objects::TyNode(node), token_index + 0x02));
-                }
-
-                if next_token.token_type == IdentifierKind::FALSE {
+                if next_token.token_type == IdentifierKind::TRUE
+                    || next_token.token_type == IdentifierKind::FALSE
+                {
                     let value = next_token
                         .literal
                         .parse::<bool>()
