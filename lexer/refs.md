@@ -1,2 +1,3 @@
 - https://theasciicode.com.ar/extended-ascii-code/underline-underscore-ascii-code-242.html
 - https://emojidb.org/check-emojis
+- https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb
