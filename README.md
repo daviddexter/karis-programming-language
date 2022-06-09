@@ -1,6 +1,6 @@
 # Karis Programming Language
 
-Lightweight programming language built for education purposes.
+Lightweight programming-ish language built for education purposes.
 
 Karis is statically typed. It borrows inspiration from Rust, Go and JavaScript.
 
