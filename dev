@@ -11,3 +11,5 @@ if [ $# -eq 0 ] || [ "$1" == "-h" ] || [ "$1" ==  "--help" ]; then
 fi
 
 cargo make --makefile dev.toml "$@"
+
+cargo clean

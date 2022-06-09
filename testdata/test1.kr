@@ -30,7 +30,6 @@ let max @int = fn(x @int, y @int){
     return y;
 };
 
-
 @main fn(){
     let x @int = 5;
     let y @int = 7;
@@ -43,8 +42,7 @@ let max @int = fn(x @int, y @int){
     let result4 @string = echo(name);
     let result5 @int = echo(x,y);
     let result6 @int = add(x,y) + 5 / 10 * 9;
-    let result6 @int =  5 / 10 * 9 + add(x,y);
-
+    let result6 @int =  5 / 10 * 9 + add(x,y);  
 
     print(result0);
     print(result1);

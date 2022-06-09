@@ -704,7 +704,6 @@ impl TokenRegistry {
         token_index: usize,
         bucket: Rc<RefCell<Vec<Token>>>,
     ) -> Result<(Objects, usize), errors::KarisError> {
-
         let (current_token, _next_token) = Self::preconditions(
             token_index,
             bucket.clone(),
@@ -718,15 +717,10 @@ impl TokenRegistry {
                 IdentifierKind::STRINGLITERAL,
             ],
         )?;
-                
 
         // if the current token is a opening parentheses, call it's NUD function instead
         let res: (Objects, usize) = if current_token.token_type == IdentifierKind::LPAREN {
-            Self::parse_opening_parenthesis(
-                current_token.clone(),
-                token_index,
-                bucket,
-            )?
+            Self::parse_opening_parenthesis(current_token.clone(), token_index, bucket)?
         } else {
             let result = Parser::expression(0x00, token_index + 0x01, bucket);
             if result.is_err() {
