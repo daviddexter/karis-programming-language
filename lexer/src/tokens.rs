@@ -90,7 +90,7 @@ pub enum IdentifierKind {
     END,
     FORMAT,
     PRINT,
-    CALL,
+    CALLER, // A function call
 }
 
 impl Default for IdentifierKind {

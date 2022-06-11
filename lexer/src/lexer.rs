@@ -406,7 +406,7 @@ impl Lexer {
         let next_char_fn =
             |begin: usize, end: usize, default| self.input.get(begin..end).unwrap_or(default);
 
-        let is_func_identifier = |next_char: &str| {
+        let is_func_identifier_fn = |next_char: &str| {
             let current_char = self
                 .input
                 .get(self.position..self.read_position)
@@ -432,18 +432,21 @@ impl Lexer {
                     tokens::SEMICOLON,
                 );
 
-                // if encountered an opengin quatation mark, moving along the sequence until a closing quatation mark is encountered
+                // if encountered an opening quatation mark, moving along the sequence until a closing quatation mark is encountered
                 if is_quotation_mark(current_literal) {
                     let string_literal_ending =
                         self.traverse_to_closing_quotations(self.position + 0x1);
+
                     let string_literal = self
                         .input
                         .get(self.position + 0x1..string_literal_ending)
                         .unwrap();
+
                     // reset identifier start read position
                     self.identifier_start_read_position = -0x1;
                     self.position = string_literal_ending;
                     self.read_position = string_literal_ending + 0x1;
+
                     Ok(tokens::Token::new(
                         tokens::IdentifierKind::STRINGLITERAL,
                         String::from(string_literal),
@@ -606,12 +609,21 @@ impl Lexer {
                                             self.position,
                                         ))
                                     } else if is_alphanumeric_only(ident) {
-                                        Ok(tokens::Token::new(
-                                            tokens::IdentifierKind::VARIABLE,
-                                            ident_owned,
-                                            self.line_number,
-                                            self.position,
-                                        ))
+                                        if next_char == tokens::LPAREN {
+                                            Ok(tokens::Token::new(
+                                                tokens::IdentifierKind::CALLER,
+                                                ident_owned,
+                                                self.line_number,
+                                                self.position,
+                                            ))
+                                        } else {
+                                            Ok(tokens::Token::new(
+                                                tokens::IdentifierKind::VARIABLE,
+                                                ident_owned,
+                                                self.line_number,
+                                                self.position,
+                                            ))
+                                        }
                                     } else {
                                         self.unknown_token_error(ident)
                                     }
@@ -624,7 +636,7 @@ impl Lexer {
                         }
                         None => self.unknown_token_error(tokens::NULL),
                     }
-                } else if is_func_identifier(next_char) {
+                } else if is_func_identifier_fn(next_char) {
                     let ident = self
                         .input
                         .get(self.identifier_start_read_position as usize..self.read_position + 1)
@@ -1313,7 +1325,7 @@ mod tests {
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IdentifierKind::VARIABLE
+            tokens::IdentifierKind::CALLER
         );
 
         assert_eq!(
@@ -1625,7 +1637,7 @@ mod tests {
 
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
-            tokens::IdentifierKind::VARIABLE
+            tokens::IdentifierKind::CALLER
         );
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
