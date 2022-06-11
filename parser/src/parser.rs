@@ -363,7 +363,6 @@ mod tests {
         let lx = Lexer::new(String::from("10(23;"));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
-        println!("{:?}", res);
         assert!(res.is_err())
     }
 
@@ -443,11 +442,59 @@ mod tests {
         assert!(res.is_ok())
     }
 
-    // #[test]
-    // fn should_parse24() {
-    //     let lx = Lexer::new(String::from("let num @int = sum(add(1,3),3) +  20 - 3;"));
-    //     let mut parser = Parser::new(lx);
-    //     let res = parser.parse();
-    //     assert!(res.is_ok())
-    // }
+    #[test]
+    fn should_parse24() {
+        let lx = Lexer::new(String::from("let num @int = sum(3,4,5);"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse25() {
+        let lx = Lexer::new(String::from("let num @int = sum(3,4,5) + 20;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse26() {
+        let lx = Lexer::new(String::from("let num @int = sum(3,4,5 + 20;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_err())
+    }
+
+    #[test]
+    fn should_parse27() {
+        let lx = Lexer::new(String::from("let num @int = sum(3,add(3,4));"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse28() {
+        let lx = Lexer::new(String::from("let num @int = sum(3,add(3,4);"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_err())
+    }
+
+    #[test]
+    fn should_parse29() {
+        let lx = Lexer::new(String::from("let num @int = sum() + add(3,5);"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse30() {
+        let lx = Lexer::new(String::from("let num @int = sum(x,y) + add(3,5);"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
 }

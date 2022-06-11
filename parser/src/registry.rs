@@ -40,6 +40,7 @@ impl TokenRegistry {
 
         self.add_let_binding();
         self.add_int_literal();
+        self.add_variable_literal();
         self.add_string_literal();
         self.add_boolean_true_literal();
         self.add_boolean_false_literal();
@@ -104,6 +105,15 @@ impl TokenRegistry {
             binding_power: Some(0x00),
         };
         self.register(IdentifierKind::INTLITERAL, obj);
+    }
+
+    fn add_variable_literal(&mut self) {
+        let obj = ParserType {
+            nud_fn: None,
+            led_fn: None,
+            binding_power: Some(0x00),
+        };
+        self.register(IdentifierKind::VARIABLE, obj);
     }
 
     fn add_string_literal(&mut self) {
@@ -197,14 +207,14 @@ impl TokenRegistry {
     }
 
     // parses a funtion call expression
-    // A function call first identifier is of the type `VARIABLE`
+    // A function call first identifier is of the type `CALLER`
     fn add_call_declaration(&mut self) {
         let obj = ParserType {
             nud_fn: Some(Self::parse_function_call),
             led_fn: None,
             binding_power: Some(70),
         };
-        self.register(IdentifierKind::VARIABLE, obj);
+        self.register(IdentifierKind::CALLER, obj);
     }
 
     fn add_builtin_function(&mut self, symbol: IdentifierKind, binding_power: usize) {
@@ -303,86 +313,90 @@ impl TokenRegistry {
             });
         }
 
-        let closing_paren_index_fn = || -> usize {
-            let mut idx: usize = 0x00;
-            for i in next_index..borrow.len() - 1 {
-                let t = borrow.get(i).unwrap();
-                if t.token_type == IdentifierKind::RPAREN {
-                    idx = i;
-                    break;
-                }
-            }
-            idx
+        let (params, closing_paren_index) =
+            Self::params_collector(next_index, bucket.clone(), Vec::new(), 0x00)?;
+
+        let node = Node {
+            identifier_kind: Some(IdentifierKind::CALLER),
+            call_params: Some(params),
+            ..Default::default()
         };
 
-        let closing_paren_index = closing_paren_index_fn();
-        let params = borrow.get(index + 0x02..closing_paren_index);
-        if params.is_none() {
+        Ok((Objects::TyNode(node), closing_paren_index))
+    }
+
+    // given a `call` token, it moves forward recursively gathering args of the call
+    // if it encounters another `call` token, it calls parse_function_call then adds the result
+    // as a call param
+    fn params_collector(
+        idx: usize,
+        bucket: Rc<RefCell<Vec<Token>>>,
+        mut params: Vec<Either<LiteralObjects, Objects>>,
+        mut closing_index: usize,
+    ) -> Result<(Vec<Either<LiteralObjects, Objects>>, usize), errors::KarisError> {
+        let borrow = bucket.borrow();
+
+        if idx >= borrow.len() {
             return Err(errors::KarisError {
                 error_type: errors::KarisErrorType::InvalidSyntax,
-                message: format!(
-                    "[MALFORMED PROGRAM] Failed to get call args. `{}. Ln {} Col {}  '",
-                    tok.literal, tok.line_number, tok.column_number
-                ),
+                message: "[MALFORMED PROGRAM] Failed to match closing parenthesis".to_string() ,
             });
         }
 
-        let params = params.unwrap();
-        if params.is_empty() {
-            let node = Node {
-                identifier_kind: Some(IdentifierKind::CALL),
-                ..Default::default()
-            };
-            Ok((Objects::TyNode(node), closing_paren_index))
-        } else {
-            let mut args: Vec<Either<LiteralObjects, Objects>> = Vec::new();
-
-            for t in params {
-                if t.token_type != IdentifierKind::COMMA {
-                    let mut param: Either<LiteralObjects, Objects> = Right(Objects::TyUnknown);
-                    if t.token_type == IdentifierKind::STRINGLITERAL {
-                        let obj = StringValue {
-                            value: Some(t.literal.clone()),
-                        };
-                        let literal: LiteralObjects = LiteralObjects::ObjStringValue(obj);
-                        param = Left(literal);
-                    } else if t.token_type == IdentifierKind::INTLITERAL {
-                        let value = t
-                            .literal
-                            .parse::<isize>()
-                            .unwrap_or_else(|_| panic!("Failed to parse to INT"));
-                        let obj = IntergerValue { value: Some(value) };
-                        let literal = LiteralObjects::ObjIntergerValue(obj);
-                        param = Left(literal);
-                    } else if t.token_type == IdentifierKind::TRUE
-                        || t.token_type == IdentifierKind::FALSE
-                    {
-                        let value = t
-                            .literal
-                            .parse::<bool>()
-                            .unwrap_or_else(|_| panic!("Failed to parse to BOOL"));
-                        let obj = BooleanValue { value: Some(value) };
-                        let literal = LiteralObjects::ObjBooleanValue(obj);
-                        param = Left(literal);
-                    } else if t.token_type == IdentifierKind::VARIABLE {
-                        todo!("implement this")
-                    }
-
-                    if param.is_right() && !param.as_ref().right().unwrap().is_ty_unknown() {
-                        args.push(param.clone());
-                    }
-                } else {
-                    continue;
-                }
+        let arg = borrow.get(idx).unwrap();
+        match arg.token_type {
+            IdentifierKind::STRINGLITERAL => {
+                let obj = StringValue {
+                    value: Some(arg.literal.clone()),
+                };
+                let literal: LiteralObjects = LiteralObjects::ObjStringValue(obj);
+                params.push(Left(literal));
+                Self::params_collector(idx + 0x01, bucket.clone(), params, closing_index)
             }
+            IdentifierKind::INTLITERAL => {
+                let value = arg
+                    .literal
+                    .parse::<isize>()
+                    .unwrap_or_else(|_| panic!("Failed to parse to INT"));
+                let obj = IntergerValue { value: Some(value) };
 
-            let node = Node {
-                identifier_kind: Some(IdentifierKind::CALL),
-                call_params: Some(args),
-                ..Default::default()
-            };
+                let literal = LiteralObjects::ObjIntergerValue(obj);
+                params.push(Left(literal));
+                Self::params_collector(idx + 0x01, bucket.clone(), params, closing_index)
+            }
+            IdentifierKind::TRUE | IdentifierKind::FALSE => {
+                let value = arg
+                    .literal
+                    .parse::<bool>()
+                    .unwrap_or_else(|_| panic!("Failed to parse to BOOL"));
+                let obj = BooleanValue { value: Some(value) };
 
-            Ok((Objects::TyNode(node), closing_paren_index))
+                let literal = LiteralObjects::ObjBooleanValue(obj);
+                params.push(Left(literal));
+                Self::params_collector(idx + 0x01, bucket.clone(), params, closing_index)
+            }
+            IdentifierKind::VARIABLE => {
+                let node = Node {
+                    variable_name: Some(arg.literal.clone()),
+                    identifier_kind: Some(IdentifierKind::VARIABLE),
+                    ..Default::default()
+                };
+
+                let obj = Objects::TyNode(node);
+                params.push(Right(obj));
+                Self::params_collector(idx + 0x01, bucket.clone(), params, closing_index)
+            }
+            IdentifierKind::CALLER => {
+                let (obj, last_index) =
+                    Self::parse_function_call(arg.clone(), idx, bucket.clone())?;
+                params.push(Right(obj));
+                Self::params_collector(last_index + 0x01, bucket.clone(), params, closing_index)
+            }
+            IdentifierKind::RPAREN => {
+                closing_index = idx;
+                Ok((params, closing_index))
+            }
+            _ => Self::params_collector(idx + 0x01, bucket.clone(), params, closing_index),
         }
     }
 
@@ -671,7 +685,6 @@ impl TokenRegistry {
         bucket: Rc<RefCell<Vec<Token>>>,
     ) -> Result<(Objects, usize), errors::KarisError> {
         let borrow = bucket.borrow();
-        println!("{:?}", borrow);
         let current_token = borrow.get(token_index).unwrap();
 
         if current_token.token_type != IdentifierKind::RPAREN {
