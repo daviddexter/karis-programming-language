@@ -18,6 +18,10 @@ pub const EQ: &str = "==";
 pub const NOTEQ: &str = "!=";
 pub const GTOREQ: &str = ">=";
 pub const LTOREQ: &str = "<=";
+pub const AND: &str = "&&";
+pub const OR: &str = "||";
+pub const PIPE: &str = "|";
+pub const AMPERSAND: &str = "&";
 pub const NULL: &str = "NULL";
 pub const QUOTEMARK: &str = "'";
 pub const HASH: &str = "#";
@@ -46,9 +50,10 @@ pub enum IdentifierKind {
     EOS, // end of statement for block
 
     // Identifiers + literals
-    VARIABLE,      // add, foobar, x, y, ...
-    INTLITERAL,    // 1343456, 1.22, 23.781
-    STRINGLITERAL, // "alice", "in", "wonderland"
+    VARIABLE,       // add, foobar, x, y, ...
+    INTLITERAL,     // 1343456, 1.22, 23.781
+    STRINGLITERAL,  // "alice", "in", "wonderland"
+    BOOLEANLITERAL, // "true", "false
 
     INTTYPE,     // @int
     STRINGTYPE,  // @string
@@ -77,6 +82,8 @@ pub enum IdentifierKind {
     NOTEQ,    //"!="
     GTOREQ,   // ">="
     LTOREQ,   // "<="
+    AND,      // "&&"
+    OR,       // "||"
 
     // Keywords
     FUNCTION, // "FUNCTION"

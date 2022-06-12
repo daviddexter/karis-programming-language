@@ -565,4 +565,63 @@ mod tests {
         let res = parser.parse();
         assert!(res.is_ok())
     }
+
+    #[test]
+    fn should_parse38() {
+        let lx = Lexer::new(String::from(
+            "
+        let echo @bool = fn(){
+            return true;
+        };
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse39() {
+        let lx = Lexer::new(String::from(
+            "
+        let echo @bool = fn(){
+            return false;
+        };
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse40() {
+        let lx = Lexer::new(String::from(
+            "
+        let echo @unit = fn(){
+            print(1);
+        };
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse41() {
+        let lx = Lexer::new(String::from(
+            "
+            let greeter @unit = fn(name @string) {
+                print(\"Hi you\");
+                let msg @string = format(\"Hi you #name\");
+            }; 
+
+
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
 }

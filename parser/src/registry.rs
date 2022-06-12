@@ -128,7 +128,7 @@ impl TokenRegistry {
 
     fn add_boolean_true_literal(&mut self) {
         let obj = ParserType {
-            nud_fn: None,
+            nud_fn: Some(Self::parse_boolean_literal),
             led_fn: None,
             binding_power: Some(0x00),
         };
@@ -137,7 +137,7 @@ impl TokenRegistry {
 
     fn add_boolean_false_literal(&mut self) {
         let obj = ParserType {
-            nud_fn: None,
+            nud_fn: Some(Self::parse_boolean_literal),
             led_fn: None,
             binding_power: Some(0x00),
         };
@@ -229,7 +229,7 @@ impl TokenRegistry {
 
     fn add_builtin_function(&mut self, symbol: IdentifierKind, binding_power: usize) {
         let obj = ParserType {
-            nud_fn: None,
+            nud_fn: Some(Self::parse_function_call),
             led_fn: None,
             binding_power: Some(binding_power),
         };
@@ -338,6 +338,7 @@ impl TokenRegistry {
             ..Default::default()
         };
 
+        // move the index to the adjacent `rbrace` token
         Ok((Objects::TyNode(node), index + 0x01))
     }
 
@@ -515,10 +516,20 @@ impl TokenRegistry {
         let (params, closing_paren_index) =
             Self::collect_function_call_params(next_index, bucket.clone(), Vec::new(), 0x00)?;
 
-        let node = Node {
-            identifier_kind: Some(IdentifierKind::CALLER),
-            call_params: Some(params),
-            ..Default::default()
+        let node = if tok.token_type == IdentifierKind::PRINT
+            || tok.token_type == IdentifierKind::FORMAT
+        {
+            Node {
+                identifier_kind: Some(tok.token_type),
+                call_params: Some(params),
+                ..Default::default()
+            }
+        } else {
+            Node {
+                identifier_kind: Some(IdentifierKind::CALLER),
+                call_params: Some(params),
+                ..Default::default()
+            }
         };
 
         Ok((Objects::TyNode(node), closing_paren_index))
@@ -751,6 +762,36 @@ impl TokenRegistry {
             ..Default::default()
         };
         let obj_type = Objects::TyNode(node);
+        Ok((obj_type, index))
+    }
+
+    // given a token, it parses it as a boolean literal
+    fn parse_boolean_literal(
+        tok: Token,
+        index: usize,
+        _bucket: Rc<RefCell<Vec<Token>>>,
+    ) -> Result<(Objects, usize), errors::KarisError> {
+        let as_bool = tok.literal.parse::<bool>();
+        if as_bool.is_err() {
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::UnableToConvert,
+                message: format!(
+                    "[FAILED CONVERSION] Failed to convert to bool ; Token {:?} Ln {} Col {}",
+                    tok.literal, tok.line_number, tok.column_number
+                ),
+            });
+        }
+
+        let value = as_bool.unwrap();
+        let bool_val = BooleanValue { value: Some(value) };
+        let obj = LiteralObjects::ObjBooleanValue(bool_val);
+        let node = Node {
+            identifier_kind: Some(IdentifierKind::BOOLEANLITERAL),
+            left_child: Some(Left(obj)),
+            ..Default::default()
+        };
+        let obj_type = Objects::TyNode(node);
+
         Ok((obj_type, index))
     }
 }
@@ -1271,7 +1312,7 @@ impl TokenRegistry {
                 children.push(node);
                 Self::collect_block_children(last_index, bucket.clone(), children, closing_index)
             }
-            _ => todo!("implement this"),
+            _ => Self::collect_block_children(idx + 0x01, bucket.clone(), children, closing_index),
         }
     }
 }

@@ -46,7 +46,7 @@ let factorial @int = fn(n @int){
     return n * factorial(n-1)
 }
 
-let fibnacci @int = fn(n @int){
+let fibonacci @int = fn(n @int){
     if n == 0 {
 		return 0
 	}
@@ -55,7 +55,7 @@ let fibnacci @int = fn(n @int){
 		return 1
 	}
 
-    return fibnacci(n-1) + fibnacci(n-2)
+    return fibonacci(n-1) + fibonacci(n-2)
 }
 
 @main fn(){
@@ -72,7 +72,7 @@ let fibnacci @int = fn(n @int){
     let result6 @int = add(x,y) + 5 / 10 * 9;
     let result6 @int =  5 / 10 * 9 + add(x,y);  
     let result7 @int = factorial(5);
-    let result8 @int = fibnacci(3);
+    let result8 @int = fibonacci(3);
 
     print(result0);
     print(result1);
