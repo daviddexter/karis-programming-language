@@ -497,4 +497,72 @@ mod tests {
         let res = parser.parse();
         assert!(res.is_ok())
     }
+
+    #[test]
+    fn should_parse31() {
+        let lx = Lexer::new(String::from("return x + y;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse32() {
+        let lx = Lexer::new(String::from("return x;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse33() {
+        let lx = Lexer::new(String::from("return x"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_err())
+    }
+
+    #[test]
+    fn should_parse34() {
+        let lx = Lexer::new(String::from("return x + call();"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse35() {
+        let lx = Lexer::new(String::from("return sum(x,y) + add(3,5);"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse36() {
+        let lx = Lexer::new(String::from(
+            "
+        let add @int = fn(x @int, y @int){
+            return x + y;
+        };
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse37() {
+        let lx = Lexer::new(String::from(
+            "
+        let echo @string = fn(name @string){
+            return name;
+        };
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
 }

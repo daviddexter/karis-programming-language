@@ -44,9 +44,10 @@ impl TokenRegistry {
         self.add_string_literal();
         self.add_boolean_true_literal();
         self.add_boolean_false_literal();
+        self.add_left_brace_statement();
         self.add_if_statement();
         self.add_else_statement();
-        self.add_left_brace_statement();
+        self.add_return();
         self.add_minus_or_plus_as_prefix(IdentifierKind::MINUS);
         self.add_minus_or_plus_as_prefix(IdentifierKind::PLUS);
 
@@ -109,7 +110,7 @@ impl TokenRegistry {
 
     fn add_variable_literal(&mut self) {
         let obj = ParserType {
-            nud_fn: None,
+            nud_fn: Some(Self::parse_variable),
             led_fn: None,
             binding_power: Some(0x00),
         };
@@ -143,6 +144,15 @@ impl TokenRegistry {
         self.register(IdentifierKind::FALSE, obj);
     }
 
+    fn add_left_brace_statement(&mut self) {
+        let obj = ParserType {
+            nud_fn: Some(Self::parse_block),
+            led_fn: None,
+            binding_power: Some(10),
+        };
+        self.register(IdentifierKind::LBRACE, obj);
+    }
+
     fn add_if_statement(&mut self) {
         let obj = ParserType {
             nud_fn: None,
@@ -161,6 +171,15 @@ impl TokenRegistry {
         self.register(IdentifierKind::ELSE, obj);
     }
 
+    fn add_return(&mut self) {
+        let obj = ParserType {
+            nud_fn: Some(Self::parse_return),
+            led_fn: None,
+            binding_power: Some(10),
+        };
+        self.register(IdentifierKind::RETURN, obj);
+    }
+
     fn add_minus_or_plus_as_prefix(&mut self, symbol: IdentifierKind) {
         let obj = ParserType {
             nud_fn: Some(Self::parse_minus_or_plus_as_prefix),
@@ -168,15 +187,6 @@ impl TokenRegistry {
             binding_power: Some(10),
         };
         self.register(symbol, obj);
-    }
-
-    fn add_left_brace_statement(&mut self) {
-        let obj = ParserType {
-            nud_fn: None,
-            led_fn: None,
-            binding_power: Some(10),
-        };
-        self.register(IdentifierKind::LBRACE, obj);
     }
 
     fn add_assign(&mut self) {
@@ -199,7 +209,7 @@ impl TokenRegistry {
 
     fn add_function_declaration(&mut self) {
         let obj = ParserType {
-            nud_fn: None,
+            nud_fn: Some(Self::parse_function_definition),
             led_fn: None,
             binding_power: Some(70),
         };
@@ -275,6 +285,195 @@ impl TokenRegistry {
         Ok((Objects::TyUnknown, index))
     }
 
+    fn parse_variable(
+        tok: Token,
+        index: usize,
+        _bucket: Rc<RefCell<Vec<Token>>>,
+    ) -> Result<(Objects, usize), errors::KarisError> {
+        let node = Node {
+            variable_name: Some(tok.literal),
+            identifier_kind: Some(IdentifierKind::VARIABLE),
+            ..Default::default()
+        };
+
+        Ok((Objects::TyNode(node), index))
+    }
+
+    fn parse_return(
+        tok: Token,
+        index: usize,
+        bucket: Rc<RefCell<Vec<Token>>>,
+    ) -> Result<(Objects, usize), errors::KarisError> {
+        let (obj, index) = Parser::expression(0, index + 0x01, bucket.clone())?;
+
+        let borrow = bucket.borrow();
+
+        let next_index = index + 0x01;
+        let next_token = borrow.get(next_index);
+        if next_token.is_none() {
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: format!(
+                    "[INVALID SYNTAX] Syntax not correct. Expected something after `{}. Ln {} Col {}  '",
+                    tok.literal,tok.line_number,tok.column_number
+                ),
+            });
+        }
+
+        let next_token = next_token.unwrap();
+
+        if next_token.token_type != IdentifierKind::SEMICOLON {
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: format!(
+                    "[INVALID SYNTAX] Syntax not correct. Expected tail `;` `{}. Ln {} Col {}  '",
+                    tok.literal, tok.line_number, tok.column_number
+                ),
+            });
+        }
+
+        let node = Node {
+            identifier_kind: Some(IdentifierKind::RETURN),
+            right_child: Some(Right(Box::new(obj))),
+            ..Default::default()
+        };
+
+        Ok((Objects::TyNode(node), index + 0x01))
+    }
+
+    // When function definition is encountered with the token `fn`, `arse_function_definition`
+    // parses the entire function block inclusive of args until tails `}` is encountered
+    // For the body, it recursively call `Self::expression`, progressively building children nodes
+    //
+    // Example:
+    // let div @int = fn(x @int, y @int){
+    //     return x * y;
+    // };
+
+    // let echo @string = fn(name @string){
+    //     return name;
+    // };
+
+    // let printer @unit = fn(name @string){
+    //     print("Name #name")
+    // };
+
+    // let max @int = fn(x @int, y @int){
+    //     if x > y{
+    //         return x;
+    //     }
+    //     return y;
+    // };
+
+    // let factorial @int = fn(n @int){
+    //     if n == 1 {
+    //         return 1
+    //     }
+    //     return n * factorial(n-1)
+    // }
+
+    // let fibnacci @int = fn(n @int){
+    //     if n == 0 {
+    //         return 0
+    //     }
+
+    //     if n == 1 || n == 2 {
+    //         return 1
+    //     }
+
+    //     return fibnacci(n-1) + fibnacci(n-2)
+    // }
+    fn parse_function_definition(
+        tok: Token,
+        index: usize,
+        bucket: Rc<RefCell<Vec<Token>>>,
+    ) -> Result<(Objects, usize), errors::KarisError> {
+        let borrow = bucket.borrow();
+
+        let next_index = index + 0x01;
+        let next_token = borrow.get(next_index);
+        if next_token.is_none() {
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: format!(
+                    "[INVALID SYNTAX] Syntax not correct. Expected something after `{}. Ln {} Col {}  '",
+                    tok.literal,tok.line_number,tok.column_number
+                ),
+            });
+        }
+
+        let next_token = next_token.unwrap();
+
+        if next_token.token_type != IdentifierKind::LPAREN {
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: format!(
+                    "[INVALID SYNTAX] Syntax not correct. Expected `(` after `{}. Ln {} Col {}  '",
+                    tok.literal, tok.line_number, tok.column_number
+                ),
+            });
+        }
+
+        let (function_args, lbrace_index) = Self::collect_function_definition_args(
+            next_index + 0x01,
+            bucket.clone(),
+            Vec::new(),
+            0x00,
+        )?;
+
+        let lbrace = borrow.get(lbrace_index).unwrap();
+        if lbrace.token_type != IdentifierKind::LBRACE {
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: format!(
+                    "[INVALID SYNTAX] Syntax not correct. Expected left-brace. Found {}. Ln {} Col {}  '",
+                    lbrace.literal, lbrace.line_number, lbrace.column_number
+                ),
+            });
+        }
+
+        let (block_children, last_index) =
+            Self::collect_block_children(lbrace_index, bucket.clone(), Vec::new(), 0x00)?;
+
+        let node = Node {
+            identifier_kind: Some(IdentifierKind::FUNCTION),
+            func_params: Some(function_args),
+            block_children: Some(block_children),
+            ..Default::default()
+        };
+
+        Ok((Objects::TyNode(node), last_index))
+    }
+
+    // Parses a block recursively
+    // `collect_block_children` is the one that actually does the work
+    fn parse_block(
+        tok: Token,
+        index: usize,
+        bucket: Rc<RefCell<Vec<Token>>>,
+    ) -> Result<(Objects, usize), errors::KarisError> {
+        if tok.token_type != IdentifierKind::LBRACE {
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: format!(
+                    "[INVALID SYNTAX] Syntax not correct.`{}. Ln {} Col {}  '",
+                    tok.literal, tok.line_number, tok.column_number
+                ),
+            });
+        }
+
+        let (block_children, last_index) =
+            Self::collect_block_children(index, bucket, Vec::new(), 0x00)?;
+
+        let node = Node {
+            identifier_kind: Some(IdentifierKind::BLOCK),
+            block_children: Some(block_children),
+            ..Default::default()
+        };
+
+        Ok((Objects::TyNode(node), last_index))
+    }
+
     // A function call can takes many forms
     // Example:
     //
@@ -314,7 +513,7 @@ impl TokenRegistry {
         }
 
         let (params, closing_paren_index) =
-            Self::params_collector(next_index, bucket.clone(), Vec::new(), 0x00)?;
+            Self::collect_function_call_params(next_index, bucket.clone(), Vec::new(), 0x00)?;
 
         let node = Node {
             identifier_kind: Some(IdentifierKind::CALLER),
@@ -323,81 +522,6 @@ impl TokenRegistry {
         };
 
         Ok((Objects::TyNode(node), closing_paren_index))
-    }
-
-    // given a `call` token, it moves forward recursively gathering args of the call
-    // if it encounters another `call` token, it calls parse_function_call then adds the result
-    // as a call param
-    fn params_collector(
-        idx: usize,
-        bucket: Rc<RefCell<Vec<Token>>>,
-        mut params: Vec<Either<LiteralObjects, Objects>>,
-        mut closing_index: usize,
-    ) -> Result<(Vec<Either<LiteralObjects, Objects>>, usize), errors::KarisError> {
-        let borrow = bucket.borrow();
-
-        if idx >= borrow.len() {
-            return Err(errors::KarisError {
-                error_type: errors::KarisErrorType::InvalidSyntax,
-                message: "[MALFORMED PROGRAM] Failed to match closing parenthesis".to_string() ,
-            });
-        }
-
-        let arg = borrow.get(idx).unwrap();
-        match arg.token_type {
-            IdentifierKind::STRINGLITERAL => {
-                let obj = StringValue {
-                    value: Some(arg.literal.clone()),
-                };
-                let literal: LiteralObjects = LiteralObjects::ObjStringValue(obj);
-                params.push(Left(literal));
-                Self::params_collector(idx + 0x01, bucket.clone(), params, closing_index)
-            }
-            IdentifierKind::INTLITERAL => {
-                let value = arg
-                    .literal
-                    .parse::<isize>()
-                    .unwrap_or_else(|_| panic!("Failed to parse to INT"));
-                let obj = IntergerValue { value: Some(value) };
-
-                let literal = LiteralObjects::ObjIntergerValue(obj);
-                params.push(Left(literal));
-                Self::params_collector(idx + 0x01, bucket.clone(), params, closing_index)
-            }
-            IdentifierKind::TRUE | IdentifierKind::FALSE => {
-                let value = arg
-                    .literal
-                    .parse::<bool>()
-                    .unwrap_or_else(|_| panic!("Failed to parse to BOOL"));
-                let obj = BooleanValue { value: Some(value) };
-
-                let literal = LiteralObjects::ObjBooleanValue(obj);
-                params.push(Left(literal));
-                Self::params_collector(idx + 0x01, bucket.clone(), params, closing_index)
-            }
-            IdentifierKind::VARIABLE => {
-                let node = Node {
-                    variable_name: Some(arg.literal.clone()),
-                    identifier_kind: Some(IdentifierKind::VARIABLE),
-                    ..Default::default()
-                };
-
-                let obj = Objects::TyNode(node);
-                params.push(Right(obj));
-                Self::params_collector(idx + 0x01, bucket.clone(), params, closing_index)
-            }
-            IdentifierKind::CALLER => {
-                let (obj, last_index) =
-                    Self::parse_function_call(arg.clone(), idx, bucket.clone())?;
-                params.push(Right(obj));
-                Self::params_collector(last_index + 0x01, bucket.clone(), params, closing_index)
-            }
-            IdentifierKind::RPAREN => {
-                closing_index = idx;
-                Ok((params, closing_index))
-            }
-            _ => Self::params_collector(idx + 0x01, bucket.clone(), params, closing_index),
-        }
     }
 
     // evaluates when `(` is a the beginning of an expression
@@ -702,6 +826,7 @@ impl TokenRegistry {
             left_child: Some(Right(Box::new(left))),
             ..Default::default()
         };
+
         Ok((Objects::TyNode(node), token_index))
     }
 
@@ -860,5 +985,293 @@ impl TokenRegistry {
         };
 
         Ok((Objects::TyNode(node), res.1))
+    }
+}
+
+// parser implementations helpers
+impl TokenRegistry {
+    // given a `call` token, it moves forward recursively gathering args of the call
+    // if it encounters another `call` token, it calls parse_function_call then adds the result
+    // as a call param
+    fn collect_function_call_params(
+        idx: usize,
+        bucket: Rc<RefCell<Vec<Token>>>,
+        mut params: Vec<Either<LiteralObjects, Objects>>,
+        mut closing_index: usize,
+    ) -> Result<(Vec<Either<LiteralObjects, Objects>>, usize), errors::KarisError> {
+        let borrow = bucket.borrow();
+
+        if idx >= borrow.len() {
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: "[MALFORMED PROGRAM] Failed to match closing parenthesis".to_string(),
+            });
+        }
+
+        let arg = borrow.get(idx).unwrap();
+        match arg.token_type {
+            IdentifierKind::STRINGLITERAL => {
+                let obj = StringValue {
+                    value: Some(arg.literal.clone()),
+                };
+                let literal: LiteralObjects = LiteralObjects::ObjStringValue(obj);
+                params.push(Left(literal));
+                Self::collect_function_call_params(
+                    idx + 0x01,
+                    bucket.clone(),
+                    params,
+                    closing_index,
+                )
+            }
+            IdentifierKind::INTLITERAL => {
+                let value = arg
+                    .literal
+                    .parse::<isize>()
+                    .unwrap_or_else(|_| panic!("Failed to parse to INT"));
+                let obj = IntergerValue { value: Some(value) };
+
+                let literal = LiteralObjects::ObjIntergerValue(obj);
+                params.push(Left(literal));
+                Self::collect_function_call_params(
+                    idx + 0x01,
+                    bucket.clone(),
+                    params,
+                    closing_index,
+                )
+            }
+            IdentifierKind::TRUE | IdentifierKind::FALSE => {
+                let value = arg
+                    .literal
+                    .parse::<bool>()
+                    .unwrap_or_else(|_| panic!("Failed to parse to BOOL"));
+                let obj = BooleanValue { value: Some(value) };
+
+                let literal = LiteralObjects::ObjBooleanValue(obj);
+                params.push(Left(literal));
+                Self::collect_function_call_params(
+                    idx + 0x01,
+                    bucket.clone(),
+                    params,
+                    closing_index,
+                )
+            }
+            IdentifierKind::VARIABLE => {
+                let node = Node {
+                    variable_name: Some(arg.literal.clone()),
+                    identifier_kind: Some(IdentifierKind::VARIABLE),
+                    ..Default::default()
+                };
+
+                let obj = Objects::TyNode(node);
+                params.push(Right(obj));
+                Self::collect_function_call_params(
+                    idx + 0x01,
+                    bucket.clone(),
+                    params,
+                    closing_index,
+                )
+            }
+            IdentifierKind::CALLER => {
+                let (obj, last_index) =
+                    Self::parse_function_call(arg.clone(), idx, bucket.clone())?;
+                params.push(Right(obj));
+                Self::collect_function_call_params(
+                    last_index + 0x01,
+                    bucket.clone(),
+                    params,
+                    closing_index,
+                )
+            }
+            IdentifierKind::RPAREN => {
+                closing_index = idx;
+                Ok((params, closing_index))
+            }
+            _ => Self::collect_function_call_params(
+                idx + 0x01,
+                bucket.clone(),
+                params,
+                closing_index,
+            ),
+        }
+    }
+
+    // walks the function collecting its arguments until a `)` token is encountered.
+    // returns the token as a vec and the index of `{` token
+    fn collect_function_definition_args(
+        idx: usize,
+        bucket: Rc<RefCell<Vec<Token>>>,
+        mut params: Vec<Either<LiteralObjects, Objects>>,
+        mut closing_index: usize,
+    ) -> Result<(Vec<Either<LiteralObjects, Objects>>, usize), errors::KarisError> {
+        let borrow = bucket.borrow();
+
+        if idx >= borrow.len() {
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: "[MALFORMED PROGRAM] Failed to match closing parenthesis".to_string(),
+            });
+        }
+
+        let arg = borrow.get(idx).unwrap();
+
+        match arg.token_type {
+            IdentifierKind::RPAREN => {
+                closing_index = idx;
+                Ok((params, closing_index + 0x01))
+            }
+
+            IdentifierKind::COMMA => Self::collect_function_definition_args(
+                idx + 0x01,
+                bucket.clone(),
+                params,
+                closing_index,
+            ),
+
+            IdentifierKind::VARIABLE => {
+                let next_idx = idx + 0x01;
+                if let Some(next_token) = borrow.get(next_idx) {
+                    match next_token.token_type {
+                            IdentifierKind::STRINGTYPE => {
+                                let node = Node {
+                                    variable_name: Some(arg.literal.clone()),
+                                    return_type: Some(TypingKind::String),
+                                    identifier_kind: Some(IdentifierKind::STRINGTYPE),..Default::default()
+                                };
+                                let obj = Objects::TyNode(node);
+                                params.push(Right(obj));
+                                Self::collect_function_definition_args(next_idx+0x01, bucket.clone(), params, closing_index)
+                            },
+                            IdentifierKind::INTTYPE => {
+                                let node = Node {
+                                    variable_name: Some(arg.literal.clone()),
+                                    return_type: Some(TypingKind::Int),
+                                    identifier_kind: Some(IdentifierKind::INTTYPE),..Default::default()
+                                };
+                                let obj = Objects::TyNode(node);
+                                params.push(Right(obj));
+                                Self::collect_function_definition_args(next_idx+0x01, bucket.clone(), params, closing_index)
+                            },
+                            IdentifierKind::BOOLEANTYPE => {
+                                let node = Node {
+                                    variable_name: Some(arg.literal.clone()),
+                                    return_type: Some(TypingKind::Int),
+                                    identifier_kind: Some(IdentifierKind::BOOLEANTYPE ),..Default::default()
+                                };
+                                let obj = Objects::TyNode(node);
+                                params.push(Right(obj));
+                                Self::collect_function_definition_args(next_idx+0x01, bucket.clone(), params, closing_index)
+                            },_ => {
+                                Err(errors::KarisError {
+                                    error_type: errors::KarisErrorType::InvalidSyntax,
+                                    message: format!(
+                                        "[INVALID SYNTAX] Syntax not correct. Expected either `@int`, `@string`, or `@bool` {}. Ln {} Col {}  '",
+                                        next_token.literal,next_token.line_number,next_token.column_number
+                                    ),
+                                })
+                            }
+                        }
+                } else {
+                    Err(errors::KarisError {
+                            error_type: errors::KarisErrorType::InvalidSyntax,
+                            message: format!(
+                                "[INVALID SYNTAX] Syntax not correct. Expected something after `{}. Ln {} Col {}  '",
+                                arg.literal,arg.line_number,arg.column_number
+                            ),
+                        })
+                }
+            }
+
+            IdentifierKind::STRINGLITERAL => {
+                let value = StringValue {
+                    value: Some(arg.literal.clone()),
+                };
+                let literal = LiteralObjects::ObjStringValue(value);
+
+                params.push(Left(literal));
+                Self::collect_function_definition_args(
+                    idx + 0x01,
+                    bucket.clone(),
+                    params,
+                    closing_index,
+                )
+            }
+
+            IdentifierKind::INTLITERAL => {
+                let value = arg
+                    .literal
+                    .parse::<isize>()
+                    .unwrap_or_else(|_| panic!("Failed to parse to INT"));
+                let obj = IntergerValue { value: Some(value) };
+
+                let literal = LiteralObjects::ObjIntergerValue(obj);
+                params.push(Left(literal));
+                Self::collect_function_definition_args(
+                    idx + 0x01,
+                    bucket.clone(),
+                    params,
+                    closing_index,
+                )
+            }
+
+            IdentifierKind::TRUE | IdentifierKind::FALSE => {
+                let value = arg
+                    .literal
+                    .parse::<bool>()
+                    .unwrap_or_else(|_| panic!("Failed to parse to BOOL"));
+                let obj = BooleanValue { value: Some(value) };
+
+                let literal = LiteralObjects::ObjBooleanValue(obj);
+                params.push(Left(literal));
+                Self::collect_function_definition_args(
+                    idx + 0x01,
+                    bucket.clone(),
+                    params,
+                    closing_index,
+                )
+            }
+
+            _ => Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: format!(
+                    "[INVALID SYNTAX] Syntax not correct.`Token {}` Ln {} Col {}  '",
+                    arg.literal, arg.line_number, arg.column_number
+                ),
+            }),
+        }
+    }
+
+    // recursively collects expressions enclosed in a `{}` block
+    // These expressions are parser individuallly then appended to the `children` arg
+    // The `closing_index` returned is the index of the `;` (semicolon) token at the end of the `{}` block
+    fn collect_block_children(
+        idx: usize,
+        bucket: Rc<RefCell<Vec<Token>>>,
+        mut children: Vec<Objects>,
+        mut closing_index: usize,
+    ) -> Result<(Vec<Objects>, usize), errors::KarisError> {
+        let borrow = bucket.borrow();
+
+        if idx >= borrow.len() {
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: "[MALFORMED PROGRAM] Failed to match closing parenthesis".to_string(),
+            });
+        }
+
+        let next_index = idx + 0x01;
+        let child = borrow.get(next_index).unwrap();
+
+        match child.token_type {
+            IdentifierKind::RBRACE => {
+                closing_index = idx;
+                Ok((children, closing_index))
+            }
+            IdentifierKind::RETURN | IdentifierKind::SEMICOLON => {
+                let (node, last_index) = Parser::expression(0, next_index, bucket.clone())?;
+                children.push(node);
+                Self::collect_block_children(last_index, bucket.clone(), children, closing_index)
+            }
+            _ => todo!("implement this"),
+        }
     }
 }

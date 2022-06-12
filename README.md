@@ -39,6 +39,25 @@ let max @int = fn(x @int, y @int){
     return y;
 };
 
+let factorial @int = fn(n @int){
+    if n == 1 {
+		return 1
+	}
+    return n * factorial(n-1)
+}
+
+let fibnacci @int = fn(n @int){
+    if n == 0 {
+		return 0
+	}
+
+    if n == 1 || n == 2 {
+		return 1
+	}
+
+    return fibnacci(n-1) + fibnacci(n-2)
+}
+
 @main fn(){
     let x @int = 5;
     let y @int = 7;
@@ -51,14 +70,18 @@ let max @int = fn(x @int, y @int){
     let result4 @string = echo(name);
     let result5 @int = echo(x,y);
     let result6 @int = add(x,y) + 5 / 10 * 9;
-    let result6 @int =  5 / 10 * 9 + add(x,y);
+    let result6 @int =  5 / 10 * 9 + add(x,y);  
+    let result7 @int = factorial(5);
+    let result8 @int = fibnacci(3);
 
     print(result0);
     print(result1);
     print(result2);
     print(result3);
     print(result4);
-    print(result5);    
+    print(result5);
+    print(result7);  
+    print(result8); 
 }@end;
 
 ```
@@ -120,7 +143,6 @@ can be implemented. That's for later. Currently, no string concatenation.
 
 Features like struct/classes, impl/interface, complex mathematical operations etc,  are not supported. Check out the sample 
 program above to get a gist of the minmum things `Karis` can do.
-
 
 ## Author's note
 
