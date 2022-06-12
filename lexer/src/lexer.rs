@@ -183,7 +183,7 @@ impl Lexer {
                         self.position,
                     )),
 
-                    // is the current char is `=`, check is the next character is `=`, therefore asserting
+                    // if the current char is `=`, check if the next character is `=`, therefore asserting
                     // whether the combination is `==`
                     tokens::ASSIGN => match self.forward_is_any_token(vec![tokens::ASSIGN]) {
                         Some(val) => {
@@ -211,6 +211,54 @@ impl Lexer {
                             self.position,
                         )),
                     },
+
+                    tokens::PIPE => match self.forward_is_any_token(vec![tokens::PIPE]) {
+                        Some(val) => {
+                            if val {
+                                self.move_current_position_and_read();
+                                Ok(tokens::Token::new(
+                                    tokens::IdentifierKind::OR,
+                                    ch_owned,
+                                    self.line_number,
+                                    self.position,
+                                ))
+                            } else {
+                                Err(errors::KarisError {
+                                    error_type: errors::KarisErrorType::UnknownToken,
+                                    message: "expected `|` after `|` : {}".to_string(),
+                                })
+                            }
+                        }
+
+                        None => Err(errors::KarisError {
+                            error_type: errors::KarisErrorType::UnknownToken,
+                            message: "expected `|` after `|` : {}".to_string(),
+                        }),
+                    },
+
+                    tokens::AMPERSAND => match self.forward_is_any_token(vec![tokens::AMPERSAND]) {
+                        Some(val) => {
+                            if val {
+                                self.move_current_position_and_read();
+                                Ok(tokens::Token::new(
+                                    tokens::IdentifierKind::AND,
+                                    ch_owned,
+                                    self.line_number,
+                                    self.position,
+                                ))
+                            } else {
+                                Err(errors::KarisError {
+                                    error_type: errors::KarisErrorType::UnknownToken,
+                                    message: "expected `&` after `&` : {}".to_string(),
+                                })
+                            }
+                        }
+                        None => Err(errors::KarisError {
+                            error_type: errors::KarisErrorType::UnknownToken,
+                            message: "expected `&` after `&` : {}".to_string(),
+                        }),
+                    },
+
                     tokens::PLUS => Ok(tokens::Token::new(
                         tokens::IdentifierKind::PLUS,
                         ch_owned,
@@ -224,7 +272,7 @@ impl Lexer {
                         self.position,
                     )),
 
-                    // is the current char is `!`, check is the next character is `=`, therefore asserting
+                    // if the current char is `!`, check if the next character is `=`, therefore asserting
                     // whether the combination is `!=`
                     tokens::BANG => match self.forward_is_any_token(vec![tokens::ASSIGN]) {
                         Some(val) => {
@@ -265,7 +313,7 @@ impl Lexer {
                         self.position,
                     )),
 
-                    // is the current char is `<`, check is the next character is `=`, therefore asserting
+                    // if the current char is `<`, check if he next character is `=`, therefore asserting
                     // whether the combination is `<=`
                     tokens::LT => match self.forward_is_any_token(vec![tokens::ASSIGN]) {
                         Some(val) => {
@@ -294,7 +342,7 @@ impl Lexer {
                         )),
                     },
 
-                    // is the current char is `>`, check is the next character is `=`, therefore asserting
+                    // if the current char is `>`, check is the next character if `=`, therefore asserting
                     // whether the combination is `>=`
                     tokens::GT => match self.forward_is_any_token(vec![tokens::ASSIGN]) {
                         Some(val) => {
@@ -808,7 +856,7 @@ mod tests {
 
     #[test]
     fn should_read_equal_token0() {
-        let mut lx0 = Lexer::new(String::from("; =="));
+        let mut lx0 = Lexer::new(String::from("; == && || & |"));
         assert_eq!(
             lx0.new_token().unwrap().token_type,
             tokens::IdentifierKind::SEMICOLON
@@ -817,6 +865,19 @@ mod tests {
             lx0.new_token().unwrap().token_type,
             tokens::IdentifierKind::EQ
         );
+        assert_eq!(
+            lx0.new_token().unwrap().token_type,
+            tokens::IdentifierKind::AND
+        );
+
+        assert_eq!(
+            lx0.new_token().unwrap().token_type,
+            tokens::IdentifierKind::OR
+        );
+
+        assert!(lx0.new_token().is_err());
+
+        assert!(lx0.new_token().is_err());
     }
 
     #[test]
