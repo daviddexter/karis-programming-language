@@ -201,15 +201,15 @@ pub struct Node {
     // This params can be of different types
     // If the function has any other return type another than `@unit`, the return type will be evaluated
     // to match that of the definition
-    pub func_params: Option<Vec<LiteralObjects>>,
+    pub func_params: Option<Vec<Either<LiteralObjects, Objects>>>,
 
     // this is used for call expressions which can take the form of
     //       func(1, 2, 3)
     //       func(1,a,b) where a and b are variables of the same type
     pub call_params: Option<Vec<Either<LiteralObjects, Objects>>>,
 
-    // this will be populated for the `main` block
-    pub children: Option<Vec<Node>>,
+    // this will be populated for the `fn` block, `if` block, `else` block and `main` block
+    pub block_children: Option<Vec<Objects>>,
 }
 
 impl Declaration for Node {

@@ -91,6 +91,7 @@ pub enum IdentifierKind {
     FORMAT,
     PRINT,
     CALLER, // A function call
+    BLOCK,
 }
 
 impl Default for IdentifierKind {
