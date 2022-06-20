@@ -131,7 +131,7 @@ to be done
 
 4. Decimal
 
-Decimals/Floats are intentional left out. The idea is to have a generic number type which encompasses Int and Floats.
+Decimals/Floats are intentionally left out. The idea is to have a generic number type which encompasses Int and Floats.
 This may be added when bandwdith allows.
 
 5. String concatenation
@@ -142,7 +142,7 @@ can be implemented. That's for later. Currently, no string concatenation.
 6. Advanced language features
 
 Features like struct/classes, impl/interface, complex mathematical operations etc,  are not supported. Check out the sample 
-program above to get a gist of the minmum things `Karis` can do.
+program above to get a gist of a set of functionalities/features `karis` supports.
 
 ## Author's note
 
