@@ -91,12 +91,15 @@ pub enum IdentifierKind {
     TRUE,     // "TRUE"
     FALSE,    // "FALSE"
     IF,       // "IF"
+    IFELSE,   // "IFELSE"
     ELSE,     // "ELSE"
     RETURN,   // "RETURN"
+    FORMAT, // "FORMAT"
+    PRINT, // "PRINT"
+
+
     MAIN,
-    END,
-    FORMAT,
-    PRINT,
+    END,    
     CALLER, // A function call
     BLOCK,
 }

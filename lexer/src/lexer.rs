@@ -183,6 +183,39 @@ impl Lexer {
                         self.position,
                     )),
 
+                    tokens::ASTERISK => Ok(tokens::Token::new(
+                        tokens::IdentifierKind::ASTERISK,
+                        ch_owned,
+                        self.line_number,
+                        self.position,
+                    )),
+                    tokens::SLASH => Ok(tokens::Token::new(
+                        tokens::IdentifierKind::SLASH,
+                        ch_owned,
+                        self.line_number,
+                        self.position,
+                    )),
+
+                    tokens::PLUS => Ok(tokens::Token::new(
+                        tokens::IdentifierKind::PLUS,
+                        ch_owned,
+                        self.line_number,
+                        self.position,
+                    )),
+                    tokens::MINUS => Ok(tokens::Token::new(
+                        tokens::IdentifierKind::MINUS,
+                        ch_owned,
+                        self.line_number,
+                        self.position,
+                    )),
+
+                    tokens::NULL => Ok(tokens::Token::new(
+                        tokens::IdentifierKind::EOF,
+                        String::new(),
+                        self.line_number,
+                        self.position,
+                    )),
+
                     // if the current char is `=`, check if the next character is `=`, therefore asserting
                     // whether the combination is `==`
                     tokens::ASSIGN => match self.forward_is_any_token(vec![tokens::ASSIGN]) {
@@ -259,18 +292,7 @@ impl Lexer {
                         }),
                     },
 
-                    tokens::PLUS => Ok(tokens::Token::new(
-                        tokens::IdentifierKind::PLUS,
-                        ch_owned,
-                        self.line_number,
-                        self.position,
-                    )),
-                    tokens::MINUS => Ok(tokens::Token::new(
-                        tokens::IdentifierKind::MINUS,
-                        ch_owned,
-                        self.line_number,
-                        self.position,
-                    )),
+                    
 
                     // if the current char is `!`, check if the next character is `=`, therefore asserting
                     // whether the combination is `!=`
@@ -300,18 +322,7 @@ impl Lexer {
                             self.position,
                         )),
                     },
-                    tokens::ASTERISK => Ok(tokens::Token::new(
-                        tokens::IdentifierKind::ASTERISK,
-                        ch_owned,
-                        self.line_number,
-                        self.position,
-                    )),
-                    tokens::SLASH => Ok(tokens::Token::new(
-                        tokens::IdentifierKind::SLASH,
-                        ch_owned,
-                        self.line_number,
-                        self.position,
-                    )),
+                    
 
                     // if the current char is `<`, check if he next character is `=`, therefore asserting
                     // whether the combination is `<=`
@@ -370,12 +381,7 @@ impl Lexer {
                             self.position,
                         )),
                     },
-                    tokens::NULL => Ok(tokens::Token::new(
-                        tokens::IdentifierKind::EOF,
-                        String::new(),
-                        self.line_number,
-                        self.position,
-                    )),
+                    
                     _ => {
                         // update identifier_start_read_position so that we know where we
                         // are when slicing to retrieve the exact identifier.
@@ -443,6 +449,7 @@ impl Lexer {
     fn traverse_to_closing_quotations(&self, begin: usize) -> usize {
         let next = self.input.get(begin..begin + 0x1).unwrap();
         if is_quotation_mark(next) {
+            // this is actually the index where the closing quote is located.
             begin
         } else {
             self.traverse_to_closing_quotations(begin + 0x1)
@@ -501,8 +508,7 @@ impl Lexer {
                         self.line_number,
                         self.position,
                     ))
-                } else if current_literal == tokens::AT
-                    && next_char_fn(self.position, self.read_position + 0x4, tokens::NULL)
+                } else if current_literal == tokens::AT && next_char_fn(self.position, self.read_position + 0x4, tokens::NULL)
                         == tokens::MAIN
                 {
                     // read the identifier then update the literal and the token
@@ -527,8 +533,7 @@ impl Lexer {
                         }
                         None => self.unknown_token_error(tokens::NULL),
                     }
-                } else if current_literal == tokens::AT
-                    && next_char_fn(self.position, self.read_position + 0x3, tokens::NULL)
+                } else if current_literal == tokens::AT && next_char_fn(self.position, self.read_position + 0x3, tokens::NULL)
                         == tokens::END
                 {
                     // read the identifier then update the literal and the token
@@ -552,11 +557,13 @@ impl Lexer {
                         }
                         None => self.unknown_token_error(tokens::NULL),
                     }
-                } else if is_space(next_char.as_bytes().first().unwrap())
+                
+                    // handles multi-line scenarios and edge cases
+                } else if is_space(next_char.as_bytes().first().unwrap()) 
                     || next_char == tokens::COMMA
                     || next_char == tokens::LBRACE
                     || next_char == tokens::RPAREN
-                    || next_char == tokens::AT
+                    // || next_char == tokens::AT
                     || next_char == tokens::SEMICOLON
                     || next_char == tokens::LPAREN
                 {
@@ -790,7 +797,7 @@ fn is_hash(chr: u8) -> bool {
 }
 
 #[cfg(test)]
-mod tests {
+mod lexer_tests {
     use super::*;
 
     #[test]
@@ -1086,6 +1093,182 @@ mod tests {
             lx.read_tokens().unwrap().token_type,
             tokens::IdentifierKind::SEMICOLON
         );
+    }
+
+
+
+    #[test]
+    fn should_read_equal_int_typing() {
+        let mut lx = Lexer::new(String::from("@int"));        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::INTTYPE
+        );        
+    }
+
+    #[test]
+    fn should_read_equal_string_typing() {
+        let mut lx = Lexer::new(String::from("@string"));        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::STRINGTYPE
+        );        
+    }
+
+    #[test]
+    fn should_read_equal_bool_typing() {
+        let mut lx = Lexer::new(String::from("@bool"));        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::BOOLEANTYPE
+        );        
+    }
+
+    #[test]
+    fn should_read_equal_unit_typing() {
+        let mut lx = Lexer::new(String::from("@unit"));        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::UNITTYPE
+        );        
+    }
+
+    #[test]
+    fn should_read_equal_main_typing() {
+        let mut lx = Lexer::new(String::from("@main"));        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::MAIN
+        );        
+    }
+
+    #[test]
+    fn should_read_equal_end_typing() {
+        let mut lx = Lexer::new(String::from("@end"));        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::END
+        );        
+    }   
+
+
+    #[test]
+    fn should_read_let_keyword() {
+        let mut lx = Lexer::new(String::from("let"));        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LET
+        );        
+    } 
+
+    #[test]
+    fn should_read_true_keyword() {
+        let mut lx = Lexer::new(String::from("true"));        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::TRUE
+        );        
+    }
+
+    #[test]
+    fn should_read_false_keyword() {
+        let mut lx = Lexer::new(String::from("false"));        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::FALSE
+        );        
+    }
+
+    #[test]
+    fn should_read_if_keyword() {
+        let mut lx = Lexer::new(String::from("if"));        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::IF
+        );        
+    }
+
+    #[test]
+    fn should_read_else_keyword() {
+        let mut lx = Lexer::new(String::from("else"));        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::ELSE
+        );        
+    }
+
+    #[test]
+    fn should_read_return_keyword() {
+        let mut lx = Lexer::new(String::from("return"));        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RETURN
+        );        
+    }
+
+    #[test]
+    fn should_read_if_else_return_keywords() {
+        let mut lx = Lexer::new(String::from("        
+        if {
+            return;
+        }else{
+            return;
+        }      
+        
+        
+        "));   
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::IF
+        );      
+        
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LBRACE
+        ); 
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RETURN
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::SEMICOLON
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RBRACE
+        ); 
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::ELSE
+        ); 
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LBRACE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RETURN
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::SEMICOLON
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RBRACE
+        );
+
+
     }
 
     #[test]

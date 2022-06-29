@@ -6,7 +6,7 @@ let x @int = 5;
 
 let y @int = 7;
 
-let number @array:int = [1,2,3,4,5];
+let number [@int] = [1,2,3,4,5];
 
 let number @map:int:string = {0 : "0", 1 : "1", 2 : "2"};
 
