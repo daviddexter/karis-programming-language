@@ -55,6 +55,7 @@ impl TokenRegistry {
 
         self.add_infix(IdentifierKind::PLUS, 30);
         self.add_infix(IdentifierKind::MINUS, 30);
+        self.add_infix(IdentifierKind::MODULUS, 30);
         self.add_infix(IdentifierKind::ASTERISK, 40);
         self.add_infix(IdentifierKind::SLASH, 40);
 

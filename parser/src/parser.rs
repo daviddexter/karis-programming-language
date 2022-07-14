@@ -237,6 +237,14 @@ mod parser_tests {
     }
 
     #[test]
+    fn should_parse5b() {
+        let lx = Lexer::new(String::from("let num @int = 4 % 2;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
     fn should_parse6() {
         let lx = Lexer::new(String::from("let num @int = 1 + -2;"));
         let mut parser = Parser::new(lx);

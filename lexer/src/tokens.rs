@@ -10,6 +10,7 @@ pub const PLUS: &str = "+";
 pub const MINUS: &str = "-";
 pub const BANG: &str = "!";
 pub const ASTERISK: &str = "*";
+pub const MODULUS: &str = "%";
 pub const AT: &str = "@";
 pub const SLASH: &str = "/";
 pub const LT: &str = "<";
@@ -84,6 +85,7 @@ pub enum IdentifierKind {
     LTOREQ,   // "<="
     AND,      // "&&"
     OR,       // "||"
+    MODULUS,  // "%"
 
     // Keywords
     FUNCTION, // "FUNCTION"
@@ -94,12 +96,11 @@ pub enum IdentifierKind {
     IFELSE,   // "IFELSE"
     ELSE,     // "ELSE"
     RETURN,   // "RETURN"
-    FORMAT, // "FORMAT"
-    PRINT, // "PRINT"
-
+    FORMAT,   // "FORMAT"
+    PRINT,    // "PRINT"
 
     MAIN,
-    END,    
+    END,
     CALLER, // A function call
     BLOCK,
 }
