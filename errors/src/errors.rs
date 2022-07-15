@@ -5,11 +5,13 @@ use std::io;
 pub enum KarisErrorType {
     UnknownToken,
     MissingLetBinding,
+    MissingConditionalIndentifier,
     MissingVariableName,
     MissingTypeInfo,
     InvalidSyntax,
     MalformedProgram,
     UnableToConvert,
+    PreconditionFailure,
 }
 
 #[derive(Debug, Clone)]

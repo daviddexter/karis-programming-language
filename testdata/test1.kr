@@ -20,34 +20,46 @@ let echo @string = fn(name @string){
 };
 
 let printer @unit = fn(name @string){
-    print("Name #name")
+    print("Name #name");
 };
 
 let max @int = fn(x @int, y @int){
     if x > y{
         return x;
-    }
+    };
+
     return y;
+};
+
+let minmax_or_product @int = fn(x @int, y @int){
+    if x < y{
+       return x + y;
+    }else x > y{
+        return x - y;
+    };
+
+    return x * y;
 };
 
 let factorial @int = fn(n @int){
     if n == 1 {
-		return 1
-	}
-    return n * factorial(n-1)
-}
+		return 1;
+	};
+
+    return n * factorial(n-1);
+};
 
 let fibonacci @int = fn(n @int){
     if n == 0 {
-		return 0
-	}
+		return 0;
+	};
 
     if n == 1 || n == 2 {
-		return 1
-	}
+		return 1;
+	};
 
-    return fibonacci(n-1) + fibonacci(n-2)
-}
+    return fibonacci(n-1) + fibonacci(n-2);
+};
 
 @main fn(){
     let x @int = 5;

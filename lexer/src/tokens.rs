@@ -93,7 +93,6 @@ pub enum IdentifierKind {
     TRUE,     // "TRUE"
     FALSE,    // "FALSE"
     IF,       // "IF"
-    IFELSE,   // "IFELSE"
     ELSE,     // "ELSE"
     RETURN,   // "RETURN"
     FORMAT,   // "FORMAT"

@@ -8,7 +8,7 @@ use lexer::tokens::{IdentifierKind, Token};
 use crate::objects::*;
 use crate::registry::TokenRegistry;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone,Default)]
 pub struct Parser {
     pub lexer: Lexer,
 
@@ -21,14 +21,15 @@ pub struct Parser {
 }
 
 impl Parser {
-    pub fn new(lexer: Lexer) -> Parser {
+    pub fn new(lexer: Lexer) -> Self {
         Self {
             lexer,
             bucket: Rc::new(RefCell::new(Vec::new())),
             program: Program::default(),
         }
-    }
+    }    
 
+    // parse internally builds a set of tokens from the lexer. This should be treated as the main entry point to the parser
     pub fn parse(&mut self) -> Result<Objects, errors::KarisError> {
         // add all tokens to a bucket cache. This will be used later when doing the actual parsing
         loop {
@@ -44,6 +45,19 @@ impl Parser {
         self.parse_program()
     }
 
+
+    // A derivative of `parse` function. This function expectes to be given a list of tokens which will act as the parser input.
+    pub fn parse_from_vec(&mut self, vec_tokens:Vec<Token>) -> Result<Objects, errors::KarisError> {
+        for token in vec_tokens.iter()   {
+            let bucket_clone = self.bucket.clone();
+            let mut token_bucket = bucket_clone.borrow_mut();
+            token_bucket.push(token.clone());
+        }
+
+        self.parse_program()
+    }
+
+
     fn parse_program(&mut self) -> Result<Objects, errors::KarisError> {
         let res = self.build_program_expressions(0x0);
         if let Err(err) = res {
@@ -53,8 +67,8 @@ impl Parser {
         Ok(Objects::TyProgram(self.program.clone()))
     }
 
-    fn build_program_expressions(&mut self, index: usize) -> Result<(), errors::KarisError> {
-        if index >= self.bucket.borrow().len() {
+    fn build_program_expressions(&mut self, index: usize) -> Result<(), errors::KarisError> {       
+        if index >= self.bucket.borrow().len(){
             return Ok(());
         }
 
@@ -72,7 +86,7 @@ impl Parser {
 
 impl Parser {
     // An associated function of the parser
-    // return the `Object` representation and the current index that has been worked on
+    // returns the `Object` representation and the current index that has been worked on
     pub fn expression(
         rbp: usize,
         index: usize,
@@ -80,6 +94,8 @@ impl Parser {
     ) -> Result<(Objects, usize), errors::KarisError> {
         // this is the current token been parsed
         let token = &bucket.borrow()[index];
+
+        println!("Expression token {:?}", token);
 
         // reusable closure
         let parser_type_fn = |s: IdentifierKind| -> Result<ParserType, errors::KarisError> {
@@ -118,6 +134,7 @@ impl Parser {
         }
 
         if let Some(next_token) = bucket.borrow().get(worked_on_index + 0x01) {
+            println!("Expression next token {:?}", next_token);
             let pt1 = parser_type_fn(next_token.token_type)?;
             if let Some(bp) = pt1.binding_power {
                 if rbp < bp {
@@ -630,6 +647,45 @@ mod parser_tests {
         ));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse42() {
+        let lx = Lexer::new(String::from(
+            "
+            let max @int = fn(x @int, y @int){
+                if x > y{
+                    return x;
+                };
+            
+                return y;
+            };
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();       
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse43() {
+        let lx = Lexer::new(String::from(
+            "
+            let minmax_or_product @int = fn(x @int, y @int){
+                if x < y{
+                   return x + y;
+                }else x > y{
+                    return x - y;
+                };
+            
+                return x * y;
+            };
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        println!("{:?}", res);
         assert!(res.is_ok())
     }
 }

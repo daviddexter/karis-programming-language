@@ -208,6 +208,9 @@ pub struct Node {
     //       func(1,a,b) where a and b are variables of the same type
     pub call_params: Option<Vec<Either<LiteralObjects, Objects>>>,
 
+    // alternate will be populated with an `else` part of a conditional expression
+    pub alternate: Option<Box<Objects>>,
+
     // this will be populated for the `fn` block, `if` block, `else` block and `main` block
     pub block_children: Option<Vec<Objects>>,
 }
