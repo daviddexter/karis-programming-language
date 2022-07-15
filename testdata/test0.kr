@@ -8,10 +8,8 @@ let y @int = 7;
 
 let number [@int] = [1,2,3,4,5];
 
-let number @map:int:string = {0 : "0", 1 : "1", 2 : "2"};
-
 let name @string = "Karis";
 
 let echo @unit = fn(name @string){
-    print("Name #name")
+    print("Name #name");
 };
