@@ -1,7 +1,7 @@
 use hashbrown::HashMap;
 use lexer::tokens::{IdentifierKind, Token};
 
-use crate::objects::{ParserType, TypingKind,};
+use crate::objects::{ParserType, TypingKind};
 
 #[derive(Debug, Default, Clone)]
 pub struct TokenRegistry {
@@ -26,6 +26,7 @@ impl TokenRegistry {
         self.consumable(IdentifierKind::RBRACE);
 
         self.add_let_binding();
+        self.add_main_binding();
         self.add_int_literal();
         self.add_variable_literal();
         self.add_string_literal();
@@ -143,6 +144,15 @@ impl TokenRegistry {
             binding_power: Some(10),
         };
         self.register(IdentifierKind::LET, obj);
+    }
+
+    fn add_main_binding(&mut self) {
+        let obj = ParserType {
+            nud_fn: Some(Self::parse_main_expressions),
+            led_fn: None,
+            binding_power: Some(10),
+        };
+        self.register(IdentifierKind::MAIN, obj);
     }
 
     fn add_left_brace_statement(&mut self) {
@@ -264,9 +274,3 @@ impl TokenRegistry {
         }
     }
 }
-
-
-
-
-
-
