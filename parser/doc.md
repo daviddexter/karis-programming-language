@@ -54,6 +54,9 @@ Taking this approach, we will have the following expressions in our AST
 
 The main idea is pratt is `binding power`. Essentially, how strongly is one entity related to the one one the left.
 
-## Parsing literal expressions
+## References
+
+- https://dev.to/jrop/pratt-parsing
+
 
 

@@ -10,17 +10,13 @@ use lexer::tokens::{IdentifierKind, Token};
 use crate::registry::TokenRegistry;
 use crate::{
     objects::{
-        BooleanValue, IntergerValue, LiteralObjects, Node, Objects,StringValue,
-        TypingKind,
+        BooleanValue, IntergerValue, LiteralObjects, Node, Objects, StringValue, TypingKind,
     },
     parser::Parser,
 };
 
-
-
 // parser implementations helpers
 impl TokenRegistry {
-
     // given an expression, we move the cursor along the length of the expression
     // until we encounter a token of the given kind then returns the index before it
     pub(crate) fn traverse_forward_until(
@@ -28,16 +24,16 @@ impl TokenRegistry {
         index: usize,
         bucket: Rc<RefCell<Vec<Token>>>,
         kind: IdentifierKind,
-    ) -> Result<usize,errors::KarisError> {
+    ) -> Result<usize, errors::KarisError> {
         let borrow = bucket.borrow();
-        if index >= borrow.len()-0x01 {
+        if index >= borrow.len() - 0x01 {
             return Err(errors::KarisError {
                 error_type: errors::KarisErrorType::InvalidSyntax,
                 message: format!(
                     "[INVALID SYNTAX] Syntax not correct. Expected matching closing parentheses. Ln {} Col {}",
                     tok.line_number,tok.column_number
                 ),
-            });         
+            });
         }
 
         if tok.token_type != kind {
@@ -48,7 +44,6 @@ impl TokenRegistry {
             Ok(index)
         }
     }
-
 
     // given a `call` token, it moves forward recursively gathering args of the call
     // if it encounters another `call` token, it calls parse_function_call then adds the result

@@ -224,7 +224,7 @@ impl Lexer {
                         Some(val) => {
                             if val {
                                 self.move_current_position_and_read();
-                                let lit = format!("{:?}{:?}",tokens::EQ,tokens::EQ);
+                                let lit = format!("{:?}{:?}", tokens::EQ, tokens::EQ);
                                 Ok(tokens::Token::new(
                                     tokens::IdentifierKind::EQ,
                                     lit,
@@ -252,7 +252,7 @@ impl Lexer {
                         Some(val) => {
                             if val {
                                 self.move_current_position_and_read();
-                                let lit = format!("{:?}{:?}",tokens::PIPE,tokens::PIPE);
+                                let lit = format!("{:?}{:?}", tokens::PIPE, tokens::PIPE);
                                 Ok(tokens::Token::new(
                                     tokens::IdentifierKind::OR,
                                     lit,
@@ -276,8 +276,8 @@ impl Lexer {
                     tokens::AMPERSAND => match self.forward_is_any_token(vec![tokens::AMPERSAND]) {
                         Some(val) => {
                             if val {
-                                self.move_current_position_and_read();                                
-                                let lit = format!("{:?}{:?}",tokens::AMPERSAND,tokens::AMPERSAND);
+                                self.move_current_position_and_read();
+                                let lit = format!("{:?}{:?}", tokens::AMPERSAND, tokens::AMPERSAND);
                                 Ok(tokens::Token::new(
                                     tokens::IdentifierKind::AND,
                                     lit,
@@ -303,7 +303,7 @@ impl Lexer {
                         Some(val) => {
                             if val {
                                 self.move_current_position_and_read();
-                                let lit = format!("{:?}{:?}",tokens::BANG,tokens::ASSIGN);
+                                let lit = format!("{:?}{:?}", tokens::BANG, tokens::ASSIGN);
                                 Ok(tokens::Token::new(
                                     tokens::IdentifierKind::NOTEQ,
                                     lit,
@@ -333,7 +333,7 @@ impl Lexer {
                         Some(val) => {
                             if val {
                                 self.move_current_position_and_read();
-                                let lit = format!("{:?}{:?}",tokens::LT,tokens::ASSIGN);
+                                let lit = format!("{:?}{:?}", tokens::LT, tokens::ASSIGN);
                                 Ok(tokens::Token::new(
                                     tokens::IdentifierKind::LTOREQ,
                                     lit,
@@ -363,7 +363,7 @@ impl Lexer {
                         Some(val) => {
                             if val {
                                 self.move_current_position_and_read();
-                                let lit = format!("{:?}{:?}",tokens::GT,tokens::ASSIGN);
+                                let lit = format!("{:?}{:?}", tokens::GT, tokens::ASSIGN);
                                 Ok(tokens::Token::new(
                                     tokens::IdentifierKind::GTOREQ,
                                     lit,

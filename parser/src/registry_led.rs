@@ -8,12 +8,9 @@ use lexer::tokens::{IdentifierKind, Token};
 
 use crate::registry::TokenRegistry;
 use crate::{
-    objects::{
-        BooleanValue, IntergerValue, LiteralObjects, Node, Objects,StringValue,       
-    },
+    objects::{BooleanValue, IntergerValue, LiteralObjects, Node, Objects, StringValue},
     parser::Parser,
 };
-
 
 // parser implementations methods for LEDs
 // consumes to the right with a left-context its "Left-Denotation"

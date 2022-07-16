@@ -8,13 +8,9 @@ use lexer::tokens::{IdentifierKind, Token};
 
 use crate::registry::TokenRegistry;
 use crate::{
-    objects::{
-        BooleanValue, IntergerValue, LiteralObjects, Node, Objects
-    },
+    objects::{BooleanValue, IntergerValue, LiteralObjects, Node, Objects},
     parser::Parser,
 };
-
-
 
 // parser implementations methods for NUD
 // consumes to the right with no left-context
@@ -226,7 +222,7 @@ impl TokenRegistry {
     // add() -> without args
     // add(one(),two()) - > args as function call
     // add(x,y) -> args as variables.
-    pub(crate)fn parse_function_call(
+    pub(crate) fn parse_function_call(
         tok: Token,
         index: usize,
         bucket: Rc<RefCell<Vec<Token>>>,
@@ -278,8 +274,6 @@ impl TokenRegistry {
 
         Ok((Objects::TyNode(node), closing_paren_index))
     }
-
-
 
     // evaluates when `(` is a the beginning of an expression
     // This is valid if the next token is either `int` or `call` expression
@@ -395,8 +389,6 @@ impl TokenRegistry {
 
         Ok((Objects::TyNode(node), index + 0x01))
     }
-   
-
 
     // To parse a `if` or `else` expression, we move the cursor to the right unit we encounter a `{`.
     // We collect item in between and parse them. After that we collect items between `{` and `}` and add them
@@ -427,9 +419,6 @@ impl TokenRegistry {
         index: usize,
         bucket: Rc<RefCell<Vec<Token>>>,
     ) -> Result<(Objects, usize), errors::KarisError> {
-        
-        
-
         let borrow = bucket.borrow();
         if borrow.get(0x0).is_none() {
             return Err(errors::KarisError {
@@ -444,15 +433,23 @@ impl TokenRegistry {
         let mut end_index: usize;
 
         #[allow(clippy::redundant_clone)]
-        let index_before_if_lbrace =
-            Self::traverse_forward_until(tok.clone(), index, bucket.clone(), IdentifierKind::LBRACE)?;
+        let index_before_if_lbrace = Self::traverse_forward_until(
+            tok.clone(),
+            index,
+            bucket.clone(),
+            IdentifierKind::LBRACE,
+        )?;
 
         let items_before_if_lbrace = borrow.get(index + 0x01..index_before_if_lbrace).unwrap();
         let exp_vec_tokens = Vec::from(items_before_if_lbrace);
         let expression_node = Parser::default().parse_from_vec(exp_vec_tokens)?;
         // if block items
-        let index_before_if_rbrace =
-            Self::traverse_forward_until(tok.clone(), index, bucket.clone(), IdentifierKind::RBRACE)?;
+        let index_before_if_rbrace = Self::traverse_forward_until(
+            tok.clone(),
+            index,
+            bucket.clone(),
+            IdentifierKind::RBRACE,
+        )?;
 
         let items_after_lbrace = borrow
             .get(index_before_if_lbrace + 0x01..index_before_if_rbrace)
@@ -523,6 +520,67 @@ impl TokenRegistry {
         Ok((Objects::TyNode(node), end_index))
     }
 
+    // To parse the `main` block, move the cursor to the right unitil we encounter a `@end`.
+    // We then collect all items in between and parse them
+    pub(crate) fn parse_main_expressions(
+        tok: Token,
+        index: usize,
+        bucket: Rc<RefCell<Vec<Token>>>,
+    ) -> Result<(Objects, usize), errors::KarisError> {
+        let borrow = bucket.borrow();
+        if borrow.get(0x0).is_none() {
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::MissingEntryPoint,
+                message: format!(
+                    "[MISSING ENTRY POINT] Expected to find `main`; Token {:?} Ln {} Col {}",
+                    tok.literal, tok.line_number, tok.column_number
+                ),
+            });
+        }
+
+        let index_lbrace = Self::traverse_forward_until(
+            tok.clone(),
+            index,
+            bucket.clone(),
+            IdentifierKind::LBRACE,
+        )?;
+        let _l0 = borrow.get(index_lbrace).unwrap();
+
+        // index_before_end points to the the `}` token just before the `@end` token
+        #[allow(clippy::redundant_clone)]
+        let index_end =
+            Self::traverse_forward_until(tok.clone(), index, bucket.clone(), IdentifierKind::END)?;
+        let _l1 = borrow.get(index_end).unwrap();
+
+        // parse validation.
+        // END must end with semicolon
+        let last_token = borrow.get(index_end + 0x01).unwrap();
+        if last_token.token_type != IdentifierKind::SEMICOLON {
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: format!(
+                    "[INVALID SYNTAX] Expected to find `;`. Token {:?} Ln {} Col {}",
+                    tok.literal, tok.line_number, tok.column_number
+                ),
+            });
+        }
+
+        let items_in_block = borrow.get(index_lbrace + 0x01..index_end - 0x02).unwrap();
+        let block_tokens = Vec::from(items_in_block);
+        let block_node = Parser::default().parse_from_vec(block_tokens)?;
+
+        // points to the tail semicolon
+        let end_index = index_end + 0x01;
+
+        let node = Node {
+            identifier_kind: Some(IdentifierKind::MAIN),
+            block_children: Some(Vec::from([block_node])),
+            ..Default::default()
+        };
+
+        Ok((Objects::TyNode(node), end_index))
+    }
+
     // To parse a let expression, move the cursor to the right until an `ASSIGN (=)` token is encountered.
     // Assert that the `variable name` token is available in it's designated position otherwise return an error
     // Assert that the `typing` token is available in it's designated position otherwise return an error
@@ -582,9 +640,6 @@ impl TokenRegistry {
 
         Ok((Objects::TyNode(node), index - 0x1))
     }
-
-
-
 
     pub(crate) fn parse_int_literal(
         tok: Token,

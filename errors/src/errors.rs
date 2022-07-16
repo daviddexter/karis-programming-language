@@ -6,6 +6,7 @@ pub enum KarisErrorType {
     UnknownToken,
     MissingLetBinding,
     MissingConditionalIndentifier,
+    MissingEntryPoint,
     MissingVariableName,
     MissingTypeInfo,
     InvalidSyntax,
