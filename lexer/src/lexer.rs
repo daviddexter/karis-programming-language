@@ -2,7 +2,7 @@ use errors::errors;
 
 use crate::tokens;
 
-#[derive(Debug, Clone,Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Lexer {
     // input that is fed to the lexer for tokenization
     input: String,

@@ -49,7 +49,7 @@ impl TokenRegistry {
         self.add_left_brace_statement();
         self.add_if_statement();
         self.add_else_statement();
-       
+
         self.add_minus_or_plus_as_prefix(IdentifierKind::MINUS);
         self.add_minus_or_plus_as_prefix(IdentifierKind::PLUS);
 
@@ -92,8 +92,6 @@ impl TokenRegistry {
         };
         self.register(symbol, obj);
     }
-
-    
 
     fn add_int_literal(&mut self) {
         let obj = ParserType {
@@ -184,7 +182,6 @@ impl TokenRegistry {
         };
         self.register(IdentifierKind::ELSE, obj);
     }
-
 
     fn add_minus_or_plus_as_prefix(&mut self, symbol: IdentifierKind) {
         let obj = ParserType {
@@ -287,7 +284,7 @@ impl TokenRegistry {
         _tok: Token,
         index: usize,
         _bucket: Rc<RefCell<Vec<Token>>>,
-    ) -> Result<(Objects, usize), errors::KarisError> {        
+    ) -> Result<(Objects, usize), errors::KarisError> {
         Ok((Objects::TyUnknown, index))
     }
 
@@ -711,25 +708,24 @@ impl TokenRegistry {
         tok: Token,
         index: usize,
         bucket: Rc<RefCell<Vec<Token>>>,
-    ) -> Result<(Objects, usize), errors::KarisError> {       
-
+    ) -> Result<(Objects, usize), errors::KarisError> {
         // given a conditional expression
         // we move the cursor along the length of the expression
-        // until we encounter a token of the given kind then returns the index before it       
+        // until we encounter a token of the given kind then returns the index before it
         fn traverse_forward_until(
             tok: Token,
             index: usize,
             bucket: Rc<RefCell<Vec<Token>>>,
-            kind: IdentifierKind
-            ) -> usize {
-                if tok.token_type != kind {
-                    let new_index = index + 0x01;
-                    let next_token = &bucket.borrow()[new_index];
-                    traverse_forward_until(next_token.clone(), new_index ,bucket.clone(),kind)
-                }else{
-                    index
-                }
-        }            
+            kind: IdentifierKind,
+        ) -> usize {
+            if tok.token_type != kind {
+                let new_index = index + 0x01;
+                let next_token = &bucket.borrow()[new_index];
+                traverse_forward_until(next_token.clone(), new_index, bucket.clone(), kind)
+            } else {
+                index
+            }
+        }
 
         let borrow = bucket.borrow();
         if borrow.get(0x0).is_none() {
@@ -740,57 +736,71 @@ impl TokenRegistry {
                     tok.literal, tok.line_number, tok.column_number
                 ),
             });
-        }                  
+        }
 
-        let mut end_index:usize;
-
+        let mut end_index: usize;
 
         #[allow(clippy::redundant_clone)]
-        let index_before_if_lbrace = traverse_forward_until(tok.clone(), index, bucket.clone(),IdentifierKind::LBRACE);
-        let items_before_if_lbrace = borrow.get(index+0x01..index_before_if_lbrace).unwrap();
-        let exp_vec_tokens = Vec::from(items_before_if_lbrace);       
-        let expression_node = Parser::default().parse_from_vec(exp_vec_tokens)?; 
+        let index_before_if_lbrace =
+            traverse_forward_until(tok.clone(), index, bucket.clone(), IdentifierKind::LBRACE);
+        let items_before_if_lbrace = borrow.get(index + 0x01..index_before_if_lbrace).unwrap();
+        let exp_vec_tokens = Vec::from(items_before_if_lbrace);
+        let expression_node = Parser::default().parse_from_vec(exp_vec_tokens)?;
         // if block items
-        let index_before_if_rbrace = traverse_forward_until(tok.clone(), index, bucket.clone(),IdentifierKind::RBRACE);
-        let items_after_lbrace = borrow.get(index_before_if_lbrace+0x01..index_before_if_rbrace).unwrap(); 
-        let if_block_vec_tokens = Vec::from(items_after_lbrace);       
+        let index_before_if_rbrace =
+            traverse_forward_until(tok.clone(), index, bucket.clone(), IdentifierKind::RBRACE);
+        let items_after_lbrace = borrow
+            .get(index_before_if_lbrace + 0x01..index_before_if_rbrace)
+            .unwrap();
+        let if_block_vec_tokens = Vec::from(items_after_lbrace);
         let if_block_node = Parser::default().parse_from_vec(if_block_vec_tokens)?;
 
         // set the end to match the index of the item before RIGHT BRACE in the if_block
         end_index = index_before_if_rbrace;
-        
 
-        // compute if the `if` condition has an alternate condition              
+        // compute if the `if` condition has an alternate condition
         let mut alternate_node = None;
-        let else_token_index = index_before_if_rbrace+ 0x01;
+        let else_token_index = index_before_if_rbrace + 0x01;
         let else_token = borrow.get(else_token_index).unwrap();
 
-        if else_token.token_type == IdentifierKind::ELSE{
+        if else_token.token_type == IdentifierKind::ELSE {
             #[allow(clippy::redundant_clone)]
-            let index_before_else_lbrace = traverse_forward_until(else_token.clone(), 
-            else_token_index,bucket.clone(),IdentifierKind::LBRACE);
+            let index_before_else_lbrace = traverse_forward_until(
+                else_token.clone(),
+                else_token_index,
+                bucket.clone(),
+                IdentifierKind::LBRACE,
+            );
 
-            let items = borrow.get(else_token_index+0x01..index_before_else_lbrace).unwrap();
-            let vec_tokens = Vec::from(items);       
+            let items = borrow
+                .get(else_token_index + 0x01..index_before_else_lbrace)
+                .unwrap();
+            let vec_tokens = Vec::from(items);
             let else_expression_node = Parser::default().parse_from_vec(vec_tokens)?;
 
             // else block items
             #[allow(clippy::redundant_clone)]
-            let index_before_else_rbrace = traverse_forward_until(tok.clone(), 
-            index_before_else_lbrace+0x01, bucket.clone(),IdentifierKind::RBRACE);
+            let index_before_else_rbrace = traverse_forward_until(
+                tok.clone(),
+                index_before_else_lbrace + 0x01,
+                bucket.clone(),
+                IdentifierKind::RBRACE,
+            );
 
-            let items_after_else_lbrace = borrow.get(index_before_else_lbrace+0x01..index_before_else_rbrace).unwrap(); 
-            let else_block_vec_tokens = Vec::from(items_after_else_lbrace);       
+            let items_after_else_lbrace = borrow
+                .get(index_before_else_lbrace + 0x01..index_before_else_rbrace)
+                .unwrap();
+            let else_block_vec_tokens = Vec::from(items_after_else_lbrace);
             let else_block_node = Parser::default().parse_from_vec(else_block_vec_tokens)?;
 
             let alt_node = Node {
                 identifier_kind: Some(IdentifierKind::ELSE),
-                right_child: Some(Right(Box::new(else_expression_node))),                
+                right_child: Some(Right(Box::new(else_expression_node))),
                 block_children: Some(Vec::from([else_block_node])),
                 ..Default::default()
             };
 
-            let obj = Objects::TyNode(alt_node);            
+            let obj = Objects::TyNode(alt_node);
             alternate_node = Some(Box::new(obj));
 
             // set the end to match the index of the item before RIGHT BRACE in the else_block
@@ -1428,7 +1438,7 @@ impl TokenRegistry {
                 error_type: errors::KarisErrorType::InvalidSyntax,
                 message: "[MALFORMED PROGRAM] Failed to match closing parenthesis".to_string(),
             });
-        }       
+        }
 
         let next_index = idx + 0x01;
         let child = borrow.get(next_index).unwrap();
@@ -1447,7 +1457,8 @@ impl TokenRegistry {
             }
 
             IdentifierKind::IF => {
-                let (node, last_index) = Self::parse_if_else_expressions(child.clone(), next_index, bucket.clone())?;
+                let (node, last_index) =
+                    Self::parse_if_else_expressions(child.clone(), next_index, bucket.clone())?;
                 children.push(node);
                 Self::collect_block_children(last_index, bucket.clone(), children, closing_index)
             }
