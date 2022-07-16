@@ -94,9 +94,7 @@ impl Parser {
         bucket: Rc<RefCell<Vec<Token>>>,
     ) -> Result<(Objects, usize), errors::KarisError> {
         // this is the current token been parsed
-        let token = &bucket.borrow()[index];
-
-        println!("Expression token {:?}", token);
+        let token = &bucket.borrow()[index];       
 
         // reusable closure
         let parser_type_fn = |s: IdentifierKind| -> Result<ParserType, errors::KarisError> {
@@ -134,8 +132,7 @@ impl Parser {
             });
         }
 
-        if let Some(next_token) = bucket.borrow().get(worked_on_index + 0x01) {
-            println!("Expression next token {:?}", next_token);
+        if let Some(next_token) = bucket.borrow().get(worked_on_index + 0x01) {                   
             let pt1 = parser_type_fn(next_token.token_type)?;
             if let Some(bp) = pt1.binding_power {
                 if rbp < bp {
@@ -417,6 +414,14 @@ mod parser_tests {
     }
 
     #[test]
+    fn should_parse17c() {
+        let lx = Lexer::new(String::from("let num @int = 4 % sum() +  10 - 3;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
     fn should_parse18() {
         let lx = Lexer::new(String::from("let num @int = sum(1,2) +  20 - 3;"));
         let mut parser = Parser::new(lx);
@@ -689,4 +694,75 @@ mod parser_tests {
         println!("{:?}", res);
         assert!(res.is_ok())
     }
+
+    #[test]
+    fn should_parse44() {
+        let lx = Lexer::new(String::from(
+        " 
+
+        let fibonacci @int = fn(n @int){
+            if n == 0 {
+                return 0;
+            };
+        
+            if n == 1 || n == 2 {
+                return 1;
+            };
+        
+            return fibonacci(n - 1) + fibonacci(n - 2);
+        };
+
+        "
+        ));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        println!("{:?}", res);
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse45() {
+        let lx = Lexer::new(String::from(
+        " 
+
+        let fibonacci @int = fn(n @int){
+            if n == 0 {
+                return 0;
+            };
+        
+            if n == 1 && n == 2 {
+                return 1;
+            };
+        
+            return fibonacci(n - 1) + fibonacci(n - 2);
+        };
+
+        "
+        ));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        println!("{:?}", res);
+        assert!(res.is_ok())
+    }
+
+    // #[test]
+    // fn should_parse46() {
+    //     let lx = Lexer::new(String::from(
+    //     "
+    //     @main fn(){
+    //         let x @int = 5;
+    //         let y @int = 7;
+    //         let name @string = \"Karis\";            
+    //         let result0 @int = add(x,y);           
+    //         let result6 @int = add(x,y) + 5 / 10 * 9;
+    //         let result6 @int =  5 / 10 * 9 + add(x,y);  
+    //         let result7 @int = factorial(5);           
+    //     }@end;
+    //     "
+    //     ));
+    //     let mut parser = Parser::new(lx);
+    //     let res = parser.parse();
+    //     println!("{:?}", res);
+    //     assert!(res.is_ok())
+    // }
 }
