@@ -8,7 +8,7 @@ use lexer::tokens::{IdentifierKind, Token};
 use crate::objects::*;
 use crate::registry::TokenRegistry;
 
-#[derive(Debug, Clone,Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Parser {
     pub lexer: Lexer,
 
@@ -27,7 +27,7 @@ impl Parser {
             bucket: Rc::new(RefCell::new(Vec::new())),
             program: Program::default(),
         }
-    }    
+    }
 
     // parse internally builds a set of tokens from the lexer. This should be treated as the main entry point to the parser
     pub fn parse(&mut self) -> Result<Objects, errors::KarisError> {
@@ -45,10 +45,12 @@ impl Parser {
         self.parse_program()
     }
 
-
     // A derivative of `parse` function. This function expectes to be given a list of tokens which will act as the parser input.
-    pub fn parse_from_vec(&mut self, vec_tokens:Vec<Token>) -> Result<Objects, errors::KarisError> {
-        for token in vec_tokens.iter()   {
+    pub fn parse_from_vec(
+        &mut self,
+        vec_tokens: Vec<Token>,
+    ) -> Result<Objects, errors::KarisError> {
+        for token in vec_tokens.iter() {
             let bucket_clone = self.bucket.clone();
             let mut token_bucket = bucket_clone.borrow_mut();
             token_bucket.push(token.clone());
@@ -56,7 +58,6 @@ impl Parser {
 
         self.parse_program()
     }
-
 
     fn parse_program(&mut self) -> Result<Objects, errors::KarisError> {
         let res = self.build_program_expressions(0x0);
@@ -67,8 +68,8 @@ impl Parser {
         Ok(Objects::TyProgram(self.program.clone()))
     }
 
-    fn build_program_expressions(&mut self, index: usize) -> Result<(), errors::KarisError> {       
-        if index >= self.bucket.borrow().len(){
+    fn build_program_expressions(&mut self, index: usize) -> Result<(), errors::KarisError> {
+        if index >= self.bucket.borrow().len() {
             return Ok(());
         }
 
@@ -664,7 +665,7 @@ mod parser_tests {
         ",
         ));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();       
+        let res = parser.parse();
         assert!(res.is_ok())
     }
 
