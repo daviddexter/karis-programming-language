@@ -224,9 +224,10 @@ impl Lexer {
                         Some(val) => {
                             if val {
                                 self.move_current_position_and_read();
+                                let lit = format!("{:?}{:?}",tokens::EQ,tokens::EQ);
                                 Ok(tokens::Token::new(
                                     tokens::IdentifierKind::EQ,
-                                    ch_owned,
+                                    lit,
                                     self.line_number,
                                     self.position,
                                 ))
@@ -251,9 +252,10 @@ impl Lexer {
                         Some(val) => {
                             if val {
                                 self.move_current_position_and_read();
+                                let lit = format!("{:?}{:?}",tokens::PIPE,tokens::PIPE);
                                 Ok(tokens::Token::new(
                                     tokens::IdentifierKind::OR,
-                                    ch_owned,
+                                    lit,
                                     self.line_number,
                                     self.position,
                                 ))
@@ -274,10 +276,11 @@ impl Lexer {
                     tokens::AMPERSAND => match self.forward_is_any_token(vec![tokens::AMPERSAND]) {
                         Some(val) => {
                             if val {
-                                self.move_current_position_and_read();
+                                self.move_current_position_and_read();                                
+                                let lit = format!("{:?}{:?}",tokens::AMPERSAND,tokens::AMPERSAND);
                                 Ok(tokens::Token::new(
                                     tokens::IdentifierKind::AND,
-                                    ch_owned,
+                                    lit,
                                     self.line_number,
                                     self.position,
                                 ))
@@ -300,9 +303,10 @@ impl Lexer {
                         Some(val) => {
                             if val {
                                 self.move_current_position_and_read();
+                                let lit = format!("{:?}{:?}",tokens::BANG,tokens::ASSIGN);
                                 Ok(tokens::Token::new(
                                     tokens::IdentifierKind::NOTEQ,
-                                    ch_owned,
+                                    lit,
                                     self.line_number,
                                     self.position,
                                 ))
@@ -329,9 +333,10 @@ impl Lexer {
                         Some(val) => {
                             if val {
                                 self.move_current_position_and_read();
+                                let lit = format!("{:?}{:?}",tokens::LT,tokens::ASSIGN);
                                 Ok(tokens::Token::new(
                                     tokens::IdentifierKind::LTOREQ,
-                                    ch_owned,
+                                    lit,
                                     self.line_number,
                                     self.position,
                                 ))
@@ -358,9 +363,10 @@ impl Lexer {
                         Some(val) => {
                             if val {
                                 self.move_current_position_and_read();
+                                let lit = format!("{:?}{:?}",tokens::GT,tokens::ASSIGN);
                                 Ok(tokens::Token::new(
                                     tokens::IdentifierKind::GTOREQ,
-                                    ch_owned,
+                                    lit,
                                     self.line_number,
                                     self.position,
                                 ))
@@ -779,9 +785,9 @@ fn is_space(chr: &u8) -> bool {
     *chr == b' ' || *chr == b'\t'
 }
 
-// checks if byte is ASCII : space or tab
+// checks if byte is ASCII : newline or backslash
 fn is_newline(chr: &u8) -> bool {
-    *chr == b'\n'
+    *chr == b'\n' || *chr == 0x5C
 }
 
 /// check if byte is ASCII alphabetic: A-Z, a-z

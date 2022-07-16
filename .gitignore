@@ -10,3 +10,5 @@ Cargo.lock
 **/*.rs.bk
 
 .vscode
+
+# /home/daviddexter/kinetic-engines/kng-projects/karis-programming-language/testdata/test1.kr
