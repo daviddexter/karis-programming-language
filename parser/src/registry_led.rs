@@ -222,7 +222,7 @@ impl TokenRegistry {
                         ..Default::default()
                     };
 
-                    // move the cursor to the end. This will finish the recursive call stask and return to the caller
+                    // move the cursor to the end. This will finish the recursive call stack and return to the caller
                     return Ok((Objects::TyNode(node), token_index + 0x02));
                 }
             }

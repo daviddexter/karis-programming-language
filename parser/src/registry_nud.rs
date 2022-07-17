@@ -383,6 +383,7 @@ impl TokenRegistry {
         };
         let obj = LiteralObjects::ObjIntergerValue(int);
         let node = Node {
+            identifier_kind: Some(IdentifierKind::INTLITERAL),
             left_child: Some(Left(obj)),
             ..Default::default()
         };
@@ -440,8 +441,6 @@ impl TokenRegistry {
             IdentifierKind::LBRACE,
         )?;
 
-        
-
         let items_before_if_lbrace = borrow.get(index + 0x01..index_at_if_lbrace).unwrap();
         let exp_vec_tokens = Vec::from(items_before_if_lbrace);
         let expression_node = Parser::default().parse_from_vec(exp_vec_tokens)?;
@@ -454,7 +453,6 @@ impl TokenRegistry {
         )?;
 
         let _l2 = borrow.get(index_at_if_rbrace).unwrap();
-
 
         let items_after_lbrace = borrow
             .get(index_at_if_lbrace + 0x01..index_at_if_rbrace)

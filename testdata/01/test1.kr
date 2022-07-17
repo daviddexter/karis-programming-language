@@ -46,7 +46,7 @@ let factorial @int = fn(n @int){
 		return 1;
 	};
 
-    return n * factorial(n-1);
+    return n * factorial(n - 1);
 };
 
 let fibonacci @int = fn(n @int){
@@ -58,7 +58,7 @@ let fibonacci @int = fn(n @int){
 		return 1;
 	};
 
-    return fibonacci(n-1) + fibonacci(n-2);
+    return fibonacci(n - 1) + fibonacci(n - 2);
 };
 
 @main fn(){
