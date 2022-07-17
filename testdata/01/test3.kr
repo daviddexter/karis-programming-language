@@ -1,0 +1,3 @@
+let echo @unit = fn(name @string){
+    print("Name #name");
+};

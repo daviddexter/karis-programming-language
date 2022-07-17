@@ -45,6 +45,8 @@ pub enum TypingKind {
 pub trait Declaration {
     // returns the type of the current declaration object
     fn which(&self) -> DeclarationType;
+
+    fn inspect(&self);
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -71,8 +73,16 @@ impl Declaration for Objects {
     fn which(&self) -> DeclarationType {
         match &self {
             Objects::TyProgram(i) => i.which(),
+            Objects::TyNode(i) => i.which(),
             Objects::TyUnknown => DeclarationType::Unknown,
-            _ => panic!(""),
+        }
+    }
+
+    fn inspect(&self) {
+        match &self {
+            Objects::TyProgram(i) => i.inspect(),
+            Objects::TyNode(i) => i.inspect(),
+            _ => unreachable!("nothing to inspect"),
         }
     }
 }
@@ -93,6 +103,10 @@ impl Declaration for Program {
     fn which(&self) -> DeclarationType {
         DeclarationType::Program
     }
+
+    fn inspect(&self) {
+        todo!("inspect program here")
+    }
 }
 
 impl Program {
@@ -107,6 +121,8 @@ impl Program {
 pub trait Value {
     // returns the type of the current declaration object
     fn kind(&self) -> TypingKind;
+
+    fn inspect(&self);
 }
 
 // Represents literal values definitions
@@ -125,6 +141,10 @@ impl Value for LiteralObjects {
             LiteralObjects::ObjStringValue(i) => i.kind(),
         }
     }
+
+    fn inspect(&self) {
+        todo!("inspect literal objects")
+    }
 }
 
 // Interger values representation
@@ -136,6 +156,12 @@ pub struct IntergerValue {
 impl Value for IntergerValue {
     fn kind(&self) -> TypingKind {
         TypingKind::Int
+    }
+
+    fn inspect(&self) {
+        if let Some(value) = &self.value {
+            println!("( {:?}", value)
+        }
     }
 }
 
@@ -149,6 +175,12 @@ impl Value for BooleanValue {
     fn kind(&self) -> TypingKind {
         TypingKind::Boolean
     }
+
+    fn inspect(&self) {
+        if let Some(value) = &self.value {
+            println!("( {:?}", value)
+        }
+    }
 }
 
 // String values representation
@@ -160,6 +192,12 @@ pub struct StringValue {
 impl Value for StringValue {
     fn kind(&self) -> TypingKind {
         TypingKind::String
+    }
+
+    fn inspect(&self) {
+        if let Some(value) = &self.value {
+            println!("( {:?}", value)
+        }
     }
 }
 
@@ -218,5 +256,17 @@ pub struct Node {
 impl Declaration for Node {
     fn which(&self) -> DeclarationType {
         DeclarationType::Node
+    }
+
+    fn inspect(&self) {
+        if let Some(kind) = self.identifier_kind {
+            match kind {
+                IdentifierKind::LET => {
+                    todo!("implement let inspect");
+                }
+
+                _ => todo!("implement inspect method"),
+            }
+        }
     }
 }
