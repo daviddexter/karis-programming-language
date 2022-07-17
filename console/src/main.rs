@@ -2,14 +2,82 @@ use std::io;
 use std::path::Path;
 use std::process;
 
+use clap::{arg, Command, Arg, ArgAction};
+
 use lexer::lexer as lex;
 
 const PROMPT: &str = ">>>";
 const EXIT: &str = "exit";
-const WG: &str = ":g";
-const WF: &str = ":f";
 
-fn start(t: &str) -> io::Result<()> {
+const KARIS_WELCOME_MESSAGE: &str ="
+▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+██░█▀▄█░▄▄▀█░▄▄▀██▄██░▄▄
+██░▄▀██░▀▀░█░▀▀▄██░▄█▄▄▀
+██░██░█▄██▄█▄█▄▄█▄▄▄█▄▄▄
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+        
+";
+
+const KARIS_INTERACTIVE_MESSAGE: &str ="
+▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
+██░█▀▄█░▄▄▀█░▄▄▀██▄██░▄▄
+██░▄▀██░▀▀░█░▀▀▄██░▄█▄▄▀
+██░██░█▄██▄█▄█▄▄█▄▄▄█▄▄▄
+▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
+        
+Welcome to Karis Lang (v0.1.0) Interactive Console";
+
+
+
+
+fn main() -> io::Result<()> {
+    let matches = Command::new(KARIS_WELCOME_MESSAGE)
+        .version("v0.1.0")
+        .propagate_version(true)
+        .subcommand_required(true)
+        .arg_required_else_help(true)
+        .subcommand(
+            Command::new("rlpl")
+            .about("Read-Lexer-Print-Loop etracts tokens and prints on stdout")                    
+            .arg_required_else_help(true)           
+            .arg(
+                Arg::new("interactive")
+                    .short('i')
+                    .long("interactive")
+                    .action(ArgAction::SetTrue)
+                    .required(false),
+            )  
+            .arg(arg!(-p --filepath <PATH>).required(false))         
+        )
+        .get_matches();
+
+
+    match matches.subcommand() {
+        Some(("rlpl", sub_matches)) => {
+            let interactive = sub_matches.get_one::<bool>("interactive");
+            let file_path = sub_matches.get_one::<String>("filepath");
+
+            if let Some(i) = interactive{
+                if *i{
+                    return lexer_interactive();
+                }                
+            }
+
+            if let Some(file_path) = file_path {
+                return lexer_from_file(file_path);
+            }            
+            Ok(())
+        }     
+        _ => unreachable!(" "),
+    }
+}
+
+
+fn lexer_interactive() -> io::Result<()> {
+    println!("{}\n", KARIS_INTERACTIVE_MESSAGE);
+    println!("Copy-Paste or type your Karis program after the prompt\n",);
+    println!("Type exit to close the console\n",);
+
     let mut input = String::new();
 
     loop {
@@ -20,76 +88,23 @@ fn start(t: &str) -> io::Result<()> {
         let text = input.trim();
 
         if text == EXIT {
-            println!("Closing interactive console. Catch you later :) ");
+            println!("Closing interactive console. Catch you later :) \n");
             process::exit(0)
         }
 
-        let with_generator = || {
-            let mut lx = lex::Lexer::new(String::from(text));
-            lx.generate_and_print();
-        };
-
-        let without_generator = || {
-            let resp = evaluate(text).err();
-            if let Some(err) = resp {
-                println!("Error: {}", err)
-            }
-        };
-
-        if t == WG {
-            with_generator();
-        } else {
-            without_generator();
-        }
+        let mut lx = lex::Lexer::new(String::from(text));
+        lx.generate_and_print();        
 
         input.clear();
     }
 }
 
-fn evaluate(input: &str) -> io::Result<()> {
-    let mut lx = lex::Lexer::new(String::from(input));
-    let token = lx.generate()?;
-    println!("{:?}", token);
-    Ok(())
-}
 
-fn start_from_file(file: &str) -> io::Result<()> {
+fn lexer_from_file(file: &str) -> io::Result<()> {
     let path = Path::new(file);
     let path_str = path.to_str().expect("failed to get file path");
     let file = std::fs::read_to_string(path_str)?;
     let mut lx = lex::Lexer::new(file);
     lx.generate_and_print();
     Ok(())
-}
-
-fn main() -> io::Result<()> {
-    println!(
-        "
-        ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
-        ██░█▀▄█░▄▄▀█░▄▄▀██▄██░▄▄
-        ██░▄▀██░▀▀░█░▀▀▄██░▄█▄▄▀
-        ██░██░█▄██▄█▄█▄▄█▄▄▄█▄▄▄
-        ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀"
-    );
-    println!("Welcome to Karis Lang (v0.1.0) Interactive Console\n");
-    println!(
-        "
-    Type  :g  to extract tokens with generator (useful for long sequences) or
-    Type  :ng  to extract tokens once (returns only a single token from a sequence) or 
-    Type  :f  for file input"
-    );
-
-    let mut input = String::new();
-    io::stdin().read_line(&mut input)?;
-    let trimmed_input = input.trim();
-
-    if trimmed_input == WF {
-        println!("Paste the file path then press enter");
-        let mut file_path = String::new();
-        io::stdin().read_line(&mut file_path)?;
-        start_from_file(file_path.trim())
-    } else {
-        println!("Let's begin \n");
-        start(trimmed_input)
-    }
 }

@@ -433,41 +433,46 @@ impl TokenRegistry {
         let mut end_index: usize;
 
         #[allow(clippy::redundant_clone)]
-        let index_before_if_lbrace = Self::traverse_forward_until(
+        let index_at_if_lbrace = Self::traverse_forward_until(
             tok.clone(),
             index,
             bucket.clone(),
             IdentifierKind::LBRACE,
         )?;
 
-        let items_before_if_lbrace = borrow.get(index + 0x01..index_before_if_lbrace).unwrap();
+        
+
+        let items_before_if_lbrace = borrow.get(index + 0x01..index_at_if_lbrace).unwrap();
         let exp_vec_tokens = Vec::from(items_before_if_lbrace);
         let expression_node = Parser::default().parse_from_vec(exp_vec_tokens)?;
         // if block items
-        let index_before_if_rbrace = Self::traverse_forward_until(
+        let index_at_if_rbrace = Self::traverse_forward_until(
             tok.clone(),
             index,
             bucket.clone(),
             IdentifierKind::RBRACE,
         )?;
 
+        let _l2 = borrow.get(index_at_if_rbrace).unwrap();
+
+
         let items_after_lbrace = borrow
-            .get(index_before_if_lbrace + 0x01..index_before_if_rbrace)
+            .get(index_at_if_lbrace + 0x01..index_at_if_rbrace)
             .unwrap();
         let if_block_vec_tokens = Vec::from(items_after_lbrace);
         let if_block_node = Parser::default().parse_from_vec(if_block_vec_tokens)?;
 
         // set the end to match the index of the item before RIGHT BRACE in the if_block
-        end_index = index_before_if_rbrace;
+        end_index = index_at_if_rbrace;
 
         // compute if the `if` condition has an alternate condition
         let mut alternate_node = None;
-        let else_token_index = index_before_if_rbrace + 0x01;
+        let else_token_index = index_at_if_rbrace + 0x01;
         let else_token = borrow.get(else_token_index).unwrap();
 
         if else_token.token_type == IdentifierKind::ELSE {
             #[allow(clippy::redundant_clone)]
-            let index_before_else_lbrace = Self::traverse_forward_until(
+            let index_at_else_lbrace = Self::traverse_forward_until(
                 else_token.clone(),
                 else_token_index,
                 bucket.clone(),
@@ -475,22 +480,22 @@ impl TokenRegistry {
             )?;
 
             let items = borrow
-                .get(else_token_index + 0x01..index_before_else_lbrace)
+                .get(else_token_index + 0x01..index_at_else_lbrace)
                 .unwrap();
             let vec_tokens = Vec::from(items);
             let else_expression_node = Parser::default().parse_from_vec(vec_tokens)?;
 
             // else block items
             #[allow(clippy::redundant_clone)]
-            let index_before_else_rbrace = Self::traverse_forward_until(
+            let index_at_else_rbrace = Self::traverse_forward_until(
                 tok.clone(),
-                index_before_else_lbrace + 0x01,
+                index_at_else_lbrace + 0x01,
                 bucket.clone(),
                 IdentifierKind::RBRACE,
             )?;
 
             let items_after_else_lbrace = borrow
-                .get(index_before_else_lbrace + 0x01..index_before_else_rbrace)
+                .get(index_at_else_lbrace + 0x01..index_at_else_rbrace)
                 .unwrap();
             let else_block_vec_tokens = Vec::from(items_after_else_lbrace);
             let else_block_node = Parser::default().parse_from_vec(else_block_vec_tokens)?;
@@ -506,7 +511,7 @@ impl TokenRegistry {
             alternate_node = Some(Box::new(obj));
 
             // set the end to match the index of the item before RIGHT BRACE in the else_block
-            end_index = index_before_else_rbrace;
+            end_index = index_at_else_rbrace;
         }
 
         let node = Node {
