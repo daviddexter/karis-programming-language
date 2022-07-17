@@ -8,5 +8,6 @@ repository = "https://github.com/daviddexter/wanja-programming-language/console/
 
 
 [dependencies]
+clap = "3.2.12"
 lexer = { path = "../lexer" }
 

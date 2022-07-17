@@ -51,6 +51,7 @@ impl Lexer {
                 Err(err) => eprintln!("{:?}", err),
             }
         }
+        println!("\n")
     }
 
     #[allow(clippy::never_loop)]
