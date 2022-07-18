@@ -142,11 +142,15 @@ impl TokenRegistry {
     // - arthemetic expression
     // - function definition expression
     // - function call expression
+    //
+    // The LHS is almost always a LET binding
     pub(crate) fn parse_assign_operator(
         left: Objects,
         token_index: usize,
         bucket: Rc<RefCell<Vec<Token>>>,
     ) -> Result<(Objects, usize), errors::KarisError> {
+        // parser validation
+        // if the next token matches any of the provided token examples, throw an error. It means the syntax is invalid
         let (current_token, next_token) = Self::preconditions(
             token_index,
             bucket.clone(),
@@ -228,6 +232,8 @@ impl TokenRegistry {
             }
         }
 
+        // here, the RHS is a fully-qualified expression. That is either a function declaration, arthemetic expression or function call
+        // we therefore parse the expression then return it as the RHS of `=`
         let res = Parser::expression(0x00, token_index + 0x01, bucket.clone());
         if res.is_err() {
             let err = res.err().unwrap();

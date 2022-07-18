@@ -131,6 +131,7 @@ impl TokenRegistry {
     ) -> Result<(Objects, usize), errors::KarisError> {
         let borrow = bucket.borrow();
 
+        // parser validation : fn definition should be complete
         let next_index = index + 0x01;
         let next_token = borrow.get(next_index);
         if next_token.is_none() {
@@ -143,8 +144,8 @@ impl TokenRegistry {
             });
         }
 
+        // parser validation : FUNCTION should be followed by `(`
         let next_token = next_token.unwrap();
-
         if next_token.token_type != IdentifierKind::LPAREN {
             return Err(errors::KarisError {
                 error_type: errors::KarisErrorType::InvalidSyntax,
@@ -162,6 +163,7 @@ impl TokenRegistry {
             0x00,
         )?;
 
+        // parser validation : FUNCTION should have a body
         let lbrace = borrow.get(lbrace_index).unwrap();
         if lbrace.token_type != IdentifierKind::LBRACE {
             return Err(errors::KarisError {
@@ -452,8 +454,6 @@ impl TokenRegistry {
             IdentifierKind::RBRACE,
         )?;
 
-        let _l2 = borrow.get(index_at_if_rbrace).unwrap();
-
         let items_after_lbrace = borrow
             .get(index_at_if_lbrace + 0x01..index_at_if_rbrace)
             .unwrap();
@@ -612,7 +612,10 @@ impl TokenRegistry {
             });
         }
 
-        let variable_name_token = borrow.get(0x01);
+        let index_of_let_ident = index - 0x03;
+
+        // parser validation : check if variable name has been specified
+        let variable_name_token = borrow.get(index_of_let_ident + 0x01);
         if variable_name_token.is_none() {
             return Err(errors::KarisError {
                 error_type: errors::KarisErrorType::MissingVariableName,
@@ -623,7 +626,8 @@ impl TokenRegistry {
             });
         }
 
-        let typing_token = borrow.get(0x02);
+        // parser validation : check if typing information has been provided
+        let typing_token = borrow.get(index_of_let_ident + 0x02);
         if typing_token.is_none() {
             return Err(errors::KarisError {
                 error_type: errors::KarisErrorType::MissingTypeInfo,
@@ -641,6 +645,7 @@ impl TokenRegistry {
             ..Default::default()
         };
 
+        // return index that points to the `typing` not the `Assign`
         Ok((Objects::TyNode(node), index - 0x1))
     }
 
