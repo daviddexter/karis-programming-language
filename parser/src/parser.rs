@@ -36,9 +36,10 @@ impl Parser {
             let token = self.lexer.generate()?;
             let bucket_clone = self.bucket.clone();
             let mut token_bucket = bucket_clone.borrow_mut();
-            token_bucket.push(token.clone());
             if token.token_type == IdentifierKind::EOF {
                 break;
+            } else {
+                token_bucket.push(token.clone());
             }
         }
 
@@ -98,7 +99,7 @@ impl Parser {
 
         if token.token_type == IdentifierKind::EOS {
             let node = Node {
-                identifier_kind: Some(IdentifierKind::EOS),
+                identifier_kind: Some(token.token_type),
                 ..Default::default()
             };
             return Ok((Objects::TyNode(node), index));
@@ -184,7 +185,7 @@ mod parser_tests {
         let lx = Lexer::new(String::from("let num @int = 1;"));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
-        assert!(res.is_ok())
+        assert!(res.is_ok());
     }
 
     #[test]
@@ -699,8 +700,7 @@ mod parser_tests {
         ));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
-        println!("{:?}", res);
-        assert!(res.is_ok())
+        assert!(res.is_ok());
     }
 
     #[test]
@@ -785,7 +785,21 @@ mod parser_tests {
         ));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
-        println!("{:?}", res);
         assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse47() -> std::io::Result<()> {
+        let lx = Lexer::new(String::from(
+            "
+            let add @int = fn(x @int, y @int){
+                return x + y;
+            };
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse()?;
+        println!("{}", res.inspect());
+        Ok(())
     }
 }

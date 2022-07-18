@@ -1,1 +1,43 @@
-let name @string = "Karis";
+let add @int = fn(x @int, y @int){
+    return x + y;
+};
+
+let sub @int = fn(x @int, y @int){
+    return x - y;
+};
+
+let mul @int = fn(x @int, y @int){
+    return x * y;
+};
+
+let div @int = fn(x @int, y @int){
+    return x * y;
+};
+
+let mod @int = fn(x @int, y @int){
+    return x % y;
+};
+
+let greater @bool = fn(x @int, y @int){
+    return x > y;
+};
+
+let greater_or_eq @bool = fn(x @int, y @int){
+    return x >= y;
+};
+
+let less @bool = fn(x @int, y @int){
+    return x > y;
+};
+
+let less_or_eq @bool = fn(x @int, y @int){
+    return x <= y;
+};
+
+let or @bool = fn(x @int, y @int){
+    return x || y;
+};
+
+let and @bool = fn(x @int, y @int){
+    return x && y;
+};

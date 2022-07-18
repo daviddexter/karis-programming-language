@@ -1,2 +1,4 @@
-let x @int = 5;
-
+let num @int = 1;        
+let active @bool = true;
+let subscribed @bool = false;
+let name @string = "Karis";

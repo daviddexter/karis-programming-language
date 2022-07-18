@@ -148,9 +148,8 @@ fn parser_from_file(file: &str, inspect: &bool) -> io::Result<()> {
         let mut parser = Parser::new(lx);
         let res = parser.parse()?;
         let inspect = *inspect;
-        println!("Inspect is {}", inspect);
         if inspect {
-            println!("{:?}", res.inspect());
+            println!("{}", res.inspect());
         } else {
             println!("{:?}", res);
         }

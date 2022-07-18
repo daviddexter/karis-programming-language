@@ -190,7 +190,7 @@ impl TokenRegistry {
                                 let node = Node {
                                     variable_name: Some(arg.literal.clone()),
                                     return_type: Some(TypingKind::String),
-                                    identifier_kind: Some(IdentifierKind::STRINGTYPE),..Default::default()
+                                    identifier_kind: Some(IdentifierKind::VARIABLE),..Default::default()
                                 };
                                 let obj = Objects::TyNode(node);
                                 params.push(Right(obj));
@@ -200,7 +200,7 @@ impl TokenRegistry {
                                 let node = Node {
                                     variable_name: Some(arg.literal.clone()),
                                     return_type: Some(TypingKind::Int),
-                                    identifier_kind: Some(IdentifierKind::INTTYPE),..Default::default()
+                                    identifier_kind: Some(IdentifierKind::VARIABLE),..Default::default()
                                 };
                                 let obj = Objects::TyNode(node);
                                 params.push(Right(obj));
@@ -210,7 +210,7 @@ impl TokenRegistry {
                                 let node = Node {
                                     variable_name: Some(arg.literal.clone()),
                                     return_type: Some(TypingKind::Int),
-                                    identifier_kind: Some(IdentifierKind::BOOLEANTYPE ),..Default::default()
+                                    identifier_kind: Some(IdentifierKind::VARIABLE),..Default::default()
                                 };
                                 let obj = Objects::TyNode(node);
                                 params.push(Right(obj));

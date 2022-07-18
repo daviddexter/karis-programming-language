@@ -46,7 +46,7 @@ pub trait Declaration {
     // returns the type of the current declaration object
     fn which(&self) -> DeclarationType;
 
-    fn inspect(&self);
+    fn inspect(&self) -> String;
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -78,7 +78,7 @@ impl Declaration for Objects {
         }
     }
 
-    fn inspect(&self) {
+    fn inspect(&self) -> String {
         match &self {
             Objects::TyProgram(i) => i.inspect(),
             Objects::TyNode(i) => i.inspect(),
@@ -104,8 +104,12 @@ impl Declaration for Program {
         DeclarationType::Program
     }
 
-    fn inspect(&self) {
-        todo!("inspect program here")
+    fn inspect(&self) -> String {
+        let mut parts = Vec::new();
+        for obj in self.body.iter() {
+            parts.push(obj.inspect());
+        }
+        parts.join("")
     }
 }
 
@@ -122,7 +126,7 @@ pub trait Value {
     // returns the type of the current declaration object
     fn kind(&self) -> TypingKind;
 
-    fn inspect(&self);
+    fn inspect(&self) -> String;
 }
 
 // Represents literal values definitions
@@ -142,8 +146,12 @@ impl Value for LiteralObjects {
         }
     }
 
-    fn inspect(&self) {
-        todo!("inspect literal objects")
+    fn inspect(&self) -> String {
+        match &self {
+            LiteralObjects::ObjIntergerValue(i) => i.inspect(),
+            LiteralObjects::ObjBooleanValue(i) => i.inspect(),
+            LiteralObjects::ObjStringValue(i) => i.inspect(),
+        }
     }
 }
 
@@ -158,9 +166,11 @@ impl Value for IntergerValue {
         TypingKind::Int
     }
 
-    fn inspect(&self) {
+    fn inspect(&self) -> String {
         if let Some(value) = &self.value {
-            println!("( {:?}", value)
+            format!("NODE(INT:{})", value)
+        } else {
+            "NODE(INT:UNDEFINED)".to_string()
         }
     }
 }
@@ -176,9 +186,11 @@ impl Value for BooleanValue {
         TypingKind::Boolean
     }
 
-    fn inspect(&self) {
+    fn inspect(&self) -> String {
         if let Some(value) = &self.value {
-            println!("( {:?}", value)
+            format!("NODE(BOOL:{})", value)
+        } else {
+            "NODE(BOOL:UNDEFINED)".to_string()
         }
     }
 }
@@ -194,9 +206,11 @@ impl Value for StringValue {
         TypingKind::String
     }
 
-    fn inspect(&self) {
+    fn inspect(&self) -> String {
         if let Some(value) = &self.value {
-            println!("( {:?}", value)
+            format!("NODE(STRING:{})", value)
+        } else {
+            "NODE(STRING:UNDEFINED)".to_string()
         }
     }
 }
@@ -258,15 +272,134 @@ impl Declaration for Node {
         DeclarationType::Node
     }
 
-    fn inspect(&self) {
+    fn inspect(&self) -> String {
         if let Some(kind) = self.identifier_kind {
             match kind {
-                IdentifierKind::LET => {
-                    todo!("implement let inspect");
+                IdentifierKind::LET | IdentifierKind::VARIABLE => {
+                    let default_return_type = &TypingKind::Unknown;
+                    let default_variable_name = &"".to_string();
+
+                    let return_type = self.return_type.as_ref().unwrap_or(default_return_type);
+                    let variable_name =
+                        self.variable_name.as_ref().unwrap_or(default_variable_name);
+                    let out = format!("NODE({kind:#?} : RETURN_TYPE={return_type:#?} VARIABLE_NAME={variable_name})");
+                    out
                 }
 
-                _ => todo!("implement inspect method"),
+                IdentifierKind::ASSIGN => {
+                    let lhs = self.left_child.as_ref().unwrap().as_ref().right().unwrap();
+                    let lhs_str = lhs.inspect();
+
+                    let rhs_str = if self.right_child.as_ref().unwrap().as_ref().is_left() {
+                        let rhs = self.right_child.as_ref().unwrap().as_ref().left().unwrap();
+                        rhs.inspect()
+                    } else {
+                        let rhs = self.right_child.as_ref().unwrap().as_ref().right().unwrap();
+                        rhs.inspect()
+                    };
+
+                    let out = format!(
+                        "
+NODE({kind:#?})
+    ---NODE(LHS : {lhs_str})
+    ---NODE(RHS : {rhs_str})"
+                    );
+                    out
+                }
+
+                IdentifierKind::FUNCTION => {
+                    let mut params_str = String::from("");
+                    if let Some(params_vec) = self.func_params.as_ref() {
+                        let params = params_vec.clone();
+                        for param in params.iter() {
+                            if param.is_left() {
+                                let left = param.as_ref().left().unwrap();
+                                let left_str = left.inspect();
+                                let left_str = format!("- {left_str}; ");
+                                params_str.push_str(left_str.as_str());
+                            } else {
+                                let right = param.as_ref().right().unwrap();
+                                let right_str = right.inspect();
+                                let right_str = format!("- {right_str}; ");
+                                params_str.push_str(right_str.as_str());
+                            }
+                        }
+                    }
+
+                    let mut block_children_str = String::from("");
+                    if let Some(block_children_vec) = self.block_children.as_ref() {
+                        let children = block_children_vec.clone();
+                        for child in children.iter() {
+                            let child_str = child.inspect();
+                            block_children_str.push_str(child_str.as_str());
+                        }
+                    }
+
+                    let out = format!(
+                        "
+                    NODE({kind:#?}) 
+                        ---PARAMS {params_str} 
+                        ---BLOCK {block_children_str}"
+                    );
+                    out
+                }
+
+                IdentifierKind::RETURN => {
+                    let child = self.right_child.as_ref().unwrap().as_ref().right().unwrap();
+                    let child_str = child.inspect();
+                    let out = format!(
+                        "
+                            NODE({kind:#?}) {child_str}"
+                    );
+                    out
+                }
+
+                IdentifierKind::PLUS
+                | IdentifierKind::MINUS
+                | IdentifierKind::ASTERISK
+                | IdentifierKind::SLASH
+                | IdentifierKind::MODULUS
+                | IdentifierKind::GT
+                | IdentifierKind::GTOREQ
+                | IdentifierKind::LT
+                | IdentifierKind::LTOREQ
+                | IdentifierKind::EQ
+                | IdentifierKind::OR
+                | IdentifierKind::AND => {
+                    let left_child = self.left_child.as_ref().unwrap().as_ref().right().unwrap();
+                    let left_child_str = left_child.inspect();
+
+                    let right_child = self.right_child.as_ref().unwrap().as_ref().right().unwrap();
+                    let right_child_str = right_child.inspect();
+
+                    let out = format!(
+                        "
+                                NODE({kind:#?})
+                                    ---NODE(LHS : {left_child_str})
+                                    ---NODE(RHS : {right_child_str})"
+                    );
+
+                    out
+                }
+
+                IdentifierKind::LPAREN => {
+                    println!("current {:?}", self);
+                    todo!("implement")
+                }
+
+                IdentifierKind::INTLITERAL
+                | IdentifierKind::BOOLEANLITERAL
+                | IdentifierKind::STRINGLITERAL => {
+                    let lit = self.left_child.as_ref().unwrap().as_ref().left().unwrap();
+                    lit.inspect()
+                }
+
+                IdentifierKind::EOS => "".to_string(),
+
+                _ => todo!("implement inspect method for kind '{:?}'", kind),
             }
+        } else {
+            "Nothing to inspect".to_string()
         }
     }
 }
