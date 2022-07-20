@@ -50,7 +50,8 @@ impl TokenRegistry {
         self.add_infix(IdentifierKind::ASTERISK, 35);
         self.add_infix(IdentifierKind::SLASH, 40);
 
-        self.add_parenthesis(IdentifierKind::LPAREN, 50);
+        self.add_opening_parenthesis(IdentifierKind::LPAREN, 50);
+        self.add_closing_parenthesis(IdentifierKind::RPAREN, 55);
 
         self.add_infix(IdentifierKind::GT, 60);
         self.add_infix(IdentifierKind::GTOREQ, 60);
@@ -238,10 +239,19 @@ impl TokenRegistry {
         self.register(symbol, obj);
     }
 
-    fn add_parenthesis(&mut self, symbol: IdentifierKind, binding_power: usize) {
+    fn add_opening_parenthesis(&mut self, symbol: IdentifierKind, binding_power: usize) {
         let obj = ParserType {
-            nud_fn: Some(Self::parse_parenthesis),
+            nud_fn: Some(Self::parse_opening_parenthesis),
             led_fn: Some(Self::parse_infix_operator),
+            binding_power: Some(binding_power),
+        };
+        self.register(symbol, obj);
+    }
+
+    fn add_closing_parenthesis(&mut self, symbol: IdentifierKind, binding_power: usize) {
+        let obj = ParserType {
+            nud_fn: None,
+            led_fn: Some(Self::parse_closing_parenthesis),
             binding_power: Some(binding_power),
         };
         self.register(symbol, obj);

@@ -93,6 +93,8 @@ impl Parser {
         // this is the current token been parsed
         let token = &bucket.borrow()[index];
 
+        println!("Exp token {:?}", token);
+
         if token.token_type == IdentifierKind::EOS {
             return Ok((Objects::TyConsumable, index));
         }
@@ -116,7 +118,6 @@ impl Parser {
         };
 
         let pt0 = parser_type_fn(token.token_type)?;
-
         let (mut left, mut worked_on_index) = match pt0.nud_fn {
             Some(func) => {
                 let res = func(token.clone(), index, bucket.clone())?;
@@ -581,6 +582,14 @@ mod parser_tests {
     }
 
     #[test]
+    fn should_parse32b() {
+        let lx = Lexer::new(String::from("return 10 + call() * 3;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
+        assert!(res.is_ok())
+    }
+
+    #[test]
     fn should_parse33() {
         let lx = Lexer::new(String::from("return x"));
         let mut parser = Parser::new(lx);
@@ -590,7 +599,7 @@ mod parser_tests {
 
     #[test]
     fn should_parse34() {
-        let lx = Lexer::new(String::from("return x + call();"));
+        let lx = Lexer::new(String::from("return  x + call();"));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
         assert!(res.is_ok())
@@ -601,6 +610,7 @@ mod parser_tests {
         let lx = Lexer::new(String::from("return sum(x,y) + add(3,5);"));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
+        println!("{:?}", res);
         assert!(res.is_ok())
     }
 
@@ -741,8 +751,8 @@ mod parser_tests {
         
             if n == 1 || n == 2 {
                 return 1;
-            };
-        
+            };           
+            
             return fibonacci(n - 1) + fibonacci(n - 2);
         };
 
