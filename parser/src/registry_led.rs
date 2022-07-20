@@ -33,13 +33,12 @@ impl TokenRegistry {
         }
 
         let current_token = current_token.unwrap();
-
         let next_token = borrow.get(token_index + 0x01);
         if next_token.is_none() {
             return Err(errors::KarisError {
                 error_type: errors::KarisErrorType::InvalidSyntax,
                 message: format!(
-                    "[INVALID SYNTAX] Syntax not correct. Expected something after `{}. Ln {} Col {}  '",
+                    "[INVALID SYNTAX] Syntax not correct. Expected something after {}; Ln {} Col {}  '",
                     current_token.literal,current_token.line_number, current_token.column_number
                 ),
             });
@@ -51,7 +50,7 @@ impl TokenRegistry {
             return Err(errors::KarisError {
                 error_type: errors::KarisErrorType::InvalidSyntax,
                 message: format!(
-                    "[INVALID SYNTAX] Syntax not correct after `{}`. Ln {} Col {}  '",
+                    "[INVALID SYNTAX] Syntax not correct after `{}`; Ln {} Col {}  '",
                     current_token.literal, current_token.line_number, current_token.column_number
                 ),
             });
@@ -60,33 +59,66 @@ impl TokenRegistry {
         Ok((current_token.clone(), next_token.clone()))
     }
 
-    // evaluates a returns object enclosed in parentheses () as it's left children
-    pub(crate) fn parse_closing_parenthesis(
-        left: Objects,
+    fn escape(
         token_index: usize,
         bucket: Rc<RefCell<Vec<Token>>>,
+        identifiers: Vec<IdentifierKind>,
     ) -> Result<(Objects, usize), errors::KarisError> {
         let borrow = bucket.borrow();
-        let current_token = borrow.get(token_index).unwrap();
 
-        if current_token.token_type != IdentifierKind::RPAREN {
+        let current_token = borrow.get(token_index);
+        let current_token = current_token.unwrap();
+
+        let next_token = borrow.get(token_index + 0x01);
+        if next_token.is_none() {
             return Err(errors::KarisError {
                 error_type: errors::KarisErrorType::InvalidSyntax,
                 message: format!(
-                    "[INVALID SYNTAX] Syntax not correct. Expected `)` found {}. Ln {} Col {}  '",
-                    current_token.literal, current_token.line_number, current_token.column_number
+                    "[INVALID SYNTAX] Syntax not correct. Expected something after {}; Ln {} Col {}  '",
+                    current_token.literal,current_token.line_number, current_token.column_number
                 ),
             });
         }
 
-        let node = Node {
-            identifier_kind: Some(current_token.token_type),
-            left_child: Some(Right(Box::new(left))),
-            ..Default::default()
-        };
+        let next_token = next_token.unwrap();
 
-        Ok((Objects::TyNode(node), token_index))
+        if identifiers.contains(&next_token.token_type) {
+            Ok((Objects::TyUnknown, token_index + 0x01))
+        } else {
+            Err(errors::KarisError {
+                error_type: errors::KarisErrorType::Escape,
+                message: "escape".to_string(),
+            })
+        }
     }
+
+    // evaluates a returns object enclosed in parentheses () as it's left children
+    // pub(crate) fn parse_closing_parenthesis(
+    //     left: Objects,
+    //     token_index: usize,
+    //     bucket: Rc<RefCell<Vec<Token>>>,
+    // ) -> Result<(Objects, usize), errors::KarisError> {
+    //     let borrow = bucket.borrow();
+    //     let current_token = borrow.get(token_index).unwrap();
+
+    //     if current_token.token_type != IdentifierKind::RPAREN {
+    //         return Err(errors::KarisError {
+    //             error_type: errors::KarisErrorType::InvalidSyntax,
+    //             message: format!(
+    //                 "[INVALID SYNTAX] Syntax not correct. Expected `)` found {}. Ln {} Col {}  '",
+    //                 current_token.literal, current_token.line_number, current_token.column_number
+    //             ),
+    //         });
+    //     }
+
+    //     let node = Node {
+    //         identifier_kind: Some(IdentifierKind::GROUPING),
+    //         left_child: Some(Right(Box::new(left))),
+    //         ..Default::default()
+    //     };
+
+    //     Ok((Objects::TyNode(node), token_index))
+    // }
 
     // Evaluates the RHS of an arthemetic expression
     // These expressions can take varied forms.
@@ -104,8 +136,6 @@ impl TokenRegistry {
             token_index,
             bucket.clone(),
             vec![
-                IdentifierKind::EOS,
-                IdentifierKind::EOF,
                 IdentifierKind::LET,
                 IdentifierKind::FUNCTION,
                 IdentifierKind::TRUE,
@@ -114,26 +144,140 @@ impl TokenRegistry {
             ],
         )?;
 
-        // if the current token is a opening parentheses, call it's NUD function instead
-        let res: (Objects, usize) = if current_token.token_type == IdentifierKind::LPAREN {
-            Self::parse_opening_parenthesis(current_token.clone(), token_index, bucket)?
+        if let Ok(res) = Self::escape(
+            token_index,
+            bucket.clone(),
+            vec![IdentifierKind::EOS, IdentifierKind::EOF],
+        ) {
+            Ok((left, res.1))
         } else {
-            let result = Parser::expression(0x00, token_index + 0x01, bucket);
-            if result.is_err() {
-                let err = result.err().unwrap();
-                return Err(err);
+            // if the current token is a opening parentheses, call it's NUD function instead
+            if current_token.token_type == IdentifierKind::LPAREN {
+                println!("{:?}", current_token);
+                return Self::parse_parenthesis(current_token, token_index, bucket);
             }
-            result.unwrap()
-        };
 
-        let node = Node {
-            identifier_kind: Some(current_token.token_type),
-            left_child: Some(Right(Box::new(left))),
-            right_child: Some(Right(Box::new(res.0))),
-            ..Default::default()
-        };
+            let rg = TokenRegistry::new();
+            let operator_bp = rg
+                .retrieve_from_registry(current_token.token_type)
+                .unwrap()
+                .binding_power
+                .unwrap();
 
-        Ok((Objects::TyNode(node), res.1))
+            let borrow = bucket.borrow();
+
+            let next_operator_bp_fn = || {
+                // get the next operator which is two-steps forward
+                if let Some(next_operator_token) = borrow.get(token_index + 0x02) {
+                    match next_operator_token.token_type {
+                        IdentifierKind::PLUS
+                        | IdentifierKind::MINUS
+                        | IdentifierKind::ASTERISK
+                        | IdentifierKind::SLASH
+                        | IdentifierKind::MODULUS
+                        | IdentifierKind::CALLER
+                        | IdentifierKind::GT
+                        | IdentifierKind::GTOREQ
+                        | IdentifierKind::LT
+                        | IdentifierKind::LTOREQ => {
+                            let next_operator_bp = rg
+                                .retrieve_from_registry(next_operator_token.token_type)
+                                .unwrap()
+                                .binding_power
+                                .unwrap();
+
+                            next_operator_bp
+                        }
+                        _ => 0x00,
+                    }
+                } else {
+                    usize::MAX
+                }
+            };
+
+            let next_operator_bp = next_operator_bp_fn();
+
+            let next_token_expr_fn = || {
+                let next_token_index = token_index + 0x01;
+                let next_token = borrow.get(next_token_index).unwrap();
+
+                let result = match next_token.token_type {
+                    IdentifierKind::CALLER => {
+                        let (res, index) = Self::parse_function_call(
+                            next_token.clone(),
+                            next_token_index,
+                            bucket.clone(),
+                        )?;
+                        Ok((res, index + 0x01))
+                    }
+                    IdentifierKind::LPAREN => {
+                        let (res, index) = Self::parse_parenthesis(
+                            next_token.clone(),
+                            next_token_index,
+                            bucket.clone(),
+                        )?;
+                        Ok((res, index + 0x01))
+                    }
+                    IdentifierKind::MINUS => Self::parse_minus_or_plus_as_prefix(
+                        next_token.clone(),
+                        next_token_index,
+                        bucket.clone(),
+                    ),
+                    _ => Self::parse_int_literal(
+                        next_token.clone(),
+                        token_index + 0x01,
+                        bucket.clone(),
+                    ),
+                };
+
+                if result.is_err() {
+                    let err = result.err().unwrap();
+                    return Err(err);
+                }
+                result
+            };
+
+            if next_operator_bp == usize::MAX {
+                let (left_obj, last_index) = next_token_expr_fn()?;
+                let node = Node {
+                    identifier_kind: Some(current_token.token_type),
+                    left_child: Some(Right(Box::new(left))),
+                    right_child: Some(Right(Box::new(left_obj))),
+                    ..Default::default()
+                };
+
+                Ok((Objects::TyNode(node), last_index))
+            } else if operator_bp > next_operator_bp {
+                let (expr_obj, last_index) = next_token_expr_fn()?;
+                let node = Node {
+                    identifier_kind: Some(current_token.token_type),
+                    left_child: Some(Right(Box::new(left))),
+                    right_child: Some(Right(Box::new(expr_obj))),
+                    ..Default::default()
+                };
+
+                let left_obj = Objects::TyNode(node);
+
+                Self::parse_infix_operator(left_obj, last_index + 0x01, bucket.clone())
+            } else {
+                match current_token.token_type {
+                    IdentifierKind::SEMICOLON | IdentifierKind::EOS | IdentifierKind::EOF => {
+                        Ok((left, token_index))
+                    }
+                    _ => {
+                        let (left_obj, last_index) = next_token_expr_fn()?;
+                        let node = Node {
+                            identifier_kind: Some(current_token.token_type),
+                            left_child: Some(Right(Box::new(left))),
+                            right_child: Some(Right(Box::new(left_obj))),
+                            ..Default::default()
+                        };
+
+                        Ok((Objects::TyNode(node), last_index))
+                    }
+                }
+            }
+        }
     }
 
     // Evaluates the RHS of an expression

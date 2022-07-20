@@ -3,6 +3,7 @@ use std::io;
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub enum KarisErrorType {
+    Escape,
     UnknownToken,
     MissingLetBinding,
     MissingConditionalIndentifier,
