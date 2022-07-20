@@ -61,11 +61,7 @@ impl Parser {
     }
 
     fn parse_program(&mut self) -> Result<Objects, errors::KarisError> {
-        let res = self.build_program_expressions(0x0);
-        if let Err(err) = res {
-            return Err(err);
-        }
-
+        self.build_program_expressions(0x0)?;
         Ok(Objects::TyProgram(self.program.clone()))
     }
 
@@ -76,7 +72,7 @@ impl Parser {
 
         match Self::expression(0, index, self.bucket.clone()) {
             Ok((o, i)) => {
-                if !o.is_ty_unknown() {
+                if !o.is_ty_unknown() && !o.is_ty_consumable() {
                     self.program.add_object(o);
                 }
                 self.build_program_expressions(i + 0x01)
@@ -98,11 +94,7 @@ impl Parser {
         let token = &bucket.borrow()[index];
 
         if token.token_type == IdentifierKind::EOS {
-            let node = Node {
-                identifier_kind: Some(token.token_type),
-                ..Default::default()
-            };
-            return Ok((Objects::TyNode(node), index));
+            return Ok((Objects::TyConsumable, index));
         }
 
         // reusable closure
@@ -123,23 +115,15 @@ impl Parser {
             Ok(pt)
         };
 
-        let mut left: Objects;
-        let mut worked_on_index: usize;
-
         let pt0 = parser_type_fn(token.token_type)?;
-        if let Some(func) = pt0.nud_fn {
-            let res = func(token.clone(), index, bucket.clone())?;
-            left = res.0;
-            worked_on_index = res.1;
-        } else {
-            return Err(errors::KarisError {
-                error_type: errors::KarisErrorType::InvalidSyntax,
-                message: format!(
-                    "[INVALID SYNTAX] Not a Prefix; Token {:?} Ln {} Col {}",
-                    token.literal, token.line_number, token.column_number
-                ),
-            });
-        }
+
+        let (mut left, mut worked_on_index) = match pt0.nud_fn {
+            Some(func) => {
+                let res = func(token.clone(), index, bucket.clone())?;
+                (res.0, res.1)
+            }
+            None => (Objects::TyUnknown, 0x00),
+        };
 
         if let Some(next_token) = bucket.borrow().get(worked_on_index + 0x01) {
             let pt1 = parser_type_fn(next_token.token_type)?;
@@ -321,7 +305,38 @@ mod parser_tests {
         let lx = Lexer::new(String::from("let num @int = 10 / 2 * 3;"));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
-        assert!(res.is_ok())
+        assert!(res.is_ok());
+
+        let res = res.unwrap();
+        let program = res.as_ty_program().unwrap();
+        assert_eq!(program.body.len(), 1);
+
+        let node = program.body[0].clone();
+        let node = node.as_ty_node().unwrap();
+        assert_eq!(node.identifier_kind, Some(IdentifierKind::ASSIGN));
+        let assign_left_child = node.left_child.as_ref().unwrap();
+        let assign_left_child_let_node = assign_left_child
+            .as_ref()
+            .right()
+            .unwrap()
+            .as_ty_node()
+            .unwrap();
+        assert_eq!(
+            assign_left_child_let_node.identifier_kind,
+            Some(IdentifierKind::LET)
+        );
+
+        let assign_right_child = node.right_child.as_ref().unwrap();
+        let assign_right_child_root_node = assign_right_child
+            .as_ref()
+            .right()
+            .unwrap()
+            .as_ty_node()
+            .unwrap();
+        assert_eq!(
+            assign_right_child_root_node.identifier_kind,
+            Some(IdentifierKind::ASTERISK)
+        );
     }
 
     #[test]
@@ -337,6 +352,15 @@ mod parser_tests {
         let lx = Lexer::new(String::from("let num @int = (10 / 2) * 3 + 20 - 3;"));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
+        println!("{:?}", res);
+        assert!(res.is_ok())
+    }
+
+    #[test]
+    fn should_parse14b() {
+        let lx = Lexer::new(String::from("let num @int = (10 / 2);"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse();
         assert!(res.is_ok())
     }
 
@@ -350,9 +374,10 @@ mod parser_tests {
 
     #[test]
     fn should_parse16() {
-        let lx = Lexer::new(String::from("let num @int = (10 / (2 * 3)) + 20 - 3;"));
+        let lx = Lexer::new(String::from("let num @int = (10 / (2 * 3)) + 20;"));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
+        println!("{:?}", res);
         assert!(res.is_ok())
     }
 
@@ -363,6 +388,7 @@ mod parser_tests {
         ));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
+        println!("{:?}", res);
         assert!(res.is_ok())
     }
 
@@ -724,7 +750,6 @@ mod parser_tests {
         ));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
-        println!("{:?}", res);
         assert!(res.is_ok())
     }
 
@@ -749,7 +774,6 @@ mod parser_tests {
         ));
         let mut parser = Parser::new(lx);
         let res = parser.parse();
-        println!("{:?}", res);
         assert!(res.is_ok())
     }
 

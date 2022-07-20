@@ -24,22 +24,36 @@ impl TokenRegistry {
         index: usize,
         bucket: Rc<RefCell<Vec<Token>>>,
         kind: IdentifierKind,
+        silent: bool,
     ) -> Result<usize, errors::KarisError> {
         let borrow = bucket.borrow();
+
+        println!("Bucket size : traverse_forward_until {:?}", borrow.len());
+
         if index >= borrow.len() - 0x01 {
-            return Err(errors::KarisError {
-                error_type: errors::KarisErrorType::InvalidSyntax,
-                message: format!(
-                    "[INVALID SYNTAX] Syntax not correct. Expected matching closing parentheses. Ln {} Col {}",
-                    tok.line_number,tok.column_number
-                ),
-            });
+            if silent {
+                return Ok(usize::MAX);
+            } else {
+                return Err(errors::KarisError {
+                    error_type: errors::KarisErrorType::InvalidSyntax,
+                    message: format!(
+                        "[INVALID SYNTAX] Syntax not correct. Expected to find {:?}. Ln {} Col {}",
+                        kind, tok.line_number, tok.column_number
+                    ),
+                });
+            }
         }
 
         if tok.token_type != kind {
             let new_index = index + 0x01;
             let next_token = &bucket.borrow()[new_index];
-            Self::traverse_forward_until(next_token.clone(), new_index, bucket.clone(), kind)
+            Self::traverse_forward_until(
+                next_token.clone(),
+                new_index,
+                bucket.clone(),
+                kind,
+                silent,
+            )
         } else {
             Ok(index)
         }

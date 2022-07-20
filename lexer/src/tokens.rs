@@ -102,6 +102,7 @@ pub enum IdentifierKind {
     END,
     CALLER, // A function call
     BLOCK,
+    GROUPING,
 }
 
 impl Default for IdentifierKind {

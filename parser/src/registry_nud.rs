@@ -278,55 +278,88 @@ impl TokenRegistry {
     }
 
     // evaluates when `(` is a the beginning of an expression
-    // This is valid if the next token is either `int` or `call` expression
-    pub(crate) fn parse_opening_parenthesis(
+    // This is valid if the next token is either `int`,`(` or `call` expression
+    pub(crate) fn parse_parenthesis(
         tok: Token,
         index: usize,
         bucket: Rc<RefCell<Vec<Token>>>,
     ) -> Result<(Objects, usize), errors::KarisError> {
         let borrow = bucket.borrow();
 
-        let next_token = borrow.get(index + 0x01);
-        if next_token.is_none() {
-            return Err(errors::KarisError {
-                error_type: errors::KarisErrorType::InvalidSyntax,
-                message: format!(
-                    "[INVALID SYNTAX] Syntax not correct. Expected something after `{}. Ln {} Col {}  '",
-                    tok.literal,tok.line_number,tok.column_number
-                ),
-            });
-        }
+        println!("Bucket size : parenthesis {:?}", borrow.len());
 
-        Self::traverse_forward_until(tok.clone(), index, bucket.clone(), IdentifierKind::RPAREN)?;
-
-        let next_token = next_token.unwrap();
-
-        if next_token.token_type == IdentifierKind::INTLITERAL
-            || next_token.token_type == IdentifierKind::LPAREN
-        {
-            let res = Parser::expression(0, index + 0x01, bucket.clone());
-            if res.is_err() {
-                let err = res.err().unwrap();
-                return Err(err);
+        let validate_next_token_fn = |next_index: usize| {
+            let next_token = borrow.get(next_index + 0x01);
+            if next_token.is_none() {
+                return Err(errors::KarisError {
+                    error_type: errors::KarisErrorType::InvalidSyntax,
+                    message: format!(
+                        "[INVALID SYNTAX] Syntax not correct. Expected something after `{}. Ln {} Col {}' ",
+                        tok.literal,tok.line_number,tok.column_number
+                    ),
+                });
             }
+            Ok(())
+        };
 
-            let res = res.unwrap();
-            let node = Node {
-                identifier_kind: Some(tok.token_type),
-                right_child: Some(Right(Box::new(res.0))),
-                ..Default::default()
-            };
+        // defensive check
+        validate_next_token_fn(index)?;
 
-            Ok((Objects::TyNode(node), res.1))
+        let next_token = borrow.get(index + 0x01).unwrap();
+
+        let mut inner_group_object = None;
+        let mut inner_last_index = None;
+
+        if next_token.token_type == IdentifierKind::LPAREN {
+            // get all tokens between inner`()`
+            let inner = Self::parse_parenthesis(next_token.clone(), index + 0x01, bucket.clone())?;
+            inner_group_object = Some(inner.0);
+            inner_last_index = Some(inner.1);
+        };
+
+        // get all tokens between `()`
+        let closing_rparen_index = if let Some(last_index) = inner_last_index {
+            // defensive check
+            validate_next_token_fn(last_index)?;
+            let last_index_token = borrow.get(last_index + 0x01).unwrap();
+
+            Self::traverse_forward_until(
+                last_index_token.clone(),
+                last_index + 0x01,
+                bucket.clone(),
+                IdentifierKind::RPAREN,
+                false,
+            )?
         } else {
-            Err(errors::KarisError {
-                error_type: errors::KarisErrorType::InvalidSyntax,
-                message: format!(
-                    "[INVALID SYNTAX] Syntax not correct. Expected something after `{}. Ln {} Col {}  '",
-                    tok.literal,tok.line_number,tok.column_number
-                ),
-            })
-        }
+            Self::traverse_forward_until(
+                tok.clone(),
+                index,
+                bucket.clone(),
+                IdentifierKind::RPAREN,
+                false,
+            )?
+        };
+
+        // it's safe to unwrap() because we are guaranteed to the items exist
+        let parenthesis_items = borrow.get(index + 0x01..closing_rparen_index).unwrap();
+        let parenthesis_items_node = Parser::default().parse_from_vec(parenthesis_items.into())?;
+
+        let node = if let Some(group_object) = inner_group_object {
+            Node {
+                identifier_kind: Some(IdentifierKind::GROUPING),
+                right_child: Some(Right(Box::new(group_object))),
+                left_child: Some(Right(Box::new(parenthesis_items_node))),
+                ..Default::default()
+            }
+        } else {
+            Node {
+                identifier_kind: Some(IdentifierKind::GROUPING),
+                right_child: Some(Right(Box::new(parenthesis_items_node))),
+                ..Default::default()
+            }
+        };
+
+        Ok((Objects::TyNode(node), closing_rparen_index))
     }
 
     // Evaluates a `-` or `+` tokenn as a prefix
@@ -441,6 +474,7 @@ impl TokenRegistry {
             index,
             bucket.clone(),
             IdentifierKind::LBRACE,
+            false,
         )?;
 
         let items_before_if_lbrace = borrow.get(index + 0x01..index_at_if_lbrace).unwrap();
@@ -452,6 +486,7 @@ impl TokenRegistry {
             index,
             bucket.clone(),
             IdentifierKind::RBRACE,
+            false,
         )?;
 
         let items_after_lbrace = borrow
@@ -475,6 +510,7 @@ impl TokenRegistry {
                 else_token_index,
                 bucket.clone(),
                 IdentifierKind::LBRACE,
+                false,
             )?;
 
             let items = borrow
@@ -490,6 +526,7 @@ impl TokenRegistry {
                 index_at_else_lbrace + 0x01,
                 bucket.clone(),
                 IdentifierKind::RBRACE,
+                false,
             )?;
 
             let items_after_else_lbrace = borrow
@@ -546,13 +583,19 @@ impl TokenRegistry {
             index,
             bucket.clone(),
             IdentifierKind::LBRACE,
+            false,
         )?;
         let _l0 = borrow.get(index_lbrace).unwrap();
 
         // index_before_end points to the the `}` token just before the `@end` token
         #[allow(clippy::redundant_clone)]
-        let index_end =
-            Self::traverse_forward_until(tok.clone(), index, bucket.clone(), IdentifierKind::END)?;
+        let index_end = Self::traverse_forward_until(
+            tok.clone(),
+            index,
+            bucket.clone(),
+            IdentifierKind::END,
+            false,
+        )?;
         let _l1 = borrow.get(index_end).unwrap();
 
         // parse validation.

@@ -52,8 +52,10 @@ pub trait Declaration {
 #[derive(Debug, PartialEq, Eq, Clone)]
 pub enum DeclarationType {
     Unknown,
+
     Program,
     Node,
+    Consumable,
 }
 
 impl Default for DeclarationType {
@@ -66,6 +68,7 @@ impl Default for DeclarationType {
 pub enum Objects {
     TyProgram(Program),
     TyNode(Node),
+    TyConsumable,
     TyUnknown,
 }
 
@@ -74,6 +77,7 @@ impl Declaration for Objects {
         match &self {
             Objects::TyProgram(i) => i.which(),
             Objects::TyNode(i) => i.which(),
+            Objects::TyConsumable => DeclarationType::Consumable,
             Objects::TyUnknown => DeclarationType::Unknown,
         }
     }
@@ -82,7 +86,7 @@ impl Declaration for Objects {
         match &self {
             Objects::TyProgram(i) => i.inspect(),
             Objects::TyNode(i) => i.inspect(),
-            _ => unreachable!("nothing to inspect"),
+            Objects::TyConsumable | Objects::TyUnknown => "".to_string(),
         }
     }
 }
@@ -96,7 +100,7 @@ impl Default for Objects {
 // Program is the root declaration. It will be at the top of the AST
 #[derive(Debug, Default, Clone)]
 pub struct Program {
-    body: Vec<Objects>,
+    pub body: Vec<Objects>,
 }
 
 impl Declaration for Program {
@@ -383,7 +387,6 @@ NODE({kind:#?})
                 }
 
                 IdentifierKind::LPAREN => {
-                    println!("current {:?}", self);
                     todo!("implement")
                 }
 
