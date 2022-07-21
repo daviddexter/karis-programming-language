@@ -9,6 +9,13 @@ use lexer::tokens::Token;
 
 use lexer::tokens::IdentifierKind;
 
+use crate::inspector::assign;
+use crate::inspector::function;
+use crate::inspector::infix_operators;
+use crate::inspector::let_and_variables;
+use crate::inspector::literals;
+use crate::inspector::returner;
+
 // function definition of a worker that does operations on the provided token
 type NudParserOp =
     fn(Token, usize, Rc<RefCell<Vec<Token>>>) -> Result<(Objects, usize), errors::KarisError>;
@@ -279,84 +286,14 @@ impl Declaration for Node {
     fn inspect(&self) -> String {
         if let Some(kind) = self.identifier_kind {
             match kind {
-                IdentifierKind::LET | IdentifierKind::VARIABLE => {
-                    let default_return_type = &TypingKind::Unknown;
-                    let default_variable_name = &"".to_string();
-
-                    let return_type = self.return_type.as_ref().unwrap_or(default_return_type);
-                    let variable_name =
-                        self.variable_name.as_ref().unwrap_or(default_variable_name);
-                    let out = format!("NODE({kind:#?} : RETURN_TYPE={return_type:#?} VARIABLE_NAME={variable_name})");
-                    out
-                }
-
-                IdentifierKind::ASSIGN => {
-                    let lhs = self.left_child.as_ref().unwrap().as_ref().right().unwrap();
-                    let lhs_str = lhs.inspect();
-
-                    let rhs_str = if self.right_child.as_ref().unwrap().as_ref().is_left() {
-                        let rhs = self.right_child.as_ref().unwrap().as_ref().left().unwrap();
-                        rhs.inspect()
-                    } else {
-                        let rhs = self.right_child.as_ref().unwrap().as_ref().right().unwrap();
-                        rhs.inspect()
-                    };
-
-                    let out = format!(
-                        "
-NODE({kind:#?})
-    ---NODE(LHS : {lhs_str})
-    ---NODE(RHS : {rhs_str})"
-                    );
-                    out
-                }
-
-                IdentifierKind::FUNCTION => {
-                    let mut params_str = String::from("");
-                    if let Some(params_vec) = self.func_params.as_ref() {
-                        let params = params_vec.clone();
-                        for param in params.iter() {
-                            if param.is_left() {
-                                let left = param.as_ref().left().unwrap();
-                                let left_str = left.inspect();
-                                let left_str = format!("- {left_str}; ");
-                                params_str.push_str(left_str.as_str());
-                            } else {
-                                let right = param.as_ref().right().unwrap();
-                                let right_str = right.inspect();
-                                let right_str = format!("- {right_str}; ");
-                                params_str.push_str(right_str.as_str());
-                            }
-                        }
-                    }
-
-                    let mut block_children_str = String::from("");
-                    if let Some(block_children_vec) = self.block_children.as_ref() {
-                        let children = block_children_vec.clone();
-                        for child in children.iter() {
-                            let child_str = child.inspect();
-                            block_children_str.push_str(child_str.as_str());
-                        }
-                    }
-
-                    let out = format!(
-                        "
-                    NODE({kind:#?}) 
-                        ---PARAMS {params_str} 
-                        ---BLOCK {block_children_str}"
-                    );
-                    out
-                }
-
-                IdentifierKind::RETURN => {
-                    let child = self.right_child.as_ref().unwrap().as_ref().right().unwrap();
-                    let child_str = child.inspect();
-                    let out = format!(
-                        "
-                            NODE({kind:#?}) {child_str}"
-                    );
-                    out
-                }
+                IdentifierKind::LET | IdentifierKind::VARIABLE => let_and_variables(self, kind),
+                IdentifierKind::ASSIGN => assign(self),
+                IdentifierKind::FUNCTION => function(self),
+                IdentifierKind::RETURN => returner(self),
+                IdentifierKind::EOS => "".to_string(),
+                IdentifierKind::INTLITERAL
+                | IdentifierKind::BOOLEANLITERAL
+                | IdentifierKind::STRINGLITERAL => literals(self),
 
                 IdentifierKind::PLUS
                 | IdentifierKind::MINUS
@@ -369,35 +306,13 @@ NODE({kind:#?})
                 | IdentifierKind::LTOREQ
                 | IdentifierKind::EQ
                 | IdentifierKind::OR
-                | IdentifierKind::AND => {
-                    let left_child = self.left_child.as_ref().unwrap().as_ref().right().unwrap();
-                    let left_child_str = left_child.inspect();
+                | IdentifierKind::AND => infix_operators(self, kind),
 
-                    let right_child = self.right_child.as_ref().unwrap().as_ref().right().unwrap();
-                    let right_child_str = right_child.inspect();
+                IdentifierKind::LPAREN => todo!("implement for LPAREN "),
 
-                    let out = format!(
-                        "
-                                NODE({kind:#?})
-                                    ---NODE(LHS : {left_child_str})
-                                    ---NODE(RHS : {right_child_str})"
-                    );
-
-                    out
+                IdentifierKind::GROUPING => {
+                    todo!("implement for GROUPING")
                 }
-
-                IdentifierKind::LPAREN => {
-                    todo!("implement")
-                }
-
-                IdentifierKind::INTLITERAL
-                | IdentifierKind::BOOLEANLITERAL
-                | IdentifierKind::STRINGLITERAL => {
-                    let lit = self.left_child.as_ref().unwrap().as_ref().left().unwrap();
-                    lit.inspect()
-                }
-
-                IdentifierKind::EOS => "".to_string(),
 
                 _ => todo!("implement inspect method for kind '{:?}'", kind),
             }

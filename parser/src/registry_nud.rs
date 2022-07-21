@@ -312,7 +312,6 @@ impl TokenRegistry {
 
             let res = res.unwrap();
             let node = Node {
-                identifier_kind: Some(tok.token_type),
                 right_child: Some(Right(Box::new(res.0))),
                 ..Default::default()
             };

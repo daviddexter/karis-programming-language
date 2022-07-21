@@ -159,16 +159,23 @@ impl TokenRegistry {
                 .unwrap();
 
             if let Some(_next_operator_bp) = next_operator_bp_fn() {
-                let left =
+                let right_after_current_token =
                     Parser::expression(current_operator_bp, token_index + 0x01, bucket.clone())?;
 
-                let operator_token = borrow.get(left.1 + 0x01).unwrap();
+                let left_node = Objects::TyNode(Node {
+                    identifier_kind: Some(current_token.token_type),
+                    left_child: Some(Right(Box::new(left))),
+                    right_child: Some(Right(Box::new(right_after_current_token.0))),
+                    ..Default::default()
+                });
 
-                let next_token_nud = Parser::expression(0x00, left.1 + 0x02, bucket.clone())?;
+                let operator_token = borrow.get(right_after_current_token.1 + 0x01).unwrap();
+                let next_token_nud =
+                    Parser::expression(0x00, right_after_current_token.1 + 0x02, bucket.clone())?;
 
                 let node = Node {
                     identifier_kind: Some(operator_token.token_type),
-                    left_child: Some(Right(Box::new(left.0))),
+                    left_child: Some(Right(Box::new(left_node))),
                     right_child: Some(Right(Box::new(next_token_nud.0))),
                     ..Default::default()
                 };
