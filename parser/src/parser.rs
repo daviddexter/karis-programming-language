@@ -93,8 +93,6 @@ impl Parser {
         // this is the current token been parsed
         let token = &bucket.borrow()[index];
 
-        println!("Exp token {:?}", token);
-
         if token.token_type == IdentifierKind::EOS {
             return Ok((Objects::TyConsumable, index));
         }
@@ -162,6 +160,10 @@ impl Parser {
 
 #[cfg(test)]
 mod parser_tests {
+
+    use crate::retriever::{
+        interger_value_from_nested_node, node_child, node_from_object, right_side_of_either,
+    };
 
     use super::*;
 
@@ -312,32 +314,46 @@ mod parser_tests {
         let program = res.as_ty_program().unwrap();
         assert_eq!(program.body.len(), 1);
 
-        let node = program.body[0].clone();
-        let node = node.as_ty_node().unwrap();
-        assert_eq!(node.identifier_kind, Some(IdentifierKind::ASSIGN));
-        let assign_left_child = node.left_child.as_ref().unwrap();
-        let assign_left_child_let_node = assign_left_child
-            .as_ref()
-            .right()
-            .unwrap()
-            .as_ty_node()
-            .unwrap();
+        let child_object = program.body[0].clone();
+        let assign_node = node_from_object(child_object.clone());
+
+        assert_eq!(assign_node.identifier_kind, Some(IdentifierKind::ASSIGN));
+
+        let assign_node_left_child = node_child(&assign_node, true);
+
+        let assign_node_let_node = right_side_of_either(assign_node_left_child);
+
         assert_eq!(
-            assign_left_child_let_node.identifier_kind,
+            assign_node_let_node.identifier_kind,
             Some(IdentifierKind::LET)
         );
 
-        let assign_right_child = node.right_child.as_ref().unwrap();
-        let assign_right_child_root_node = assign_right_child
-            .as_ref()
-            .right()
-            .unwrap()
-            .as_ty_node()
-            .unwrap();
+        let assign_node_right_child = node_child(&assign_node, false);
+        let assign_node_asterisk_node = right_side_of_either(assign_node_right_child);
+
         assert_eq!(
-            assign_right_child_root_node.identifier_kind,
+            assign_node_asterisk_node.identifier_kind,
             Some(IdentifierKind::ASTERISK)
         );
+
+        let asterisk_node = assign_node_asterisk_node;
+        let asterisk_left_child = node_child(&asterisk_node, true);
+        let asterisk_node_slash_node = right_side_of_either(asterisk_left_child);
+
+        assert_eq!(
+            asterisk_node_slash_node.identifier_kind,
+            Some(IdentifierKind::SLASH)
+        );
+
+        let slash_node = asterisk_node_slash_node;
+
+        let slash_node_left_literal = interger_value_from_nested_node(slash_node, true);
+        assert_eq!(slash_node_left_literal.value, Some(10));
+
+        let slash_node_right_literal = interger_value_from_nested_node(slash_node, false);
+        assert_eq!(slash_node_right_literal.value, Some(2));
+
+        res.inspect();
     }
 
     #[test]
