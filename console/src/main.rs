@@ -5,7 +5,7 @@ use std::process;
 use clap::{arg, Arg, ArgAction, Command};
 
 use lexer::lexer as lex;
-use parser::{objects::Declaration, parser::Parser};
+use parser::parser::Parser;
 
 const PROMPT: &str = ">>>";
 const EXIT: &str = "exit";
@@ -149,7 +149,7 @@ fn parser_from_file(file: &str, inspect: &bool) -> io::Result<()> {
         let res = parser.parse()?;
         let inspect = *inspect;
         if inspect {
-            println!("{}", res.inspect());
+            res.inspect_and_print()?
         } else {
             println!("{:?}", res);
         }
