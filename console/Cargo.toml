@@ -11,4 +11,5 @@ repository = "https://github.com/daviddexter/wanja-programming-language/console/
 clap = { version = "3.2.12", features = ["cargo"] }
 lexer = { path = "../lexer" }
 parser = { path = "../parser" }
+viuer = { version = "0.6.1", features = ["sixel"] }
 

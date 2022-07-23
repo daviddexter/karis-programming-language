@@ -352,8 +352,6 @@ mod parser_tests {
 
         let slash_node_right_literal = interger_value_from_nested_node(slash_node, false);
         assert_eq!(slash_node_right_literal.value, Some(2));
-
-        res.inspect();
     }
 
     #[test]
@@ -848,8 +846,7 @@ mod parser_tests {
         ",
         ));
         let mut parser = Parser::new(lx);
-        let res = parser.parse()?;
-        println!("{}", res.inspect());
+        let _res = parser.parse()?;
         Ok(())
     }
 }

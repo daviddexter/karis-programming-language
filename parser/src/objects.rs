@@ -4,17 +4,21 @@ use std::rc::Rc;
 use either::Either;
 use enum_as_inner::EnumAsInner;
 
+use pyo3::prelude::*;
+
 use errors::errors;
 use lexer::tokens::Token;
 
 use lexer::tokens::IdentifierKind;
 
 use crate::inspector::assign;
-use crate::inspector::function;
+use crate::inspector::default_node_edges;
 use crate::inspector::infix_operators;
 use crate::inspector::let_and_variables;
 use crate::inspector::literals;
+use crate::inspector::random_name_gen;
 use crate::inspector::returner;
+use crate::inspector::NodeEdge;
 
 // function definition of a worker that does operations on the provided token
 type NudParserOp =
@@ -52,8 +56,6 @@ pub enum TypingKind {
 pub trait Declaration {
     // returns the type of the current declaration object
     fn which(&self) -> DeclarationType;
-
-    fn inspect(&self) -> String;
 }
 
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -79,6 +81,62 @@ pub enum Objects {
     TyUnknown,
 }
 
+impl Objects {
+    pub fn inspect_and_print(&self) -> PyResult<()> {
+        let nodes = self.inspect();
+        Python::with_gil(|_py| {
+            let py_app = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python/app.py"));
+
+            Python::with_gil(|py| -> PyResult<Py<PyAny>> {
+                let app: Py<PyAny> = PyModule::from_code(py, py_app, "", "")?
+                    .getattr("draw_node_and_edges")?
+                    .into();
+                app.call1(py, nodes)
+            })?;
+
+            Ok(())
+        })
+    }
+
+    fn inspect(&self) -> NodeEdge {
+        match &self {
+            Objects::TyProgram(program) => {
+                let body = &program.body;
+
+                let mut result_nodes: Vec<(String, String)> = Vec::new();
+                let mut result_edges: Vec<(String, String)> = Vec::new();
+
+                let root = random_name_gen();
+
+                result_nodes.push((root.clone(), "NODE(PROGRAM)".to_string()));
+
+                for object in body.iter() {
+                    let (nodes, edges) = object.inspect();
+                    for node in nodes.iter() {
+                        let kind = IdentifierKind::ASSIGN;
+                        let assign_node_name = format!("NODE({kind:#?})");
+                        if node.1.clone() == assign_node_name {
+                            result_edges.push((root.clone(), node.0.clone()));
+                        };
+
+                        result_nodes.push(node.clone());
+                    }
+
+                    for edge in edges.iter() {
+                        result_edges.push(edge.clone());
+                    }
+                }
+
+                (result_nodes, result_edges)
+            }
+
+            Objects::TyNode(node) => node.inspect(),
+
+            _ => default_node_edges(),
+        }
+    }
+}
+
 impl Declaration for Objects {
     fn which(&self) -> DeclarationType {
         match &self {
@@ -86,14 +144,6 @@ impl Declaration for Objects {
             Objects::TyNode(i) => i.which(),
             Objects::TyConsumable => DeclarationType::Consumable,
             Objects::TyUnknown => DeclarationType::Unknown,
-        }
-    }
-
-    fn inspect(&self) -> String {
-        match &self {
-            Objects::TyProgram(i) => i.inspect(),
-            Objects::TyNode(i) => i.inspect(),
-            Objects::TyConsumable | Objects::TyUnknown => "".to_string(),
         }
     }
 }
@@ -114,14 +164,6 @@ impl Declaration for Program {
     fn which(&self) -> DeclarationType {
         DeclarationType::Program
     }
-
-    fn inspect(&self) -> String {
-        let mut parts = Vec::new();
-        for obj in self.body.iter() {
-            parts.push(obj.inspect());
-        }
-        parts.join("")
-    }
 }
 
 impl Program {
@@ -137,7 +179,7 @@ pub trait Value {
     // returns the type of the current declaration object
     fn kind(&self) -> TypingKind;
 
-    fn inspect(&self) -> String;
+    fn inspect(&self) -> Vec<(String, String)>;
 }
 
 // Represents literal values definitions
@@ -157,7 +199,7 @@ impl Value for LiteralObjects {
         }
     }
 
-    fn inspect(&self) -> String {
+    fn inspect(&self) -> Vec<(String, String)> {
         match &self {
             LiteralObjects::ObjIntergerValue(i) => i.inspect(),
             LiteralObjects::ObjBooleanValue(i) => i.inspect(),
@@ -177,12 +219,15 @@ impl Value for IntergerValue {
         TypingKind::Int
     }
 
-    fn inspect(&self) -> String {
-        if let Some(value) = &self.value {
-            format!("NODE(INT:{})", value)
-        } else {
-            "NODE(INT:UNDEFINED)".to_string()
-        }
+    fn inspect(&self) -> Vec<(String, String)> {
+        let kind = self.kind();
+        let root = random_name_gen();
+        let mut nodes = Vec::new();
+        nodes.push((
+            root,
+            format!("NODE({kind:#?} Value : {})", self.value.unwrap_or_default()),
+        ));
+        nodes
     }
 }
 
@@ -197,12 +242,15 @@ impl Value for BooleanValue {
         TypingKind::Boolean
     }
 
-    fn inspect(&self) -> String {
-        if let Some(value) = &self.value {
-            format!("NODE(BOOL:{})", value)
-        } else {
-            "NODE(BOOL:UNDEFINED)".to_string()
-        }
+    fn inspect(&self) -> Vec<(String, String)> {
+        let kind = self.kind();
+        let root = random_name_gen();
+        let mut nodes = Vec::new();
+        nodes.push((
+            root,
+            format!("NODE({kind:#?} Value : {})", self.value.unwrap_or_default()),
+        ));
+        nodes
     }
 }
 
@@ -217,12 +265,15 @@ impl Value for StringValue {
         TypingKind::String
     }
 
-    fn inspect(&self) -> String {
-        if let Some(value) = &self.value {
-            format!("NODE(STRING:{})", value)
-        } else {
-            "NODE(STRING:UNDEFINED)".to_string()
-        }
+    fn inspect(&self) -> Vec<(String, String)> {
+        let kind = self.kind();
+        let root = random_name_gen();
+        let mut nodes = Vec::new();
+        nodes.push((
+            root,
+            format!("NODE({kind:#?} Value : {})", self.value.as_ref().unwrap()),
+        ));
+        nodes
     }
 }
 
@@ -282,42 +333,32 @@ impl Declaration for Node {
     fn which(&self) -> DeclarationType {
         DeclarationType::Node
     }
+}
 
-    fn inspect(&self) -> String {
+impl Node {
+    pub(crate) fn inspect(&self) -> NodeEdge {
         if let Some(kind) = self.identifier_kind {
             match kind {
                 IdentifierKind::LET | IdentifierKind::VARIABLE => let_and_variables(self, kind),
                 IdentifierKind::ASSIGN => assign(self),
-                IdentifierKind::FUNCTION => function(self),
+
+                IdentifierKind::PLUS
+                | IdentifierKind::MINUS
+                | IdentifierKind::SLASH
+                | IdentifierKind::ASTERISK => infix_operators(self, kind),
+
                 IdentifierKind::RETURN => returner(self),
-                IdentifierKind::EOS => "".to_string(),
+
+                IdentifierKind::EOS => default_node_edges(),
+
                 IdentifierKind::INTLITERAL
                 | IdentifierKind::BOOLEANLITERAL
                 | IdentifierKind::STRINGLITERAL => literals(self),
 
-                IdentifierKind::PLUS
-                | IdentifierKind::MINUS
-                | IdentifierKind::ASTERISK
-                | IdentifierKind::SLASH
-                | IdentifierKind::MODULUS
-                | IdentifierKind::GT
-                | IdentifierKind::GTOREQ
-                | IdentifierKind::LT
-                | IdentifierKind::LTOREQ
-                | IdentifierKind::EQ
-                | IdentifierKind::OR
-                | IdentifierKind::AND => infix_operators(self, kind),
-
-                IdentifierKind::LPAREN => todo!("implement for LPAREN "),
-
-                IdentifierKind::GROUPING => {
-                    todo!("implement for GROUPING")
-                }
-
-                _ => todo!("implement inspect method for kind '{:?}'", kind),
+                _ => todo!("not implemented for {:?}", kind),
             }
         } else {
-            "Nothing to inspect".to_string()
+            default_node_edges()
         }
     }
 }

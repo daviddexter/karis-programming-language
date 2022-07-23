@@ -15,3 +15,5 @@ itertools = "0.10.3"
 anyhow = "1.0.57"
 hashbrown = "0.12.1"
 either = "1.6.1"
+random-string = "1.0.0"
+pyo3 = { version = "0.16.5", features = ["auto-initialize"] }

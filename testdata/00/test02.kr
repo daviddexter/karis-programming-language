@@ -1,1 +1,7 @@
-let num @int = 10 / 2 * 3;
+let num @int = 10 / 2 * 3 + 20 - 3;
+
+
+let num @int = 1;        
+let active @bool = true;
+let subscribed @bool = false;
+let name @string = "Karis";
