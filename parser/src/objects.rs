@@ -85,7 +85,7 @@ impl Objects {
     pub fn inspect_and_print(&self) -> PyResult<()> {
         let nodes = self.inspect();
         Python::with_gil(|_py| {
-            let py_app = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/python/app.py"));
+            let py_app = include_str!(concat!(env!("CARGO_MANIFEST_DIR"), "/_x/_nodes_edges.py"));
 
             Python::with_gil(|py| -> PyResult<Py<PyAny>> {
                 let app: Py<PyAny> = PyModule::from_code(py, py_app, "", "")?

@@ -43,7 +43,6 @@ let and @bool = fn(x @int, y @int){
 };
 
 
-
 let echo @string = fn(name @string){
     return name;
 };

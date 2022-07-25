@@ -57,6 +57,7 @@ The main idea is pratt is `binding power`. Essentially, how strongly is one enti
 ## References
 
 - https://dev.to/jrop/pratt-parsing
+- https://docs.microsoft.com/en-us/dotnet/csharp/language-reference/operators/boolean-logical-operators#conditional-logical-and-operator-
 
 
 
