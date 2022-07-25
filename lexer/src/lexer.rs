@@ -261,17 +261,21 @@ impl Lexer {
                                     self.position,
                                 ))
                             } else {
-                                Err(errors::KarisError {
-                                    error_type: errors::KarisErrorType::UnknownToken,
-                                    message: "expected `|` after `|` : {}".to_string(),
-                                })
+                                Ok(tokens::Token::new(
+                                    tokens::IdentifierKind::LOR,
+                                    ch_owned,
+                                    self.line_number,
+                                    self.position,
+                                ))
                             }
                         }
 
-                        None => Err(errors::KarisError {
-                            error_type: errors::KarisErrorType::UnknownToken,
-                            message: "expected `|` after `|` : {}".to_string(),
-                        }),
+                        None => Ok(tokens::Token::new(
+                            tokens::IdentifierKind::LOR,
+                            ch_owned,
+                            self.line_number,
+                            self.position,
+                        )),
                     },
 
                     tokens::AMPERSAND => match self.forward_is_any_token(vec![tokens::AMPERSAND]) {
@@ -286,16 +290,20 @@ impl Lexer {
                                     self.position,
                                 ))
                             } else {
-                                Err(errors::KarisError {
-                                    error_type: errors::KarisErrorType::UnknownToken,
-                                    message: "expected `&` after `&` : {}".to_string(),
-                                })
+                                Ok(tokens::Token::new(
+                                    tokens::IdentifierKind::LAND,
+                                    ch_owned,
+                                    self.line_number,
+                                    self.position,
+                                ))
                             }
                         }
-                        None => Err(errors::KarisError {
-                            error_type: errors::KarisErrorType::UnknownToken,
-                            message: "expected `&` after `&` : {}".to_string(),
-                        }),
+                        None => Ok(tokens::Token::new(
+                            tokens::IdentifierKind::LAND,
+                            ch_owned,
+                            self.line_number,
+                            self.position,
+                        )),
                     },
 
                     // if the current char is `!`, check if the next character is `=`, therefore asserting
@@ -897,9 +905,15 @@ mod lexer_tests {
             tokens::IdentifierKind::OR
         );
 
-        assert!(lx0.new_token().is_err());
+        assert_eq!(
+            lx0.new_token().unwrap().token_type,
+            tokens::IdentifierKind::LAND
+        );
 
-        assert!(lx0.new_token().is_err());
+        assert_eq!(
+            lx0.new_token().unwrap().token_type,
+            tokens::IdentifierKind::LOR
+        );
     }
 
     #[test]

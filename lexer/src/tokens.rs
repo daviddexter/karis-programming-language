@@ -74,7 +74,7 @@ pub enum IdentifierKind {
     ASSIGN,   //  "="
     PLUS,     // "+"
     MINUS,    // "-"
-    BANG,     //  "!"
+    BANG,     //  "!" // logical negation
     ASTERISK, // "*"
     SLASH,    // "/"
     LT,       // "<"
@@ -85,6 +85,8 @@ pub enum IdentifierKind {
     LTOREQ,   // "<="
     AND,      // "&&"
     OR,       // "||"
+    LAND,     // "&" // logical AND
+    LOR,      // "|" // logical OR
     MODULUS,  // "%"
 
     // Keywords
