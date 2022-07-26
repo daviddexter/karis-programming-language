@@ -1,4 +1,4 @@
-// non-alphanumeric symbols
+/// non-alphanumeric symbols
 pub const COMMA: &str = ",";
 pub const SEMICOLON: &str = ";";
 pub const LPAREN: &str = "(";

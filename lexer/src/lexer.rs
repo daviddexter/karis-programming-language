@@ -4,27 +4,27 @@ use crate::tokens;
 
 #[derive(Debug, Clone, Default)]
 pub struct Lexer {
-    // input that is fed to the lexer for tokenization
+    /// input that is fed to the lexer for tokenization
     input: String,
 
-    // points to the current char in the input string. This is the same as the col of the input string
+    /// points to the current char in the input string. This is the same as the col of the input string
     position: usize,
 
     line_number: usize,
 
-    // points to the next character in the input string after the current char
+    /// points to the next character in the input string after the current char
     read_position: usize,
 
-    // the literal value of the current character
+    /// the literal value of the current character
     ch: Option<String>,
 
-    // indicates the starting point when an identifier is been read
+    /// indicates the starting point when an identifier is been read
     identifier_start_read_position: isize,
 
-    // indicates the previous character in the input string after the current
+    /// indicates the previous character in the input string after the current
     last_read_token: Option<tokens::Token>,
 
-    // end of statement
+    /// end of statement
     eos: bool,
 }
 
@@ -435,8 +435,8 @@ impl Lexer {
         }
     }
 
-    // asserts that a token within the bounds of the `position` and `read_position` is
-    // the same as tokens provided in the `example` vector
+    /// asserts that a token within the bounds of the `position` and `read_position` is
+    /// the same as tokens provided in the `example` vector
     fn forward_is_any_token(&self, examples: Vec<&str>) -> Option<bool> {
         // peek forward
         let item = self.input.get(self.position + 1..self.read_position + 1);
@@ -459,7 +459,7 @@ impl Lexer {
         })
     }
 
-    // move the length of a string literal untill encounter a closing quatation
+    /// move the length of a string literal untill encounter a closing quatation
     fn traverse_to_closing_quotations(&self, begin: usize) -> usize {
         let next = self.input.get(begin..begin + 0x1).unwrap();
         if is_quotation_mark(next) {
@@ -809,12 +809,12 @@ fn is_digit(chr: u8) -> bool {
     (0x30..=0x39).contains(&chr)
 }
 
-// check if byte is an ASCII underscore
+/// check if byte is an ASCII underscore
 fn is_underscore(chr: u8) -> bool {
     chr == 0x5f
 }
 
-// check if byte is an ASCII #
+/// check if byte is an ASCII #
 fn is_hash(chr: u8) -> bool {
     chr == 0x23
 }

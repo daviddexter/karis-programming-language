@@ -12,8 +12,8 @@ use crate::{
     parser::Parser,
 };
 
-// parser implementations methods for LEDs
-// consumes to the right with a left-context its "Left-Denotation"
+/// parser implementations methods for LEDs
+/// consumes to the right with a left-context its "Left-Denotation"
 impl TokenRegistry {
     fn preconditions(
         token_index: usize,
@@ -59,7 +59,7 @@ impl TokenRegistry {
         Ok((current_token.clone(), next_token.clone()))
     }
 
-    // evaluates a returns object enclosed in parentheses () as it's left children
+    /// evaluates a returns object enclosed in parentheses () as it's left children
     pub(crate) fn parse_closing_parenthesis(
         left: Objects,
         token_index: usize,
@@ -196,14 +196,14 @@ impl TokenRegistry {
         }
     }
 
-    // Evaluates the RHS of an expression
-    // Checks if the RHS is
-    // - a literal => string, bool, int, array
-    // - arthemetic expression
-    // - function definition expression
-    // - function call expression
-    //
-    // The LHS is almost always a LET binding
+    /// Evaluates the RHS of an expression
+    /// Checks if the RHS is
+    /// - a literal => string, bool, int, array
+    /// - arthemetic expression
+    /// - function definition expression
+    /// - function call expression
+    ///
+    /// The LHS is almost always a LET binding
     pub(crate) fn parse_assign_operator(
         left: Objects,
         token_index: usize,

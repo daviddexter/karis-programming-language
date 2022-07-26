@@ -15,10 +15,10 @@ use crate::{
     parser::Parser,
 };
 
-// parser implementations helpers
+/// parser implementations helpers
 impl TokenRegistry {
-    // given an expression, we move the cursor along the length of the expression
-    // until we encounter a token of the given kind then returns the index before it
+    /// given an expression, we move the cursor along the length of the expression
+    /// until we encounter a token of the given kind then returns the index before it
     pub(crate) fn traverse_forward_until(
         tok: Token,
         index: usize,
@@ -45,9 +45,9 @@ impl TokenRegistry {
         }
     }
 
-    // given a `call` token, it moves forward recursively gathering args of the call
-    // if it encounters another `call` token, it calls parse_function_call then adds the result
-    // as a call param
+    /// given a `call` token, it moves forward recursively gathering args of the call
+    /// if it encounters another `call` token, it calls parse_function_call then adds the result
+    /// as a call param
     pub(crate) fn collect_function_call_params(
         idx: usize,
         bucket: Rc<RefCell<Vec<Token>>>,
@@ -150,8 +150,8 @@ impl TokenRegistry {
         }
     }
 
-    // walks the function collecting its arguments until a `)` token is encountered.
-    // returns the token as a vec and the index of `{` token
+    /// walks the function collecting its arguments until a `)` token is encountered.
+    /// returns the token as a vec and the index of `{` token
     pub(crate) fn collect_function_definition_args(
         idx: usize,
         bucket: Rc<RefCell<Vec<Token>>>,
@@ -295,9 +295,9 @@ impl TokenRegistry {
         }
     }
 
-    // recursively collects expressions enclosed in a `{}` block
-    // These expressions are parser individuallly then appended to the `children` arg
-    // The `closing_index` returned is the index of the `;` (semicolon) token at the end of the `{}` block
+    /// recursively collects expressions enclosed in a `{}` block
+    /// These expressions are parsed individuallly then appended to the `children` vector
+    /// The `closing_index` returned is the index of the `;` (semicolon) token at the end of the `{}` block
     pub(crate) fn collect_block_children(
         idx: usize,
         bucket: Rc<RefCell<Vec<Token>>>,
@@ -323,7 +323,7 @@ impl TokenRegistry {
                 closing_index = idx;
                 Ok((children, closing_index))
             }
-            IdentifierKind::RETURN | IdentifierKind::SEMICOLON => {
+            IdentifierKind::RETURN | IdentifierKind::SEMICOLON | IdentifierKind::LET => {
                 let (node, last_index) = Parser::expression(0, next_index, bucket.clone())?;
                 children.push(node);
                 Self::collect_block_children(last_index, bucket.clone(), children, closing_index)

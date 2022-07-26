@@ -1,43 +1,6 @@
-let add @int = fn(x @int, y @int){
-    return x + y;
-};
+let num @int = 10 / 2 * 3 + 20 - 3;
 
-let sub @int = fn(x @int, y @int){
-    return x - y;
-};
-
-let mul @int = fn(x @int, y @int){
-    return x * y;
-};
-
-let div @int = fn(x @int, y @int){
-    return x * y;
-};
-
-let mod @int = fn(x @int, y @int){
-    return x % y;
-};
-
-let greater @bool = fn(x @int, y @int){
-    return x > y;
-};
-
-let greater_or_eq @bool = fn(x @int, y @int){
-    return x >= y;
-};
-
-let less @bool = fn(x @int, y @int){
-    return x > y;
-};
-
-let less_or_eq @bool = fn(x @int, y @int){
-    return x <= y;
-};
-
-let or @bool = fn(x @int, y @int){
-    return x || y;
-};
-
-let and @bool = fn(x @int, y @int){
-    return x && y;
-};
+let num @int = 1;        
+let active @bool = true;
+let subscribed @bool = false;
+let name @string = "Karis";
