@@ -50,25 +50,24 @@ pub(crate) fn assign(node: &Node) -> NodeEdge {
     let mut nodes = Vec::new();
     nodes.push((root.clone(), format!("NODE({kind:#?})")));
 
-    for ln in left_child_nodes.iter() {
-        nodes.push(ln.clone());
-    }
-    for rn in right_child_nodes.iter() {
-        nodes.push(rn.clone());
-    }
+    left_child_nodes
+        .iter()
+        .for_each(|ln| nodes.push(ln.clone()));
+    right_child_nodes
+        .iter()
+        .for_each(|rn| nodes.push(rn.clone()));
 
     let mut edges = Vec::new();
 
     edges.push((root.clone(), left_child_nodes[0x00].0.clone()));
     edges.push((root, right_child_nodes[0x00].0.clone()));
 
-    for le in left_child_edges.iter() {
-        edges.push(le.clone());
-    }
-
-    for re in right_child_edges.iter() {
-        edges.push(re.clone());
-    }
+    left_child_edges
+        .iter()
+        .for_each(|le| edges.push(le.clone()));
+    right_child_edges
+        .iter()
+        .for_each(|re| edges.push(re.clone()));
 
     (nodes, edges)
 }
@@ -86,24 +85,69 @@ pub(crate) fn infix_operators(node: &Node, kind: IdentifierKind) -> NodeEdge {
     let mut nodes = Vec::new();
     nodes.push((root.clone(), format!("NODE({kind:#?})")));
 
-    for ln in left_child_nodes.iter() {
-        nodes.push(ln.clone());
-    }
-    for rn in right_child_nodes.iter() {
-        nodes.push(rn.clone());
-    }
+    left_child_nodes
+        .iter()
+        .for_each(|ln| nodes.push(ln.clone()));
+    right_child_nodes
+        .iter()
+        .for_each(|rn| nodes.push(rn.clone()));
 
     let mut edges = Vec::new();
 
     edges.push((root.clone(), left_child_nodes[0x00].0.clone()));
     edges.push((root, right_child_nodes[0x00].0.clone()));
 
-    for le in left_child_edges.iter() {
-        edges.push(le.clone());
+    left_child_edges
+        .iter()
+        .for_each(|le| edges.push(le.clone()));
+    right_child_edges
+        .iter()
+        .for_each(|re| edges.push(re.clone()));
+
+    (nodes, edges)
+}
+
+pub(crate) fn function(node: &Node) -> NodeEdge {
+    let kind = IdentifierKind::FUNCTION;
+
+    let root = random_name_gen();
+    let mut nodes = Vec::new();
+    nodes.push((root.clone(), format!("NODE({kind:#?})")));
+
+    let mut edges = Vec::new();
+
+    if let Some(args) = node.func_params.as_ref() {
+        args.iter().for_each(|arg| {
+            if arg.is_left() {
+                let a = arg.as_ref().left().unwrap();
+                let a_nodes = a.inspect();
+
+                edges.push((root.clone(), a_nodes[0x00].0.clone()));
+
+                a_nodes.iter().for_each(|a_node| nodes.push(a_node.clone()));
+            } else {
+                let a = arg.as_ref().right().unwrap();
+                let (a_nodes, a_edges) = a.inspect();
+
+                edges.push((root.clone(), a_nodes[0x00].0.clone()));
+
+                a_nodes.iter().for_each(|node| nodes.push(node.clone()));
+                a_edges.iter().for_each(|edge| edges.push(edge.clone()));
+            }
+        });
     }
 
-    for re in right_child_edges.iter() {
-        edges.push(re.clone());
+    if let Some(children) = node.block_children.as_ref() {
+        children.iter().for_each(|child| {
+            let (c_nodes, c_edges) = child.inspect();
+
+            if !c_nodes.is_empty() {
+                edges.push((root.clone(), c_nodes[0x00].0.clone()));
+            }
+
+            c_nodes.iter().for_each(|node| nodes.push(node.clone()));
+            c_edges.iter().for_each(|edge| edges.push(edge.clone()));
+        });
     }
 
     (nodes, edges)
@@ -127,16 +171,12 @@ pub(crate) fn returner(node: &Node) -> NodeEdge {
     let mut nodes = Vec::new();
     nodes.push((root.clone(), format!("NODE({kind:#?})")));
 
-    for ln in child_nodes.iter() {
-        nodes.push(ln.clone());
-    }
+    child_nodes.iter().for_each(|ln| nodes.push(ln.clone()));
 
     let mut edges = Vec::new();
     edges.push((root, child_edges[0x00].0.clone()));
 
-    for e in child_edges.iter() {
-        edges.push(e.clone());
-    }
+    child_edges.iter().for_each(|e| edges.push(e.clone()));
 
     (nodes, edges)
 }

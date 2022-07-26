@@ -12,11 +12,11 @@ use crate::registry::TokenRegistry;
 pub struct Parser {
     pub lexer: Lexer,
 
-    // holds all the tokens extracted by the lexer
-    // pub bucket: Vec<Token>,
+    /// holds all the tokens extracted by the lexer
+    /// pub bucket: Vec<Token>,
     pub bucket: Rc<RefCell<Vec<Token>>>,
 
-    // the program tree that will be built when parsing
+    /// the program tree that will be built when parsing
     pub program: Program,
 }
 
@@ -29,7 +29,7 @@ impl Parser {
         }
     }
 
-    // parse internally builds a set of tokens from the lexer. This should be treated as the main entry point to the parser
+    /// parse internally builds a set of tokens from the lexer. This should be treated as the main entry point to the parser
     pub fn parse(&mut self) -> Result<Objects, errors::KarisError> {
         // add all tokens to a bucket cache. This will be used later when doing the actual parsing
         loop {
@@ -46,7 +46,7 @@ impl Parser {
         self.parse_program()
     }
 
-    // A derivative of `parse` function. This function expectes to be given a list of tokens which will act as the parser input.
+    /// A derivative of `parse` function. This function expectes to be given a list of tokens which will act as the parser input.
     pub fn parse_from_vec(
         &mut self,
         vec_tokens: Vec<Token>,
@@ -83,8 +83,8 @@ impl Parser {
 }
 
 impl Parser {
-    // An associated function of the parser
-    // returns the `Object` representation and the current index that has been worked on
+    /// An associated function of the parser
+    /// returns the `Object` representation and the current index that has been worked on
     pub fn expression(
         rbp: usize,
         index: usize,

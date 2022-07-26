@@ -13,6 +13,7 @@ use lexer::tokens::IdentifierKind;
 
 use crate::inspector::assign;
 use crate::inspector::default_node_edges;
+use crate::inspector::function;
 use crate::inspector::infix_operators;
 use crate::inspector::let_and_variables;
 use crate::inspector::literals;
@@ -20,17 +21,17 @@ use crate::inspector::random_name_gen;
 use crate::inspector::returner;
 use crate::inspector::NodeEdge;
 
-// function definition of a worker that does operations on the provided token
+/// function definition of a worker that does operations on the provided token
 type NudParserOp =
     fn(Token, usize, Rc<RefCell<Vec<Token>>>) -> Result<(Objects, usize), errors::KarisError>;
 
-// operation that returns the right-hand side of an expression
-// It takes left Object `Objects`, the index of the token `usize` pointing to `=` and the bucket where the tokens are present
+/// operation that returns the right-hand side of an expression
+/// It takes left Object `Objects`, the index of the token `usize` pointing to `=` and the bucket where the tokens are present
 type LedParserOp =
     fn(Objects, usize, Rc<RefCell<Vec<Token>>>) -> Result<(Objects, usize), errors::KarisError>;
 
-// ParterType defines an type passed into the parser. This type defines how it should be parsed by
-// specifying it's own unique `NudParserOp` and/or `LedParserOp` and a `binding_power`
+/// ParterType defines an type passed into the parser. This type defines how it should be parsed by
+/// specifying it's own unique `NudParserOp` and/or `LedParserOp` and a `binding_power`
 #[derive(Debug, Default, Clone)]
 pub struct ParserType {
     pub nud_fn: Option<NudParserOp>,
@@ -51,8 +52,8 @@ pub enum TypingKind {
     Array,
 }
 
-// Declaration : an object must be able to tell what is it
-// `which` returns what the object knows about itself
+/// Declaration : an object must be able to tell what is it
+/// `which` returns what the object knows about itself
 pub trait Declaration {
     // returns the type of the current declaration object
     fn which(&self) -> DeclarationType;
@@ -98,7 +99,7 @@ impl Objects {
         })
     }
 
-    fn inspect(&self) -> NodeEdge {
+    pub(crate) fn inspect(&self) -> NodeEdge {
         match &self {
             Objects::TyProgram(program) => {
                 let body = &program.body;
@@ -112,6 +113,13 @@ impl Objects {
 
                 for object in body.iter() {
                     let (nodes, edges) = object.inspect();
+
+                    println!("{:?}\n", nodes);
+
+                    println!("{:?}\n", edges);
+
+                    todo!("bug here: top-level LET vs function-level LET");
+
                     for node in nodes.iter() {
                         let kind = IdentifierKind::ASSIGN;
                         let assign_node_name = format!("NODE({kind:#?})");
@@ -154,7 +162,7 @@ impl Default for Objects {
     }
 }
 
-// Program is the root declaration. It will be at the top of the AST
+/// Program is the root declaration. It will be at the top of the AST
 #[derive(Debug, Default, Clone)]
 pub struct Program {
     pub body: Vec<Objects>,
@@ -182,7 +190,7 @@ pub trait Value {
     fn inspect(&self) -> Vec<(String, String)>;
 }
 
-// Represents literal values definitions
+/// Represents literal values definitions
 #[derive(Debug, EnumAsInner, PartialEq, Eq, Clone)]
 pub enum LiteralObjects {
     ObjIntergerValue(IntergerValue),
@@ -208,7 +216,7 @@ impl Value for LiteralObjects {
     }
 }
 
-// Interger values representation
+/// Interger values representation
 #[derive(Debug, PartialEq, Eq, Default, Clone)]
 pub struct IntergerValue {
     pub value: Option<isize>,
@@ -231,7 +239,7 @@ impl Value for IntergerValue {
     }
 }
 
-// Boolean values representation
+/// Boolean values representation
 #[derive(Debug, PartialEq, Eq, Default, Clone)]
 pub struct BooleanValue {
     pub value: Option<bool>,
@@ -254,7 +262,7 @@ impl Value for BooleanValue {
     }
 }
 
-// String values representation
+/// String values representation
 #[derive(Debug, PartialEq, Eq, Default, Clone)]
 pub struct StringValue {
     pub value: Option<String>,
@@ -277,26 +285,26 @@ impl Value for StringValue {
     }
 }
 
-// Node is the smallest unit of a program. Depending with what the parser outputs, a node can take
-// varied structure forms.
-// Example:
-// let num @int = 10;
-//
-// In the above `let num @int` will be treated as it's own unique node. This node will have a `identifier kind ` of type `LET`,
-// a `variable_name` of value `num` and a `return_type` of `INTTYPE`
-//
-// The `=` assign will be a it's own unique node. This node will have a `identifier kind  kind` of type `ASSIGN`, a `left_child` whose value will
-// be the node in the left hand side, and a `right_child` whose value will be the another node representing the literal `10`
-//
-// The `10` literal will be a it's own unique node. This node will have a `kind` of type `INTLITERAL` with a `left_child` of
-// type `LiteralObjects` and an `identifier kind` of type `INTLITERAL`
-//
-//
-// The tree of the abov expression will be of the form
-//
-//                 Node(=)
-//                /       \
-//           Node(LET)     Node(10)
+/// Node is the smallest unit of a program. Depending with what the parser outputs, a node can take
+/// varied structure forms.
+/// Example:
+/// let num @int = 10;
+///
+/// In the above `let num @int` will be treated as it's own unique node. This node will have a `identifier kind ` of type `LET`,
+/// a `variable_name` of value `num` and a `return_type` of `INTTYPE`
+///
+/// The `=` assign will be a it's own unique node. This node will have a `identifier kind  kind` of type `ASSIGN`, a `left_child` whose value will
+/// be the node in the left hand side, and a `right_child` whose value will be the another node representing the literal `10`
+///
+/// The `10` literal will be a it's own unique node. This node will have a `kind` of type `INTLITERAL` with a `left_child` of
+/// type `LiteralObjects` and an `identifier kind` of type `INTLITERAL`
+///
+///
+/// The tree of the abov expression will be of the form
+///
+///                 Node(=)
+///                /       \
+///           Node(LET)     Node(10)
 #[derive(Debug, Default, Clone)]
 pub struct Node {
     pub variable_name: Option<String>,
@@ -305,27 +313,27 @@ pub struct Node {
 
     pub identifier_kind: Option<IdentifierKind>,
 
-    // type of `Node`
+    /// type of `Node`
     pub left_child: Option<Either<LiteralObjects, Box<Objects>>>,
 
-    // the RHS can either be a literal or a node
+    /// the RHS can either be a literal or a node
     pub right_child: Option<Either<LiteralObjects, Box<Objects>>>,
 
-    // this is used to populates params of a function definition.
-    // This params can be of different types
-    // If the function has any other return type another than `@unit`, the return type will be evaluated
-    // to match that of the definition
+    /// this is used to populates params of a function definition.
+    /// This params can be of different types
+    /// If the function has any other return type another than `@unit`, the return type will be evaluated
+    /// to match that of the definition
     pub func_params: Option<Vec<Either<LiteralObjects, Objects>>>,
 
-    // this is used for call expressions which can take the form of
-    //       func(1, 2, 3)
-    //       func(1,a,b) where a and b are variables of the same type
+    /// this is used for call expressions which can take the form of
+    ///       func(1, 2, 3)
+    ///       func(1,a,b) where a and b are variables of the same type
     pub call_params: Option<Vec<Either<LiteralObjects, Objects>>>,
 
-    // alternate will be populated with an `else` part of a conditional expression
+    /// alternate will be populated with an `else` part of a conditional expression
     pub alternate: Option<Box<Objects>>,
 
-    // this will be populated for the `fn` block, `if` block, `else` block and `main` block
+    /// this will be populated for the `fn` block, `if` block, `else` block and `main` block
     pub block_children: Option<Vec<Objects>>,
 }
 
@@ -354,6 +362,8 @@ impl Node {
                 IdentifierKind::INTLITERAL
                 | IdentifierKind::BOOLEANLITERAL
                 | IdentifierKind::STRINGLITERAL => literals(self),
+
+                IdentifierKind::FUNCTION => function(self),
 
                 _ => todo!("not implemented for {:?}", kind),
             }
