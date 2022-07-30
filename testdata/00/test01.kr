@@ -1,6 +1,16 @@
 let num @int = 10 / 2 * 3 + 20 - 3;
 
-let num @int = 1;        
+let num @int = 1;   
+
 let active @bool = true;
+
 let subscribed @bool = false;
+
 let name @string = "Karis";
+
+let value @int = 10;
+
+let add @int = fn(x @int, y @int){
+    let test @int = 100; 
+    return x + y;
+};

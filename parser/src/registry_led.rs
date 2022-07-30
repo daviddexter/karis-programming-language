@@ -80,7 +80,7 @@ impl TokenRegistry {
 
         let node = Node {
             identifier_kind: Some(IdentifierKind::GROUPING),
-            left_child: Some(Right(Box::new(left))),
+            right_child: Some(Right(Box::new(left))),
             ..Default::default()
         };
 
@@ -150,7 +150,11 @@ impl TokenRegistry {
                 ..Default::default()
             };
 
-            Ok((Objects::TyNode(node), right.1))
+            println!("{:?}", node);
+
+            let res = Objects::TyNode(node);
+
+            Ok((res, right.1))
         } else {
             let current_operator_bp = rg
                 .retrieve_from_registry(current_token.token_type)

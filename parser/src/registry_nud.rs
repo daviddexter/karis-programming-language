@@ -7,16 +7,17 @@ use errors::errors;
 use lexer::tokens::{IdentifierKind, Token};
 
 use crate::registry::TokenRegistry;
+use crate::retriever::reorganize_parenthesis_object;
 use crate::{
     objects::{BooleanValue, IntergerValue, LiteralObjects, Node, Objects},
     parser::Parser,
 };
 
-/// parser implementations methods for NUD
-/// consumes to the right with no left-context
+// parser implementations methods for NUD
+// consumes to the right with no left-context
 impl TokenRegistry {
-    /// Returns an Object of `Unknown` type and the index
-    /// Used fot tokens that have not effect or value to the generate AST
+    // Returns an Object of `Unknown` type and the index
+    // Used fot tokens that have not effect or value to the generate AST
     pub(crate) fn parse_consumable(
         _tok: Token,
         index: usize,
@@ -82,49 +83,49 @@ impl TokenRegistry {
         Ok((Objects::TyNode(node), index + 0x01))
     }
 
-    /// When function definition is encountered with the token `fn`, `arse_function_definition`
-    /// parses the entire function block inclusive of args until tails `}` is encountered
-    /// For the body, it recursively call `Self::expression`, progressively building children nodes
-    ///
-    /// Example:
-    /// let div @int = fn(x @int, y @int){
-    ///     return x * y;
-    /// };
+    // When function definition is encountered with the token `fn`, `arse_function_definition`
+    // parses the entire function block inclusive of args until tails `}` is encountered
+    // For the body, it recursively call `Self::expression`, progressively building children nodes
+    //
+    // Example:
+    // let div @int = fn(x @int, y @int){
+    //     return x * y;
+    // };
 
-    /// let echo @string = fn(name @string){
-    ///     return name;
-    /// };
+    // let echo @string = fn(name @string){
+    //     return name;
+    // };
 
-    /// let printer @unit = fn(name @string){
-    ///     print("Name #name");
-    /// };
+    // let printer @unit = fn(name @string){
+    //     print("Name #name");
+    // };
 
-    /// let max @int = fn(x @int, y @int){
-    ///     if x > y{
-    ///         return x;
-    ///     };
-    ///     return y;
-    /// };
+    // let max @int = fn(x @int, y @int){
+    //     if x > y{
+    //         return x;
+    //     };
+    //     return y;
+    // };
 
-    /// let factorial @int = fn(n @int){
-    ///     if n == 1 {
-    ///         return 1;
-    ///     };
-    ///     return n * factorial(n-1);
-    /// }
+    // let factorial @int = fn(n @int){
+    //     if n == 1 {
+    //         return 1;
+    //     };
+    //     return n * factorial(n-1);
+    // }
 
-    /// let fibnacci @int = fn(n @int){
-    ///     if n == 0 {
-    ///         return 0;
-    ///     };
-    ///
-    ///     if n == 1 || n == 2 {
-    ///        return 1
-    ///     };
-    ///
-    ///     return fibnacci(n-1) + fibnacci(n-2);
-    /// }
-    ///
+    // let fibnacci @int = fn(n @int){
+    //     if n == 0 {
+    //         return 0;
+    //     };
+    //
+    //     if n == 1 || n == 2 {
+    //        return 1
+    //     };
+    //
+    //     return fibnacci(n-1) + fibnacci(n-2);
+    // }
+    //
     pub(crate) fn parse_function_definition(
         tok: Token,
         index: usize,
@@ -218,13 +219,13 @@ impl TokenRegistry {
         Ok((Objects::TyNode(node), last_index))
     }
 
-    /// A function call can takes many forms
-    /// Example:
-    ///
-    /// add(1, 2, 3)  -> args as literal
-    /// add() -> without args
-    /// add(one(),two()) - > args as function call
-    /// add(x,y) -> args as variables.
+    // A function call can takes many forms
+    // Example:
+    //
+    // add(1, 2, 3)  -> args as literal
+    // add() -> without args
+    // add(one(),two()) - > args as function call
+    // add(x,y) -> args as variables.
     pub(crate) fn parse_function_call(
         tok: Token,
         index: usize,
@@ -278,8 +279,8 @@ impl TokenRegistry {
         Ok((Objects::TyNode(node), closing_paren_index))
     }
 
-    /// evaluates when `(` is a the beginning of an expression
-    /// This is valid if the next token is either `int` or `call` expression
+    // evaluates when `(` is a the beginning of an expression
+    // This is valid if the next token is either `int` or `call` expression
     pub(crate) fn parse_opening_parenthesis(
         tok: Token,
         index: usize,
@@ -305,19 +306,13 @@ impl TokenRegistry {
         if next_token.token_type == IdentifierKind::INTLITERAL
             || next_token.token_type == IdentifierKind::LPAREN
         {
-            let res = Parser::expression(0, index + 0x01, bucket.clone());
-            if res.is_err() {
-                let err = res.err().unwrap();
-                return Err(err);
-            }
+            let res = Parser::expression(0, index + 0x01, bucket.clone())?;
 
-            let res = res.unwrap();
-            let node = Node {
-                right_child: Some(Right(Box::new(res.0))),
-                ..Default::default()
-            };
+            // we re-organize the object. We want the GROUPING kind to be the top-level object, not the root of the
+            // enclosed arthemetic expression.
+            let object = reorganize_parenthesis_object(res.0.clone());
 
-            Ok((Objects::TyNode(node), res.1))
+            Ok((object, res.1))
         } else {
             Err(errors::KarisError {
                 error_type: errors::KarisErrorType::InvalidSyntax,
@@ -329,8 +324,8 @@ impl TokenRegistry {
         }
     }
 
-    /// Evaluates a `-` or `+` tokenn as a prefix
-    /// it merges with the next token which should be of type `INT`
+    // Evaluates a `-` or `+` tokenn as a prefix
+    // it merges with the next token which should be of type `INT`
     pub(crate) fn parse_minus_or_plus_as_prefix(
         tok: Token,
         index: usize,
@@ -393,30 +388,30 @@ impl TokenRegistry {
         Ok((Objects::TyNode(node), index + 0x01))
     }
 
-    /// To parse a `if` or `else` expression, we move the cursor to the right unit we encounter a `{`.
-    /// We collect item in between and parse them. After that we collect items between `{` and `}` and add them
-    /// to the node's `block_children`. If there is an `else` token, we do the same thing then append the resulting node
-    /// as part of Node `alternate`
-    /// Example syntax:
-    ///
-    /// let minmax_or_product @int = fn(x @int, y @int){
-    ///     if x < y{
-    ///        return x + y;
-    ///     }else x > y {
-    ///         result x - y;
-    ///     };
-    ///
-    ///     result x * y;
-    /// };
-    ///
-    /// let factorial @int = fn(n @int){
-    ///     if n == 1 {
-    ///         return 1;
-    ///     };
-    ///
-    ///     return n * factorial(n-1);
-    /// };
-    ///
+    // To parse a `if` or `else` expression, we move the cursor to the right unit we encounter a `{`.
+    // We collect item in between and parse them. After that we collect items between `{` and `}` and add them
+    // to the node's `block_children`. If there is an `else` token, we do the same thing then append the resulting node
+    // as part of Node `alternate`
+    // Example syntax:
+    //
+    // let minmax_or_product @int = fn(x @int, y @int){
+    //     if x < y{
+    //        return x + y;
+    //     }else x > y {
+    //         result x - y;
+    //     };
+    //
+    //     result x * y;
+    // };
+    //
+    // let factorial @int = fn(n @int){
+    //     if n == 1 {
+    //         return 1;
+    //     };
+    //
+    //     return n * factorial(n-1);
+    // };
+    //
     pub(crate) fn parse_if_else_expressions(
         tok: Token,
         index: usize,
@@ -523,8 +518,8 @@ impl TokenRegistry {
         Ok((Objects::TyNode(node), end_index))
     }
 
-    /// To parse the `main` block, move the cursor to the right unitil we encounter a `@end`.
-    /// We then collect all items in between and parse them
+    // To parse the `main` block, move the cursor to the right unitil we encounter a `@end`.
+    // We then collect all items in between and parse them
     pub(crate) fn parse_main_expressions(
         tok: Token,
         index: usize,
@@ -584,11 +579,11 @@ impl TokenRegistry {
         Ok((Objects::TyNode(node), end_index))
     }
 
-    /// To parse a let expression, move the cursor to the right until an `ASSIGN (=)` token is encountered.
-    /// Assert that the `variable name` token is available in it's designated position otherwise return an error
-    /// Assert that the `typing` token is available in it's designated position otherwise return an error
-    /// Then collect all the tokens to the left of `=` and construct a node
-    /// Teturn the node and the current cursor position minus 1 ( index-0x01)
+    // To parse a let expression, move the cursor to the right until an `ASSIGN (=)` token is encountered.
+    // Assert that the `variable name` token is available in it's designated position otherwise return an error
+    // Assert that the `typing` token is available in it's designated position otherwise return an error
+    // Then collect all the tokens to the left of `=` and construct a node
+    // Teturn the node and the current cursor position minus 1 ( index-0x01)
     pub(crate) fn parse_let_expressions(
         tok: Token,
         index: usize,
@@ -677,7 +672,7 @@ impl TokenRegistry {
         Ok((obj_type, index))
     }
 
-    /// given a token, it parses it as a boolean literal
+    // given a token, it parses it as a boolean literal
     pub(crate) fn parse_boolean_literal(
         tok: Token,
         index: usize,

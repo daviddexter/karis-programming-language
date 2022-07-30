@@ -11,6 +11,11 @@ Cargo.lock
 
 .vscode
 
+.idea
+
 /render
+
+**/*.json
+
 
 # /home/daviddexter/kinetic-engines/kng-projects/karis-programming-language/testdata/test1.kr

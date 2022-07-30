@@ -1,3 +1,5 @@
+use serde::Serialize;
+
 /// non-alphanumeric symbols
 pub const COMMA: &str = ",";
 pub const SEMICOLON: &str = ";";
@@ -43,7 +45,7 @@ pub const RETURN: &str = "return";
 pub const FORMAT: &str = "format";
 pub const PRINT: &str = "print";
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Serialize)]
 pub enum IdentifierKind {
     UNKNOWN,
 

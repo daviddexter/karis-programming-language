@@ -64,6 +64,7 @@ impl TokenRegistry {
         self.add_call_declaration();
         self.add_function_declaration();
         self.add_builtin_function(IdentifierKind::PRINT, 70);
+        self.add_builtin_function(IdentifierKind::FORMAT, 70);
     }
 
     pub(crate) fn typing_kind(tok: &Token) -> TypingKind {
