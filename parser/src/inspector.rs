@@ -94,7 +94,9 @@ pub(crate) fn infix_operators(node: &Node, kind: IdentifierKind) -> NodeEdge {
 
     let mut edges = Vec::new();
 
-    edges.push((root.clone(), left_child_nodes[0x00].0.clone()));
+    if !left_child_nodes.is_empty() {
+        edges.push((root.clone(), left_child_nodes[0x00].0.clone()));
+    }
     edges.push((root, right_child_nodes[0x00].0.clone()));
 
     left_child_edges
@@ -121,6 +123,10 @@ pub(crate) fn function(node: &Node) -> NodeEdge {
             if arg.is_left() {
                 let a = arg.as_ref().left().unwrap();
                 let a_nodes = a.inspect();
+                let a_nodes = a_nodes
+                    .iter()
+                    .map(|n| (n.0.clone(), format!("FnARG : {}", n.1)))
+                    .collect::<Vec<(String, String)>>();
 
                 edges.push((root.clone(), a_nodes[0x00].0.clone()));
 
@@ -128,6 +134,10 @@ pub(crate) fn function(node: &Node) -> NodeEdge {
             } else {
                 let a = arg.as_ref().right().unwrap();
                 let (a_nodes, a_edges) = a.inspect();
+                let a_nodes = a_nodes
+                    .iter()
+                    .map(|n| (n.0.clone(), format!("FnARG : {}", n.1)))
+                    .collect::<Vec<(String, String)>>();
 
                 edges.push((root.clone(), a_nodes[0x00].0.clone()));
 
@@ -140,6 +150,10 @@ pub(crate) fn function(node: &Node) -> NodeEdge {
     if let Some(children) = node.block_children.as_ref() {
         children.iter().for_each(|child| {
             let (c_nodes, c_edges) = child.inspect();
+            let c_nodes = c_nodes
+                .iter()
+                .map(|n| (n.0.clone(), format!("FnBODY : {}", n.1)))
+                .collect::<Vec<(String, String)>>();
 
             if !c_nodes.is_empty() {
                 edges.push((root.clone(), c_nodes[0x00].0.clone()));

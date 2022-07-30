@@ -9,4 +9,5 @@ repository = "https://github.com/daviddexter/wanja-programming-language/lexer/"
 
 [dependencies]
 errors = { path = "../errors" }
+serde = { version = "1.0.140", features = ["serde_derive"] }
 

@@ -4,12 +4,15 @@ use std::rc::Rc;
 use either::Either;
 use enum_as_inner::EnumAsInner;
 
+use serde::ser::SerializeStruct;
+use serde::Serialize;
+use serde::Serializer;
+
 use pyo3::prelude::*;
 
 use errors::errors;
-use lexer::tokens::Token;
-
 use lexer::tokens::IdentifierKind;
+use lexer::tokens::Token;
 
 use crate::inspector::assign;
 use crate::inspector::default_node_edges;
@@ -41,7 +44,7 @@ pub struct ParserType {
     pub binding_power: Option<usize>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 pub enum TypingKind {
     Unknown,
     Int,
@@ -59,7 +62,7 @@ pub trait Declaration {
     fn which(&self) -> DeclarationType;
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
 pub enum DeclarationType {
     Unknown,
 
@@ -74,7 +77,7 @@ impl Default for DeclarationType {
     }
 }
 
-#[derive(Debug, EnumAsInner, Clone)]
+#[derive(Debug, EnumAsInner, Clone, Serialize)]
 pub enum Objects {
     TyProgram(Program),
     TyNode(Node),
@@ -118,7 +121,7 @@ impl Objects {
 
                     println!("{:?}\n", edges);
 
-                    todo!("bug here: top-level LET vs function-level LET");
+                    //todo!("bug here: top-level LET vs function-level LET");
 
                     for node in nodes.iter() {
                         let kind = IdentifierKind::ASSIGN;
@@ -143,6 +146,30 @@ impl Objects {
             _ => default_node_edges(),
         }
     }
+
+    pub fn write_as_json_to_file(&self, json_name: Option<&str>) -> std::io::Result<()> {
+        use std::io::Write;
+
+        let json = serde_json::to_string_pretty(self).unwrap();
+
+        let file_name = json_name.unwrap_or("object.json");
+
+        let mut curent_directory = std::env::current_dir()?;
+
+        if !std::fs::metadata(curent_directory.join("dumps"))?.is_dir() {
+            std::fs::create_dir(curent_directory.join("dumps"))?;
+        }
+
+        curent_directory.push("dumps/");
+
+        let temp_file = curent_directory.join(file_name);
+
+        let mut file = std::fs::File::create(temp_file).unwrap();
+
+        file.write_all(json.as_bytes()).unwrap();
+
+        Ok(())
+    }
 }
 
 impl Declaration for Objects {
@@ -163,7 +190,7 @@ impl Default for Objects {
 }
 
 /// Program is the root declaration. It will be at the top of the AST
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Serialize)]
 pub struct Program {
     pub body: Vec<Objects>,
 }
@@ -191,7 +218,7 @@ pub trait Value {
 }
 
 /// Represents literal values definitions
-#[derive(Debug, EnumAsInner, PartialEq, Eq, Clone)]
+#[derive(Debug, EnumAsInner, PartialEq, Eq, Clone, Serialize)]
 pub enum LiteralObjects {
     ObjIntergerValue(IntergerValue),
     ObjBooleanValue(BooleanValue),
@@ -217,7 +244,7 @@ impl Value for LiteralObjects {
 }
 
 /// Interger values representation
-#[derive(Debug, PartialEq, Eq, Default, Clone)]
+#[derive(Debug, PartialEq, Eq, Default, Clone, Serialize)]
 pub struct IntergerValue {
     pub value: Option<isize>,
 }
@@ -240,7 +267,7 @@ impl Value for IntergerValue {
 }
 
 /// Boolean values representation
-#[derive(Debug, PartialEq, Eq, Default, Clone)]
+#[derive(Debug, PartialEq, Eq, Default, Clone, Serialize)]
 pub struct BooleanValue {
     pub value: Option<bool>,
 }
@@ -263,7 +290,7 @@ impl Value for BooleanValue {
 }
 
 /// String values representation
-#[derive(Debug, PartialEq, Eq, Default, Clone)]
+#[derive(Debug, PartialEq, Eq, Default, Clone, Serialize)]
 pub struct StringValue {
     pub value: Option<String>,
 }
@@ -285,26 +312,26 @@ impl Value for StringValue {
     }
 }
 
-/// Node is the smallest unit of a program. Depending with what the parser outputs, a node can take
-/// varied structure forms.
-/// Example:
-/// let num @int = 10;
-///
-/// In the above `let num @int` will be treated as it's own unique node. This node will have a `identifier kind ` of type `LET`,
-/// a `variable_name` of value `num` and a `return_type` of `INTTYPE`
-///
-/// The `=` assign will be a it's own unique node. This node will have a `identifier kind  kind` of type `ASSIGN`, a `left_child` whose value will
-/// be the node in the left hand side, and a `right_child` whose value will be the another node representing the literal `10`
-///
-/// The `10` literal will be a it's own unique node. This node will have a `kind` of type `INTLITERAL` with a `left_child` of
-/// type `LiteralObjects` and an `identifier kind` of type `INTLITERAL`
-///
-///
-/// The tree of the abov expression will be of the form
-///
-///                 Node(=)
-///                /       \
-///           Node(LET)     Node(10)
+// Node is the smallest unit of a program. Depending with what the parser outputs, a node can take
+// varied structure forms.
+// Example:
+// let num @int = 10;
+//
+// In the above `let num @int` will be treated as it's own unique node. This node will have a `identifier kind ` of type `LET`,
+// a `variable_name` of value `num` and a `return_type` of `INTTYPE`
+//
+// The `=` assign will be a it's own unique node. This node will have a `identifier kind  kind` of type `ASSIGN`, a `left_child` whose value will
+// be the node in the left hand side, and a `right_child` whose value will be the another node representing the literal `10`
+//
+// The `10` literal will be a it's own unique node. This node will have a `kind` of type `INTLITERAL` with a `left_child` of
+// type `LiteralObjects` and an `identifier kind` of type `INTLITERAL`
+//
+//
+// The tree of the abov expression will be of the form
+//
+//                 Node(=)
+//                /       \
+//           Node(LET)     Node(10)
 #[derive(Debug, Default, Clone)]
 pub struct Node {
     pub variable_name: Option<String>,
@@ -370,5 +397,97 @@ impl Node {
         } else {
             default_node_edges()
         }
+    }
+}
+
+impl Serialize for Node {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut s = serializer.serialize_struct("Node", 9)?;
+        s.serialize_field("variable_name", &self.variable_name)?;
+        s.serialize_field("return_type", &self.return_type)?;
+        s.serialize_field("identifier_kind", &self.identifier_kind)?;
+        s.serialize_field("alternate", &self.alternate)?;
+        s.serialize_field("block_children", &self.block_children)?;
+
+        if let Some(op) = &self.left_child {
+            if op.is_left() {
+                let left = op.as_ref().left().unwrap();
+                s.serialize_field("left_child", &left)?;
+            } else {
+                let right = op.as_ref().right().unwrap();
+                s.serialize_field("left_child", &right)?;
+            }
+        }
+
+        if let Some(op) = &self.right_child {
+            if op.is_left() {
+                let left = op.as_ref().left().unwrap();
+                s.serialize_field("right_child", &left)?;
+            } else {
+                let right = op.as_ref().right().unwrap();
+                s.serialize_field("right_child", &right)?;
+            }
+        }
+
+        if let Some(op) = &self.func_params {
+            let mut params_lit = Vec::new();
+            let mut params_obj = Vec::new();
+
+            op.iter().for_each(|item| {
+                if item.is_left() {
+                    let left = item.as_ref().left().unwrap();
+                    params_lit.push(left.clone());
+                } else {
+                    let right = item.as_ref().right().unwrap();
+                    params_obj.push(right.clone());
+                }
+            });
+
+            #[derive(Serialize)]
+            struct Params {
+                lit: Vec<LiteralObjects>,
+                obj: Vec<Objects>,
+            }
+
+            let params = Params {
+                lit: params_lit,
+                obj: params_obj,
+            };
+
+            s.serialize_field("func_params", &params)?;
+        }
+
+        if let Some(op) = &self.call_params {
+            let mut params_lit = Vec::new();
+            let mut params_obj = Vec::new();
+
+            op.iter().for_each(|item| {
+                if item.is_left() {
+                    let left = item.as_ref().left().unwrap();
+                    params_lit.push(left.clone());
+                } else {
+                    let right = item.as_ref().right().unwrap();
+                    params_obj.push(right.clone());
+                }
+            });
+
+            #[derive(Serialize)]
+            struct Params {
+                lit: Vec<LiteralObjects>,
+                obj: Vec<Objects>,
+            }
+
+            let params = Params {
+                lit: params_lit,
+                obj: params_obj,
+            };
+
+            s.serialize_field("call_params", &params)?;
+        }
+
+        s.end()
     }
 }

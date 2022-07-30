@@ -146,7 +146,7 @@ fn parser_from_file(file: &str, inspect: &bool) -> io::Result<()> {
     } else {
         let lx = lex::Lexer::new(file);
         let mut parser = Parser::new(lx);
-        let res = parser.parse()?;
+        let res = parser.parse(Some("program_tree.json"))?;
         let inspect = *inspect;
         if inspect {
             res.inspect_and_print()?

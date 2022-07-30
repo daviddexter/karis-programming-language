@@ -30,7 +30,7 @@ impl Parser {
     }
 
     /// parse internally builds a set of tokens from the lexer. This should be treated as the main entry point to the parser
-    pub fn parse(&mut self) -> Result<Objects, errors::KarisError> {
+    pub fn parse(&mut self, json_name: Option<&str>) -> Result<Objects, errors::KarisError> {
         // add all tokens to a bucket cache. This will be used later when doing the actual parsing
         loop {
             let token = self.lexer.generate()?;
@@ -43,10 +43,10 @@ impl Parser {
             }
         }
 
-        self.parse_program()
+        self.parse_program(json_name)
     }
 
-    /// A derivative of `parse` function. This function expectes to be given a list of tokens which will act as the parser input.
+    /// A derivative of `parse` function. This function expects to be given a list of tokens which will act as the parser input.
     pub fn parse_from_vec(
         &mut self,
         vec_tokens: Vec<Token>,
@@ -57,12 +57,14 @@ impl Parser {
             token_bucket.push(token.clone());
         }
 
-        self.parse_program()
+        self.parse_program(None)
     }
 
-    fn parse_program(&mut self) -> Result<Objects, errors::KarisError> {
+    fn parse_program(&mut self, json_name: Option<&str>) -> Result<Objects, errors::KarisError> {
         self.build_program_expressions(0x0)?;
-        Ok(Objects::TyProgram(self.program.clone()))
+        let program = Objects::TyProgram(self.program.clone());
+        program.write_as_json_to_file(json_name).unwrap();
+        Ok(program)
     }
 
     fn build_program_expressions(&mut self, index: usize) -> Result<(), errors::KarisError> {
@@ -74,7 +76,7 @@ impl Parser {
             Ok((o, i)) => {
                 if !o.is_ty_unknown() && !o.is_ty_consumable() {
                     self.program.add_object(o);
-                }
+                };
                 self.build_program_expressions(i + 0x01)
             }
             Err(e) => Err(e),
@@ -171,7 +173,7 @@ mod parser_tests {
     fn should_parse1() {
         let lx = Lexer::new(String::from("let num @int = 1;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse1.json"));
         assert!(res.is_ok());
     }
 
@@ -179,7 +181,7 @@ mod parser_tests {
     fn should_parse2() {
         let lx = Lexer::new(String::from("let name @string = \"alice\";"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse2.json"));
         assert!(res.is_ok())
     }
 
@@ -187,7 +189,7 @@ mod parser_tests {
     fn should_parse3() {
         let lx = Lexer::new(String::from("let num @bool = true;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse3.json"));
         assert!(res.is_ok())
     }
 
@@ -195,7 +197,7 @@ mod parser_tests {
     fn should_parse4() {
         let lx = Lexer::new(String::from("let num @bool = false;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse4.json"));
         assert!(res.is_ok())
     }
 
@@ -203,7 +205,7 @@ mod parser_tests {
     fn should_not_parse1() {
         let lx = Lexer::new(String::from("let num @int = "));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_not_parse1.json"));
         assert!(res.is_err())
     }
 
@@ -211,7 +213,7 @@ mod parser_tests {
     fn should_not_parse2() {
         let lx = Lexer::new(String::from("let num @int = ;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_not_parse2.json"));
         assert!(res.is_err())
     }
 
@@ -219,7 +221,7 @@ mod parser_tests {
     fn should_not_parse3() {
         let lx = Lexer::new(String::from("let num @int = let;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_not_parse3.json"));
         assert!(res.is_err())
     }
 
@@ -227,7 +229,7 @@ mod parser_tests {
     fn should_not_parse4() {
         let lx = Lexer::new(String::from("let num @int = >"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_not_parse4.json"));
         assert!(res.is_err())
     }
 
@@ -235,7 +237,7 @@ mod parser_tests {
     fn should_not_parse5() {
         let lx = Lexer::new(String::from("let num @int = =="));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_not_parse5.json"));
         assert!(res.is_err())
     }
 
@@ -243,7 +245,7 @@ mod parser_tests {
     fn should_parse5() {
         let lx = Lexer::new(String::from("let num @int = 1 + 2;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse5.json"));
         assert!(res.is_ok())
     }
 
@@ -251,7 +253,7 @@ mod parser_tests {
     fn should_parse5b() {
         let lx = Lexer::new(String::from("let num @int = 4 % 2;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse5b.json"));
         assert!(res.is_ok())
     }
 
@@ -259,7 +261,7 @@ mod parser_tests {
     fn should_parse6() {
         let lx = Lexer::new(String::from("let num @int = 1 + -2;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse6.json"));
         assert!(res.is_ok())
     }
 
@@ -267,7 +269,7 @@ mod parser_tests {
     fn should_parse7() {
         let lx = Lexer::new(String::from("let num @int = 1 + +2;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse7.json"));
         assert!(res.is_ok())
     }
 
@@ -275,7 +277,7 @@ mod parser_tests {
     fn should_parse8() {
         let lx = Lexer::new(String::from("let num @int = 1 - +2;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse8.json"));
         assert!(res.is_ok())
     }
 
@@ -283,7 +285,7 @@ mod parser_tests {
     fn should_parse9() {
         let lx = Lexer::new(String::from("let num @int = 10 * 2;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse9.json"));
         assert!(res.is_ok())
     }
 
@@ -291,7 +293,7 @@ mod parser_tests {
     fn should_parse10() {
         let lx = Lexer::new(String::from("let num @int = 10 * -2;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse10.json"));
         assert!(res.is_ok())
     }
 
@@ -299,7 +301,7 @@ mod parser_tests {
     fn should_parse11() {
         let lx = Lexer::new(String::from("let num @int = 10 / 2;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse11.json"));
         assert!(res.is_ok())
     }
 
@@ -307,7 +309,7 @@ mod parser_tests {
     fn should_parse12() {
         let lx = Lexer::new(String::from("let num @int = 10 / 2 * 3;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse12.json"));
         assert!(res.is_ok());
 
         let res = res.unwrap();
@@ -358,24 +360,71 @@ mod parser_tests {
     fn should_parse13() {
         let lx = Lexer::new(String::from("let num @int = 10 / 2 * 3 + 20 - 3;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse13.json"));
         assert!(res.is_ok())
     }
 
     #[test]
     fn should_parse14() {
-        let lx = Lexer::new(String::from("let num @int = (10 / 2) * 3 + 20 - 3;"));
+        // (10 / (2 * 3)) + 20;
+        // (10 / 2 + 5 - 2 ) * 3 + 20 - 3;
+
+        let lx = Lexer::new(String::from("let num @int = (10 / (2 * 3)) + 20;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
-        println!("{:?}", res);
-        assert!(res.is_ok())
+        let res = parser.parse(Some("should_parse14.json"));
+        assert!(res.is_ok());
+
+        let res = res.unwrap();
+
+        let program = res.as_ty_program().unwrap();
+        assert_eq!(program.body.len(), 1);
+
+        let child_object = program.body[0].clone();
+
+        let assign_node = node_from_object(child_object.clone());
+
+        assert_eq!(assign_node.identifier_kind, Some(IdentifierKind::ASSIGN));
+
+        let assign_node_left_child = node_child(&assign_node, true);
+
+        let assign_node_let_node = right_side_of_either(assign_node_left_child);
+
+        assert_eq!(
+            assign_node_let_node.identifier_kind,
+            Some(IdentifierKind::LET)
+        );
+
+        let assign_node_right_child = node_child(&assign_node, false);
+        let assign_node_plus_node = right_side_of_either(assign_node_right_child);
+
+        assert_eq!(
+            assign_node_plus_node.identifier_kind,
+            Some(IdentifierKind::PLUS)
+        );
+
+        let plus_node = assign_node_plus_node;
+        let plus_left_child = node_child(&plus_node, true);
+        let grouping_node = right_side_of_either(plus_left_child);
+
+        assert_eq!(
+            grouping_node.identifier_kind,
+            Some(IdentifierKind::GROUPING)
+        );
+
+        let group_items = node_child(&grouping_node, false);
+        let grouping_item_node = right_side_of_either(group_items);
+
+        assert_eq!(
+            grouping_item_node.identifier_kind,
+            Some(IdentifierKind::SLASH)
+        );
     }
 
     #[test]
     fn should_parse14b() {
         let lx = Lexer::new(String::from("let num @int = (10 / 2);"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse14b.json"));
         assert!(res.is_ok())
     }
 
@@ -383,7 +432,7 @@ mod parser_tests {
     fn should_parse15() {
         let lx = Lexer::new(String::from("let num @int = 10 / (2 * 3) + 20 - 3;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse15.json"));
         assert!(res.is_ok())
     }
 
@@ -391,7 +440,7 @@ mod parser_tests {
     fn should_parse16() {
         let lx = Lexer::new(String::from("let num @int = (10 / (2 * 3)) + 20;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse16.json"));
         println!("{:?}", res);
         assert!(res.is_ok())
     }
@@ -402,7 +451,7 @@ mod parser_tests {
             "let num @int = ( (10 - 5) / (2 * 3 + 50 / 4) ) + 20 - 3;",
         ));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse16b.json"));
         println!("{:?}", res);
         assert!(res.is_ok())
     }
@@ -411,7 +460,7 @@ mod parser_tests {
     fn should_parse16c() {
         let lx = Lexer::new(String::from("let num @int = 10(23);"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse16c.json"));
         assert!(res.is_ok())
     }
 
@@ -419,7 +468,7 @@ mod parser_tests {
     fn should_parse16d() {
         let lx = Lexer::new(String::from("let num @int = 10(23 * (20 * 10 + 1));"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse16d.json"));
         assert!(res.is_ok())
     }
 
@@ -427,7 +476,7 @@ mod parser_tests {
     fn should_parse16e() {
         let lx = Lexer::new(String::from("let num @int = 10(23 * (true,false));"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse16e.json"));
         assert!(res.is_err())
     }
 
@@ -435,7 +484,7 @@ mod parser_tests {
     fn should_parse16f() {
         let lx = Lexer::new(String::from("10(23;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse16f.json"));
         assert!(res.is_err())
     }
 
@@ -443,7 +492,7 @@ mod parser_tests {
     fn should_parse16g() {
         let lx = Lexer::new(String::from("10(23 * (20 * 10 + 1))"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse16g.json"));
         assert!(res.is_ok())
     }
 
@@ -451,7 +500,7 @@ mod parser_tests {
     fn should_parse17() {
         let lx = Lexer::new(String::from("let num @int = sum() +  20 - 3;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse17.json"));
         assert!(res.is_ok())
     }
 
@@ -459,7 +508,7 @@ mod parser_tests {
     fn should_parse17b() {
         let lx = Lexer::new(String::from("let num @int = 20 + sum() +  10 - 3;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse17b.json"));
         assert!(res.is_ok())
     }
 
@@ -467,7 +516,7 @@ mod parser_tests {
     fn should_parse17c() {
         let lx = Lexer::new(String::from("let num @int = 4 % sum() +  10 - 3;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse17c.json"));
         assert!(res.is_ok())
     }
 
@@ -475,7 +524,7 @@ mod parser_tests {
     fn should_parse18() {
         let lx = Lexer::new(String::from("let num @int = sum(1,2) +  20 - 3;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse18.json"));
         assert!(res.is_ok())
     }
 
@@ -485,7 +534,7 @@ mod parser_tests {
             "let num @int = sum(\"name\",\"age\") +  20 - 3;",
         ));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse19.json"));
         assert!(res.is_ok())
     }
 
@@ -493,7 +542,7 @@ mod parser_tests {
     fn should_parse20() {
         let lx = Lexer::new(String::from("let num @int = sum(\"name\",2) +  20 - 3;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse20.json"));
         assert!(res.is_ok())
     }
 
@@ -501,7 +550,7 @@ mod parser_tests {
     fn should_parse21() {
         let lx = Lexer::new(String::from("let num @int = sum(true) +  20 - 3;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse21.json"));
         assert!(res.is_ok())
     }
 
@@ -509,7 +558,7 @@ mod parser_tests {
     fn should_parse22() {
         let lx = Lexer::new(String::from("let num @int = sum(true,false) +  20 - 3;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse22.json"));
         assert!(res.is_ok())
     }
 
@@ -519,7 +568,7 @@ mod parser_tests {
             "let num @int = sum(\"name\",false,5) +  20 - 3;",
         ));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse23.json"));
         assert!(res.is_ok())
     }
 
@@ -527,7 +576,7 @@ mod parser_tests {
     fn should_parse24() {
         let lx = Lexer::new(String::from("let num @int = sum(3,4,5);"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse24.json"));
         assert!(res.is_ok())
     }
 
@@ -535,7 +584,7 @@ mod parser_tests {
     fn should_parse25() {
         let lx = Lexer::new(String::from("let num @int = sum(3,4,5) + 20;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse25.json"));
         assert!(res.is_ok())
     }
 
@@ -543,7 +592,7 @@ mod parser_tests {
     fn should_parse26() {
         let lx = Lexer::new(String::from("let num @int = sum(3,4,5 + 20;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse26.json"));
         assert!(res.is_err())
     }
 
@@ -551,7 +600,7 @@ mod parser_tests {
     fn should_parse27() {
         let lx = Lexer::new(String::from("let num @int = sum(3,add(3,4));"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse27.json"));
         assert!(res.is_ok())
     }
 
@@ -559,7 +608,7 @@ mod parser_tests {
     fn should_parse28() {
         let lx = Lexer::new(String::from("let num @int = sum(3,add(3,4);"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse28.json"));
         assert!(res.is_err())
     }
 
@@ -567,7 +616,7 @@ mod parser_tests {
     fn should_parse29() {
         let lx = Lexer::new(String::from("let num @int = sum() + add(3,5);"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse29.json"));
         assert!(res.is_ok())
     }
 
@@ -575,7 +624,7 @@ mod parser_tests {
     fn should_parse30() {
         let lx = Lexer::new(String::from("let num @int = sum(x,y) + add(3,5);"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse30.json"));
         assert!(res.is_ok())
     }
 
@@ -583,7 +632,7 @@ mod parser_tests {
     fn should_parse31() {
         let lx = Lexer::new(String::from("return x + y;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse31.json"));
         assert!(res.is_ok())
     }
 
@@ -591,7 +640,7 @@ mod parser_tests {
     fn should_parse32() {
         let lx = Lexer::new(String::from("return x;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse32.json"));
         assert!(res.is_ok())
     }
 
@@ -599,7 +648,7 @@ mod parser_tests {
     fn should_parse32b() {
         let lx = Lexer::new(String::from("return 10 + call() * 3;"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse32b.json"));
         assert!(res.is_ok())
     }
 
@@ -607,7 +656,7 @@ mod parser_tests {
     fn should_parse33() {
         let lx = Lexer::new(String::from("return x"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse33.json"));
         assert!(res.is_err())
     }
 
@@ -615,7 +664,7 @@ mod parser_tests {
     fn should_parse34() {
         let lx = Lexer::new(String::from("return  x + call();"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse34.json"));
         assert!(res.is_ok())
     }
 
@@ -623,7 +672,7 @@ mod parser_tests {
     fn should_parse35() {
         let lx = Lexer::new(String::from("return sum(x,y) + add(3,5);"));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse35.json"));
         println!("{:?}", res);
         assert!(res.is_ok())
     }
@@ -638,7 +687,7 @@ mod parser_tests {
         ",
         ));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse36.json"));
         assert!(res.is_ok())
     }
 
@@ -652,7 +701,7 @@ mod parser_tests {
         ",
         ));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse37.json"));
         assert!(res.is_ok())
     }
 
@@ -666,7 +715,7 @@ mod parser_tests {
         ",
         ));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse38.json"));
         assert!(res.is_ok())
     }
 
@@ -680,7 +729,7 @@ mod parser_tests {
         ",
         ));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse39.json"));
         assert!(res.is_ok())
     }
 
@@ -694,7 +743,7 @@ mod parser_tests {
         ",
         ));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse40.json"));
         assert!(res.is_ok())
     }
 
@@ -711,7 +760,7 @@ mod parser_tests {
         ",
         ));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse41.json"));
         assert!(res.is_ok())
     }
 
@@ -729,7 +778,7 @@ mod parser_tests {
         ",
         ));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse42.json"));
         assert!(res.is_ok())
     }
 
@@ -749,7 +798,7 @@ mod parser_tests {
         ",
         ));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse43.json"));
         assert!(res.is_ok());
     }
 
@@ -773,7 +822,7 @@ mod parser_tests {
         ",
         ));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse44.json"));
         assert!(res.is_ok())
     }
 
@@ -797,7 +846,7 @@ mod parser_tests {
         ",
         ));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse45.json"));
         assert!(res.is_ok())
     }
 
@@ -832,7 +881,7 @@ mod parser_tests {
         ",
         ));
         let mut parser = Parser::new(lx);
-        let res = parser.parse();
+        let res = parser.parse(Some("should_parse46.json"));
         assert!(res.is_ok())
     }
 
@@ -846,7 +895,7 @@ mod parser_tests {
         ",
         ));
         let mut parser = Parser::new(lx);
-        let _res = parser.parse()?;
+        let _res = parser.parse(Some("should_parse47.json"))?;
         Ok(())
     }
 }

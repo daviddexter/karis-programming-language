@@ -33,15 +33,21 @@ def draw_node_and_edges(*args, **kwargs):
         elif node[1] == "NODE(PLUS)" or node[1] == "NODE(MINUS)" \
             or node[1] == "NODE(ASTERISK)" or node[1] == "NODE(SLASH)":
             graph.node(node[0],node[1], style='filled', fillcolor='#fbc740')
-        elif "NODE(LET" in node[1]:
+        elif node[1].startswith("NODE(LET"):
             graph.node(node[0],node[1], style='filled', fillcolor='#bd97cb')
+        elif node[1].startswith("FnBODY"):
+            graph.node(node[0],node[1], style='filled', fillcolor='#d48c70')
+        elif node[1].startswith("FnARG"):
+            graph.node(node[0],node[1], style='filled', fillcolor='#f4b9b8')
+        elif node[1].startswith("NODE(FUNCTION)"):
+            graph.node(node[0],node[1], style='filled', fillcolor='#2e8bc0')
         else:
             graph.node(node[0],node[1])
 
     for edge in edges:
         graph.edge(edge[0], edge[1])
 
-    g = graph.unflatten(stagger=5)
+    g = graph.unflatten(stagger=1)
     g.format = 'png'
     shutil.rmtree('render') 
     g.render(directory='render').replace('\\', '/')
