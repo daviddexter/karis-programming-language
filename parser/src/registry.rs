@@ -34,6 +34,7 @@ impl TokenRegistry {
         self.add_boolean_true_literal();
         self.add_boolean_false_literal();
         self.add_return();
+        self.add_opening_array();
 
         self.add_left_brace_statement();
         self.add_if_statement();
@@ -72,7 +73,17 @@ impl TokenRegistry {
             IdentifierKind::INTTYPE => TypingKind::Int,
             IdentifierKind::BOOLEANTYPE => TypingKind::Boolean,
             IdentifierKind::STRINGTYPE => TypingKind::String,
+            IdentifierKind::LSQUAREBRACE => TypingKind::Array,
             _ => TypingKind::Unknown,
+        }
+    }
+
+    pub(crate) fn literal_typing_match(tok: &Token) -> IdentifierKind {
+        match tok.token_type {
+            IdentifierKind::INTLITERAL => IdentifierKind::INTTYPE,
+            IdentifierKind::BOOLEANLITERAL => IdentifierKind::BOOLEANTYPE,
+            IdentifierKind::STRINGLITERAL => IdentifierKind::STRINGTYPE,
+            _ => unreachable!("invalid token type"),
         }
     }
 
@@ -137,6 +148,15 @@ impl TokenRegistry {
             binding_power: Some(0x00),
         };
         self.register(IdentifierKind::RETURN, obj);
+    }
+
+    fn add_opening_array(&mut self) {
+        let obj = ParserType {
+            nud_fn: Some(Self::parse_opening_array),
+            led_fn: None,
+            binding_power: Some(0x00),
+        };
+        self.register(IdentifierKind::LSQUAREBRACE, obj);
     }
 
     fn add_let_binding(&mut self) {

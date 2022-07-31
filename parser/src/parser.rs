@@ -202,6 +202,14 @@ mod parser_tests {
     }
 
     #[test]
+    fn should_parse4b() {
+        let lx = Lexer::new(String::from("let nums [ @int ] = [ 1, 2, 3, , 5 ]; "));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_parse4b.json"));
+        assert!(res.is_ok())
+    }
+
+    #[test]
     fn should_not_parse1() {
         let lx = Lexer::new(String::from("let num @int = "));
         let mut parser = Parser::new(lx);

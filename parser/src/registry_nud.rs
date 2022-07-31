@@ -83,6 +83,84 @@ impl TokenRegistry {
         Ok((Objects::TyNode(node), index + 0x01))
     }
 
+    // parses an array starting from the beginning. It moves along the length until the closing square bracket is reached.
+    // It validates that each element of the array is of the same type matching the declaration type.
+    pub(crate) fn parse_opening_array(
+        tok: Token,
+        index: usize,
+        bucket: Rc<RefCell<Vec<Token>>>,
+    ) -> Result<(Objects, usize), errors::KarisError> {
+        let last_item_index = Self::traverse_forward_until(
+            tok.clone(),
+            index,
+            bucket.clone(),
+            IdentifierKind::RSQUAREBRACE,
+        )?;
+        let rsquare_index = last_item_index + 0x01;
+
+        let borrow = bucket.borrow();
+
+        // get the type of the array declaration by checking backwards three-steps
+        let array_typing_info_index = index - 0x03;
+        let array_typing_info = borrow.get(array_typing_info_index).unwrap(); // safe to unwrap here
+
+        // get the items of the array
+        let items = borrow.get(index + 0x01..rsquare_index - 0x01).unwrap();
+        let items = items
+            .iter()
+            .filter(|item| item.token_type != IdentifierKind::COMMA)
+            .collect::<Vec<&Token>>();
+
+        let mut array_items: Vec<Objects> = Vec::new();
+        let tok = &tok;
+
+        for item in items.iter() {
+            let item = *item;
+
+            if Self::literal_typing_match(item) != array_typing_info.token_type {
+                return Err(errors::KarisError {
+                    error_type: errors::KarisErrorType::InvalidSyntax,
+                    message: format!(
+                        "[INVALID SYNTAX] Syntax not correct. Expected typing of {:?}. Ln {} Col {}  '",
+                        array_typing_info.token_type ,item.line_number,item.column_number
+                    ),
+                });
+            }
+
+            match item.token_type {
+                IdentifierKind::INTLITERAL => {
+                    let int = Self::parse_int_literal(item.clone(), index, bucket.clone())?;
+                    array_items.push(int.0);
+                }
+
+                IdentifierKind::BOOLEANLITERAL => {
+                    let int = Self::parse_boolean_literal(item.clone(), index, bucket.clone())?;
+                    array_items.push(int.0);
+                }
+
+                _ => {
+                    return Err(errors::KarisError {
+                         error_type: errors::KarisErrorType::InvalidSyntax,
+                         message: format!(
+                             "[INVALID SYNTAX] Syntax not correct. Expected something after `{}. Ln {} Col {}  '",
+                             tok.literal,tok.line_number,tok.column_number
+                         ),
+                     });
+                }
+            }
+        }
+
+        let node = Node {
+            identifier_kind: Some(IdentifierKind::ARRAY),
+            array_type: Some(Self::typing_kind(array_typing_info)),
+            block_children: Some(array_items),
+            ..Default::default()
+        };
+
+        // move cursor to the next token. We don't want `RSQUAREBRACE` to be parsed
+        Ok((Objects::TyNode(node), rsquare_index + 0x01))
+    }
+
     // When function definition is encountered with the token `fn`, `arse_function_definition`
     // parses the entire function block inclusive of args until tails `}` is encountered
     // For the body, it recursively call `Self::expression`, progressively building children nodes
@@ -583,7 +661,7 @@ impl TokenRegistry {
     // Assert that the `variable name` token is available in it's designated position otherwise return an error
     // Assert that the `typing` token is available in it's designated position otherwise return an error
     // Then collect all the tokens to the left of `=` and construct a node
-    // Teturn the node and the current cursor position minus 1 ( index-0x01)
+    // Return the node and the current cursor position minus 1 ( index-0x01)
     pub(crate) fn parse_let_expressions(
         tok: Token,
         index: usize,
@@ -607,7 +685,14 @@ impl TokenRegistry {
             });
         }
 
-        let index_of_let_ident = index - 0x03;
+        let index_of_let_ident = {
+            let previuos = borrow.get(index - 0x01).unwrap();
+            if previuos.token_type == IdentifierKind::RSQUAREBRACE {
+                index - 0x05
+            } else {
+                index - 0x03
+            }
+        };
 
         // parser validation : check if variable name has been specified
         let variable_name_token = borrow.get(index_of_let_ident + 0x01);
@@ -633,15 +718,59 @@ impl TokenRegistry {
             });
         }
 
-        let node = Node {
-            identifier_kind: Some(IdentifierKind::LET),
-            variable_name: Some(variable_name_token.unwrap().literal.clone()),
-            return_type: Some(Self::typing_kind(typing_token.unwrap())),
-            ..Default::default()
-        };
+        let typing_token = typing_token.unwrap();
 
-        // return index that points to the `typing` not the `Assign`
-        Ok((Objects::TyNode(node), index - 0x1))
+        if typing_token.token_type == IdentifierKind::LSQUAREBRACE {
+            let array_typing_token = borrow.get(index_of_let_ident + 0x03);
+
+            if array_typing_token.is_none() {
+                return Err(errors::KarisError {
+                    error_type: errors::KarisErrorType::MissingTypeInfo,
+                    message: format!(
+                        "[MISSING TYPE INFO] Expected to find either `@int | @string | @bool | @unit` ; Token {:?} Ln {} Col {}",
+                        tok.literal, tok.line_number, tok.column_number
+                    ),
+                });
+            }
+
+            let array_typing_token = array_typing_token.unwrap();
+
+            match array_typing_token.token_type {
+                IdentifierKind::INTTYPE
+                | IdentifierKind::STRINGTYPE
+                | IdentifierKind::BOOLEANTYPE => {
+                    let node = Node {
+                        identifier_kind: Some(IdentifierKind::LET),
+                        variable_name: Some(variable_name_token.unwrap().literal.clone()),
+                        return_type: Some(Self::typing_kind(typing_token)),
+                        array_type: Some(Self::typing_kind(array_typing_token)),
+                        ..Default::default()
+                    };
+
+                    // return index that points to the `RSQUAREBRACE` not the `Assign`
+                    Ok((Objects::TyNode(node), index_of_let_ident + 0x04))
+                }
+                _ => {
+                    Err(errors::KarisError {
+                        error_type: errors::KarisErrorType::MissingTypeInfo,
+                        message: format!(
+                            "[MISSING TYPE INFO] Expected to find either `@int | @string | @bool | @unit` as array typing ; Token {:?} Ln {} Col {}",
+                            array_typing_token.literal, array_typing_token.line_number, array_typing_token.column_number
+                        ),
+                    })
+                }
+            }
+        } else {
+            let node = Node {
+                identifier_kind: Some(IdentifierKind::LET),
+                variable_name: Some(variable_name_token.unwrap().literal.clone()),
+                return_type: Some(Self::typing_kind(typing_token)),
+                ..Default::default()
+            };
+
+            // return index that points to the `typing` not the `Assign`
+            Ok((Objects::TyNode(node), index - 0x1))
+        }
     }
 
     pub(crate) fn parse_int_literal(

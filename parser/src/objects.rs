@@ -340,6 +340,8 @@ pub struct Node {
 
     pub identifier_kind: Option<IdentifierKind>,
 
+    pub array_type: Option<TypingKind>,
+
     /// type of `Node`
     pub left_child: Option<Either<LiteralObjects, Box<Objects>>>,
 
@@ -360,7 +362,8 @@ pub struct Node {
     /// alternate will be populated with an `else` part of a conditional expression
     pub alternate: Option<Box<Objects>>,
 
-    /// this will be populated for the `fn` block, `if` block, `else` block and `main` block
+    /// this will be populated for the `fn` block, `if` block, `else` block, `main` block and
+    /// items af an array e.g [ 1 , 2 , 3 ]
     pub block_children: Option<Vec<Objects>>,
 }
 
