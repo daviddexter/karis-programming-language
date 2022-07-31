@@ -2,3 +2,4 @@ let num @int = 1;
 let active @bool = true;
 let subscribed @bool = false;
 let name @string = "Karis";
+let numbers [ @int ] = [ 1,2,3,4,5 ];

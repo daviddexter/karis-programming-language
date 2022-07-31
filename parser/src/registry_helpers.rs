@@ -30,8 +30,8 @@ impl TokenRegistry {
             return Err(errors::KarisError {
                 error_type: errors::KarisErrorType::InvalidSyntax,
                 message: format!(
-                    "[INVALID SYNTAX] Syntax not correct. Expected matching closing parentheses. Ln {} Col {}",
-                    tok.line_number,tok.column_number
+                    "[INVALID SYNTAX] Syntax not correct. Expected to find {:?}. Ln {} Col {}",
+                    kind, tok.line_number, tok.column_number
                 ),
             });
         }
