@@ -3,9 +3,7 @@ name = "parser"
 version = "0.1.0"
 edition = "2021"
 authors = ["Mwangi Kariuki <dmwangi@kineticengines.co.ke>"]
-rust-version = "1.56.0"
-repository = "https://github.com/daviddexter/wanja-programming-language/parser/"
-
+repository = "https://github.com/daviddexter/karis-programming-language/parser"
 
 [dependencies]
 lexer = { path = "../lexer" }

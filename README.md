@@ -146,7 +146,3 @@ can be implemented. That's for later. Currently, no string concatenation.
 Features like struct/classes, impl/interface, logical loops, complex mathematical operations etc,  are not supported. Check out the sample 
 program above to get a gist of a set of functionalities/features `karis` supports.
 
-## Author's note
-
-This project is dedicated to my parents who have always supported me.
-**_I love you mum and dad :)_**
