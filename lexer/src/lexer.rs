@@ -181,6 +181,28 @@ impl Lexer {
                         self.position,
                     )),
 
+                    // LSQUAREBRACE and RSQUAREBRACE define an array of a specific type enclosed within.
+                    // While whitespace have no intrinsic meaning to Karis language, they are vital in the definition
+                    // of an array. Whitespace is required to seperate the square braces on either side from the enclosed content
+                    // For example:
+                    //  [ @int ] is a valid array definition
+                    //  [@int] is not a valid array definition
+                    //
+                    // However the lexer will accept [@int ] since there is whitespace before the tail the square brace.
+                    // [ @int] is not a valid array definition
+                    tokens::LSQUAREBRACE => Ok(tokens::Token::new(
+                        tokens::IdentifierKind::LSQUAREBRACE,
+                        ch_owned,
+                        self.line_number,
+                        self.position,
+                    )),
+
+                    tokens::RSQUAREBRACE => Ok(tokens::Token::new(
+                        tokens::IdentifierKind::RSQUAREBRACE,
+                        ch_owned,
+                        self.line_number,
+                        self.position,
+                    )),
                     tokens::ASTERISK => Ok(tokens::Token::new(
                         tokens::IdentifierKind::ASTERISK,
                         ch_owned,
@@ -580,9 +602,9 @@ impl Lexer {
                         }
                         None => self.unknown_token_error(tokens::NULL),
                     }
-
-                    // handles multi-line scenarios and edge cases
-                } else if is_space(next_char.as_bytes().first().unwrap())
+                }
+                // handles multi-line scenarios and edge cases
+                else if is_space(next_char.as_bytes().first().unwrap())
                     || next_char == tokens::COMMA
                     || next_char == tokens::LBRACE
                     || next_char == tokens::RPAREN
@@ -2245,6 +2267,243 @@ mod lexer_tests {
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IdentifierKind::EOS
+        );
+    }
+
+    #[test]
+    fn should_read_array1() {
+        let mut lx = Lexer::new(String::from(
+            "     
+        let numbers [ @int ];
+        ",
+        ));
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LET
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::VARIABLE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LSQUAREBRACE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::INTTYPE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RSQUAREBRACE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::SEMICOLON
+        );
+    }
+
+    #[test]
+    fn should_read_array2() {
+        let mut lx = Lexer::new(String::from(
+            "     
+        let numbers [ @int];
+        ",
+        ));
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LET
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::VARIABLE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LSQUAREBRACE
+        );
+        assert_eq!(lx.read_tokens().is_err(), true);
+    }
+
+    #[test]
+    fn should_read_array3() {
+        let mut lx = Lexer::new(String::from(
+            "     
+        let numbers [ @int ] = [ 1, 2, 3 ];
+        ",
+        ));
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LET
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::VARIABLE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LSQUAREBRACE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::INTTYPE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RSQUAREBRACE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::ASSIGN
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LSQUAREBRACE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::INTLITERAL
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::COMMA
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::INTLITERAL
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::COMMA
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::INTLITERAL
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RSQUAREBRACE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::SEMICOLON
+        );
+    }
+
+    #[test]
+    fn should_read_array4() {
+        let mut lx = Lexer::new(String::from(
+            "
+        let take_items [ @int ] = fn (items [ @int ]){
+            return items;  
+        };
+
+        ",
+        ));
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LET
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::VARIABLE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LSQUAREBRACE
+        );
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::INTTYPE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RSQUAREBRACE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::ASSIGN
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::FUNCTION
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LPAREN
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::VARIABLE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LSQUAREBRACE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::INTTYPE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RSQUAREBRACE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RPAREN
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LBRACE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RETURN
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::VARIABLE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::SEMICOLON
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RBRACE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::SEMICOLON
         );
     }
 }

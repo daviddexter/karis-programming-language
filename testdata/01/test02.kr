@@ -1,1 +1,1 @@
-let number [@int] = [1,2,3,4,5];
+let numbers [ @int ] = [ 1,2,3,4,5 ];

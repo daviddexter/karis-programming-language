@@ -7,6 +7,8 @@ pub const LPAREN: &str = "(";
 pub const RPAREN: &str = ")";
 pub const LBRACE: &str = "{";
 pub const RBRACE: &str = "}";
+pub const LSQUAREBRACE: &str = "[";
+pub const RSQUAREBRACE: &str = "]";
 pub const ASSIGN: &str = "=";
 pub const PLUS: &str = "+";
 pub const MINUS: &str = "-";
@@ -61,16 +63,20 @@ pub enum IdentifierKind {
     INTTYPE,     // @int
     STRINGTYPE,  // @string
     BOOLEANTYPE, //@bool
+    ARRAYTYPE,   // [ <> ] e.g [ @int ], [ @string ]
     UNITTYPE,    //@unit
 
     // Delimiters
-    COMMA,     // ","
-    SEMICOLON, // ";"
-    LPAREN,    // "("
-    RPAREN,    // ")"
-    LBRACE,    // "{"
-    RBRACE,    // "}"
-    HASH,      // "#"}"
+    COMMA,        // ","
+    SEMICOLON,    // ";"
+    LPAREN,       // "("
+    RPAREN,       // ")"
+    LBRACE,       // "{"
+    RBRACE,       // "}"
+    LSQUAREBRACE, // "["
+    RSQUAREBRACE, // "]"
+
+    HASH, // "#"}"
 
     // Operators
     ASSIGN,   //  "="
