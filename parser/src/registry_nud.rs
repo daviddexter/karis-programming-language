@@ -402,7 +402,7 @@ impl TokenRegistry {
         }
     }
 
-    // Evaluates a `-` or `+` tokenn as a prefix
+    // Evaluates a `-` or `+` token as a prefix
     // it merges with the next token which should be of type `INT`
     pub(crate) fn parse_minus_or_plus_as_prefix(
         tok: Token,
@@ -416,7 +416,7 @@ impl TokenRegistry {
             return Err(errors::KarisError {
                 error_type: errors::KarisErrorType::InvalidSyntax,
                 message: format!(
-                    "[INVALID SYNTAX] Syntax not correct. Expected something after `{}. Ln {} Col {}  '",
+                    "[INVALID SYNTAX] Syntax not correct. Expected something after `{}. Ln {} Col {}",
                     tok.literal,tok.line_number,tok.column_number
                 ),
             });
@@ -427,7 +427,7 @@ impl TokenRegistry {
             return Err(errors::KarisError {
                 error_type: errors::KarisErrorType::InvalidSyntax,
                 message: format!(
-                    "[INVALID SYNTAX] Syntax not correct after `{}`. Ln {} Col {} '",
+                    "[INVALID SYNTAX] Syntax not correct after `{}`. Expected integer. Ln {} Col {}",
                     tok.literal, tok.line_number, tok.column_number
                 ),
             });
@@ -464,6 +464,70 @@ impl TokenRegistry {
         };
 
         Ok((Objects::TyNode(node), index + 0x01))
+    }
+
+    pub(crate) fn parse_bang_as_prefix(
+        tok: Token,
+        index: usize,
+        bucket: Rc<RefCell<Vec<Token>>>,
+    ) -> Result<(Objects, usize), errors::KarisError> {
+        let borrow = bucket.borrow();
+
+        let next_token_index = index + 0x01;
+
+        let next_token = borrow.get(index + 0x01);
+        if next_token.is_none() {
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: format!(
+                    "[INVALID SYNTAX] Syntax not correct. Expected something after `{}. Ln {} Col {}  '",
+                    tok.literal,tok.line_number,tok.column_number
+                ),
+            });
+        }
+
+        let next_token = next_token.unwrap();
+        match next_token.token_type {
+            IdentifierKind::TRUE | IdentifierKind::FALSE => {
+                let (bool_object, last_index) = Self::parse_boolean_literal(
+                    next_token.clone(),
+                    next_token_index,
+                    bucket.clone(),
+                )?;
+
+                let node = Node {
+                    identifier_kind: Some(IdentifierKind::BANG),
+                    right_child: Some(Right(Box::new(bool_object))),
+                    ..Default::default()
+                };
+
+                Ok((Objects::TyNode(node), last_index))
+            }
+
+            IdentifierKind::BANG => {
+                let (bang_object, last_index) = Self::parse_bang_as_prefix(
+                    next_token.clone(),
+                    next_token_index,
+                    bucket.clone(),
+                )?;
+
+                let node = Node {
+                    identifier_kind: Some(IdentifierKind::BANG),
+                    right_child: Some(Right(Box::new(bang_object))),
+                    ..Default::default()
+                };
+
+                Ok((Objects::TyNode(node), last_index))
+            }
+
+            _ => Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: format!(
+                    "[INVALID SYNTAX] Syntax not correct after `{}` Expected boolean. Ln {} Col {}",
+                    tok.literal, tok.line_number, tok.column_number
+                ),
+            }),
+        }
     }
 
     // To parse a `if` or `else` expression, we move the cursor to the right unit we encounter a `{`.

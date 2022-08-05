@@ -42,6 +42,7 @@ impl TokenRegistry {
 
         self.add_minus_or_plus_as_prefix(IdentifierKind::MINUS);
         self.add_minus_or_plus_as_prefix(IdentifierKind::PLUS);
+        self.add_bang_as_prefix(IdentifierKind::BANG);
 
         self.add_assign();
 
@@ -61,6 +62,8 @@ impl TokenRegistry {
         self.add_infix(IdentifierKind::EQ, 60);
         self.add_infix(IdentifierKind::OR, 60);
         self.add_infix(IdentifierKind::AND, 60);
+        self.add_infix(IdentifierKind::LOR, 65);
+        self.add_infix(IdentifierKind::LAND, 65);
 
         self.add_call_declaration();
         self.add_function_declaration();
@@ -207,6 +210,15 @@ impl TokenRegistry {
     fn add_minus_or_plus_as_prefix(&mut self, symbol: IdentifierKind) {
         let obj = ParserType {
             nud_fn: Some(Self::parse_minus_or_plus_as_prefix),
+            led_fn: None,
+            binding_power: Some(10),
+        };
+        self.register(symbol, obj);
+    }
+
+    fn add_bang_as_prefix(&mut self, symbol: IdentifierKind) {
+        let obj = ParserType {
+            nud_fn: Some(Self::parse_bang_as_prefix),
             led_fn: None,
             binding_power: Some(10),
         };

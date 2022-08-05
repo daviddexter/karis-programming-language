@@ -1257,14 +1257,14 @@ mod lexer_tests {
     #[test]
     fn should_read_if_else_return_keywords() {
         let mut lx = Lexer::new(String::from(
-            "        
+            "
         if {
             return;
         }else{
             return;
-        }      
-        
-        
+        }
+
+
         ",
         ));
 
@@ -1610,7 +1610,7 @@ mod lexer_tests {
         let is_active @bool = true;
 
         let is_live @bool = false;
-        
+
         ",
         ));
         assert_eq!(
@@ -2009,10 +2009,10 @@ mod lexer_tests {
         let greeter @unit = fn(name @string) {
             print(\"Hi you\");
             let msg @string = format(\"Hi you #name\");
-        };  
+        };
 
         greeter();
-        
+
         ",
         ));
 
@@ -2166,11 +2166,11 @@ mod lexer_tests {
         let mut lx = Lexer::new(String::from(
             "
         @main fn(){
-            let x @int = 5;            
-            let name @string = \"Karis\";       
-            
-        }@end;           
-            
+            let x @int = 5;
+            let name @string = \"Karis\";
+
+        }@end;
+
         ",
         ));
 
@@ -2273,7 +2273,7 @@ mod lexer_tests {
     #[test]
     fn should_read_array1() {
         let mut lx = Lexer::new(String::from(
-            "     
+            "
         let numbers [ @int ];
         ",
         ));
@@ -2307,7 +2307,7 @@ mod lexer_tests {
     #[test]
     fn should_read_array2() {
         let mut lx = Lexer::new(String::from(
-            "     
+            "
         let numbers [ @int];
         ",
         ));
@@ -2330,7 +2330,7 @@ mod lexer_tests {
     #[test]
     fn should_read_array3() {
         let mut lx = Lexer::new(String::from(
-            "     
+            "
         let numbers [ @int ] = [ 1, 2, 3 ];
         ",
         ));
@@ -2408,7 +2408,7 @@ mod lexer_tests {
         let mut lx = Lexer::new(String::from(
             "
         let take_items [ @int ] = fn (items [ @int ]){
-            return items;  
+            return items;
         };
 
         ",
@@ -2504,6 +2504,133 @@ mod lexer_tests {
         assert_eq!(
             lx.read_tokens().unwrap().token_type,
             tokens::IdentifierKind::SEMICOLON
+        );
+    }
+
+    #[test]
+    fn should_try_to_read_golang_program() {
+        let mut lx = Lexer::new(String::from(
+            "
+            package main
+
+            import \"fmt\"
+
+            func main() {
+
+                if 7 % 2 == 0 {
+                    fmt.Println(\"7 is even\")
+                } else {
+                    fmt.Println(\"7 is odd\")
+                }
+
+                if 8 % 4 == 0 {
+                    fmt.Println(\"8 is divisible by 4\")
+                }
+
+                if num := 9; num < 0 {
+                    fmt.Println(num, \"is negative\")
+                } else if num < 10 {
+                    fmt.Println(num, \"has 1 digit\")
+                } else {
+                    fmt.Println(num, \"has multiple digits\")
+                }
+            }
+
+        ",
+        ));
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::VARIABLE
+        );
+
+        assert!(lx.read_tokens().is_err());
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::VARIABLE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::STRINGLITERAL
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::VARIABLE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::CALLER
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LPAREN
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RPAREN
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LBRACE
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::IF
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::INTLITERAL
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::MODULUS
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::INTLITERAL
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::EQ
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::INTLITERAL
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LBRACE
+        );
+
+        assert!(lx.read_tokens().is_err(),);
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::LPAREN
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::STRINGLITERAL
+        );
+
+        assert_eq!(
+            lx.read_tokens().unwrap().token_type,
+            tokens::IdentifierKind::RPAREN
         );
     }
 }

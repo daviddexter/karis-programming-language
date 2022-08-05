@@ -762,7 +762,7 @@ mod parser_tests {
             let greeter @unit = fn(name @string) {
                 print(\"Hi you\");
                 let msg @string = format(\"Hi you #name\");
-            }; 
+            };
 
 
         ",
@@ -780,7 +780,7 @@ mod parser_tests {
                 if x > y{
                     return x;
                 };
-            
+
                 return y;
             };
         ",
@@ -800,7 +800,7 @@ mod parser_tests {
                 }else x > y{
                     return x - y;
                 };
-            
+
                 return x * y;
             };
         ",
@@ -813,17 +813,17 @@ mod parser_tests {
     #[test]
     fn should_parse44() {
         let lx = Lexer::new(String::from(
-            " 
+            "
 
         let fibonacci @int = fn(n @int){
             if n == 0 {
                 return 0;
             };
-        
+
             if n == 1 || n == 2 {
                 return 1;
-            };           
-            
+            };
+
             return fibonacci(n - 1) + fibonacci(n - 2);
         };
 
@@ -837,17 +837,17 @@ mod parser_tests {
     #[test]
     fn should_parse45() {
         let lx = Lexer::new(String::from(
-            " 
+            "
 
         let fibonacci @int = fn(n @int){
             if n == 0 {
                 return 0;
             };
-        
+
             if n == 1 && n == 2 {
                 return 1;
             };
-        
+
             return fibonacci(n - 1) + fibonacci(n - 2);
         };
 
@@ -873,7 +873,7 @@ mod parser_tests {
             let result4 @string = echo(name);
             let result5 @int = echo(x,y);
             let result6 @int = add(x,y) + 5 / 10 * 9;
-            let result6 @int =  5 / 10 * 9 + add(x,y);  
+            let result6 @int =  5 / 10 * 9 + add(x,y);
             let result7 @int = factorial(5);
             let result8 @int = fibonacci(3);
 
@@ -883,8 +883,8 @@ mod parser_tests {
             print(result3);
             print(result4);
             print(result5);
-            print(result7);  
-            print(result8);            
+            print(result7);
+            print(result8);
         }@end;
         ",
         ));
@@ -905,5 +905,77 @@ mod parser_tests {
         let mut parser = Parser::new(lx);
         let _res = parser.parse(Some("should_parse47.json"))?;
         Ok(())
+    }
+
+    #[test]
+    fn should_parse48() {
+        let lx = Lexer::new(String::from("true && true;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_parse48.json"));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_parse49() {
+        let lx = Lexer::new(String::from("true && false;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_parse49.json"));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_parse50() {
+        let lx = Lexer::new(String::from("true & false;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_parse50.json"));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_parse51() {
+        let lx = Lexer::new(String::from("true || false;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_parse51.json"));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_parse52() {
+        let lx = Lexer::new(String::from("true | false;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_parse52.json"));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_parse53() {
+        let lx = Lexer::new(String::from("!true;"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_parse53.json"));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_parse54() {
+        let lx = Lexer::new(String::from("!false"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_parse54.json"));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_parse55() {
+        let lx = Lexer::new(String::from("!!false"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_parse55.json"));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_parse56() {
+        let lx = Lexer::new(String::from("!!!!false"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_parse56.json"));
+        assert!(res.is_ok());
     }
 }
