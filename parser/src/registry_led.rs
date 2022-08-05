@@ -46,6 +46,22 @@ impl TokenRegistry {
 
         let next_token = next_token.unwrap();
 
+        if (current_token.token_type == IdentifierKind::AND
+            || current_token.token_type == IdentifierKind::LAND)
+            && (next_token.token_type == IdentifierKind::TRUE
+                || next_token.token_type == IdentifierKind::FALSE)
+        {
+            return Ok((current_token.clone(), next_token.clone()));
+        }
+
+        if (current_token.token_type == IdentifierKind::OR
+            || current_token.token_type == IdentifierKind::LOR)
+            && (next_token.token_type == IdentifierKind::TRUE
+                || next_token.token_type == IdentifierKind::FALSE)
+        {
+            return Ok((current_token.clone(), next_token.clone()));
+        }
+
         if identifiers.contains(&next_token.token_type) {
             return Err(errors::KarisError {
                 error_type: errors::KarisErrorType::InvalidSyntax,
