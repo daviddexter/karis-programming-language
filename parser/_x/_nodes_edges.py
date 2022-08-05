@@ -4,7 +4,7 @@ import graphviz
 
 def draw_node_and_edges(*args, **kwargs):
     """
-    dot.node('A', 'King Arthur')  
+    dot.node('A', 'King Arthur')
 
     dot.node('B', 'Sir Bedevere the Wise')
 
@@ -16,16 +16,14 @@ def draw_node_and_edges(*args, **kwargs):
     """
 
     nodes = args[0]
-    edges = args[1]   
+    edges = args[1]
 
-    graph = graphviz.Digraph('karis program', 
-    comment='Karis abstract syntax tree visualization', 
+    graph = graphviz.Digraph('karis program',
+    comment='Karis abstract syntax tree visualization',
     engine='sfdp', node_attr={'color': 'lightblue2', 'style': 'filled',
-    'shape': 'record', 'height': '.9','width': '.5'})    
+    'shape': 'record', 'height': '.9','width': '.5'})
 
     for node in nodes:
-        print(node[0] + ': ' + node[1])
-        
         if node[1] == "NODE(PROGRAM)":
             graph.node(node[0],node[1], style='filled', fillcolor='#36eee0', shape='circle')
         elif node[1] == "NODE(ASSIGN)":
@@ -49,6 +47,5 @@ def draw_node_and_edges(*args, **kwargs):
 
     g = graph.unflatten(stagger=1)
     g.format = 'png'
-    shutil.rmtree('render') 
+    shutil.rmtree('render')
     g.render(directory='render').replace('\\', '/')
-    

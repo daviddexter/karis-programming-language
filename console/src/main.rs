@@ -16,7 +16,7 @@ const KARIS_WELCOME_MESSAGE: &str = "
 ██░▄▀██░▀▀░█░▀▀▄██░▄█▄▄▀
 ██░██░█▄██▄█▄█▄▄█▄▄▄█▄▄▄
 ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
-        
+
 ";
 
 const KARIS_INTERACTIVE_MESSAGE: &str = "
@@ -25,7 +25,7 @@ const KARIS_INTERACTIVE_MESSAGE: &str = "
 ██░▄▀██░▀▀░█░▀▀▄██░▄█▄▄▀
 ██░██░█▄██▄█▄█▄▄█▄▄▄█▄▄▄
 ▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀▀
-        
+
 Welcome to Karis Lang (v0.1.0) Interactive Console";
 
 fn main() -> io::Result<()> {

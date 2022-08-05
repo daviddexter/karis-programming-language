@@ -117,12 +117,6 @@ impl Objects {
                 for object in body.iter() {
                     let (nodes, edges) = object.inspect();
 
-                    println!("{:?}\n", nodes);
-
-                    println!("{:?}\n", edges);
-
-                    //todo!("bug here: top-level LET vs function-level LET");
-
                     for node in nodes.iter() {
                         let kind = IdentifierKind::ASSIGN;
                         let assign_node_name = format!("NODE({kind:#?})");
@@ -151,22 +145,18 @@ impl Objects {
         use std::io::Write;
 
         let json = serde_json::to_string_pretty(self).unwrap();
-
         let file_name = json_name.unwrap_or("object.json");
-
         let mut curent_directory = std::env::current_dir()?;
 
-        if !std::fs::metadata(curent_directory.join("dumps"))?.is_dir() {
+        let exists = std::fs::metadata(curent_directory.join("dumps"));
+        if exists.is_err() {
             std::fs::create_dir(curent_directory.join("dumps"))?;
         }
 
         curent_directory.push("dumps/");
-
         let temp_file = curent_directory.join(file_name);
-
-        let mut file = std::fs::File::create(temp_file).unwrap();
-
-        file.write_all(json.as_bytes()).unwrap();
+        let mut file = std::fs::File::create(temp_file)?;
+        file.write_all(json.as_bytes())?;
 
         Ok(())
     }
@@ -394,6 +384,8 @@ impl Node {
                 | IdentifierKind::STRINGLITERAL => literals(self),
 
                 IdentifierKind::FUNCTION => function(self),
+
+                IdentifierKind::ARRAY => todo!("implement for array"),
 
                 _ => todo!("not implemented for {:?}", kind),
             }

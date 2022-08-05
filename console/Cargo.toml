@@ -5,9 +5,12 @@ edition = "2021"
 authors = ["Mwangi Kariuki <dmwangi@kineticengines.co.ke>"]
 repository = "https://github.com/daviddexter/karis-programming-language/console"
 
+[[bin]]
+name = "karis"
+path = "src/main.rs"
+
 
 [dependencies]
 clap = { version = "3.2.12", features = ["cargo"] }
 lexer = { path = "../lexer" }
 parser = { path = "../parser" }
-
