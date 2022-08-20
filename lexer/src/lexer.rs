@@ -46,9 +46,9 @@ impl Lexer {
         while self.position < self.input.len() || self.eos {
             match self.read_tokens() {
                 Ok(token) => {
-                    println!("{:?}", token);
+                    println!("{token:?}");
                 }
-                Err(err) => eprintln!("{:?}", err),
+                Err(err) => eprintln!("{err:?}"),
             }
         }
         println!("\n")
@@ -477,7 +477,7 @@ impl Lexer {
     fn unknown_token_error(&self, ident: &str) -> Result<tokens::Token, errors::KarisError> {
         Err(errors::KarisError {
             error_type: errors::KarisErrorType::UnknownToken,
-            message: format!("identifier not known : {}", ident),
+            message: format!("identifier not known : {ident}"),
         })
     }
 

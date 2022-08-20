@@ -8,7 +8,7 @@ use lexer::tokens::{IdentifierKind, Token};
 
 use crate::registry::TokenRegistry;
 use crate::{
-    objects::{BooleanValue, IntergerValue, LiteralObjects, Node, Objects, StringValue},
+    objects::{LiteralObjects, Node, Objects, StringValue},
     parser::Parser,
 };
 
@@ -75,7 +75,7 @@ impl TokenRegistry {
         Ok((current_token.clone(), next_token.clone()))
     }
 
-    /// evaluates a returns object enclosed in parentheses () as it's left children
+    /// evaluates and returns object enclosed in parentheses () as it's left children
     pub(crate) fn parse_closing_parenthesis(
         left: Objects,
         token_index: usize,
@@ -166,8 +166,6 @@ impl TokenRegistry {
                 ..Default::default()
             };
 
-            println!("{:?}", node);
-
             let res = Objects::TyNode(node);
 
             Ok((res, right.1))
@@ -178,40 +176,52 @@ impl TokenRegistry {
                 .binding_power
                 .unwrap();
 
-            if let Some(_next_operator_bp) = next_operator_bp_fn() {
-                let right_after_current_token =
-                    Parser::expression(current_operator_bp, token_index + 0x01, bucket.clone())?;
+            match next_operator_bp_fn() {
+                Some(_next_operator_bp) => {
+                    let right_after_current_token = Parser::expression(
+                        current_operator_bp,
+                        token_index + 0x01,
+                        bucket.clone(),
+                    )?;
 
-                let left_node = Objects::TyNode(Node {
-                    identifier_kind: Some(current_token.token_type),
-                    left_child: Some(Right(Box::new(left))),
-                    right_child: Some(Right(Box::new(right_after_current_token.0))),
-                    ..Default::default()
-                });
+                    let left_node = Objects::TyNode(Node {
+                        identifier_kind: Some(current_token.token_type),
+                        left_child: Some(Right(Box::new(left))),
+                        right_child: Some(Right(Box::new(right_after_current_token.0))),
+                        ..Default::default()
+                    });
 
-                let operator_token = borrow.get(right_after_current_token.1 + 0x01).unwrap();
-                let next_token_nud =
-                    Parser::expression(0x00, right_after_current_token.1 + 0x02, bucket.clone())?;
+                    let operator_token = borrow.get(right_after_current_token.1 + 0x01).unwrap();
+                    let next_token_nud = Parser::expression(
+                        0x00,
+                        right_after_current_token.1 + 0x02,
+                        bucket.clone(),
+                    )?;
 
-                let node = Node {
-                    identifier_kind: Some(operator_token.token_type),
-                    left_child: Some(Right(Box::new(left_node))),
-                    right_child: Some(Right(Box::new(next_token_nud.0))),
-                    ..Default::default()
-                };
+                    let node = Node {
+                        identifier_kind: Some(operator_token.token_type),
+                        left_child: Some(Right(Box::new(left_node))),
+                        right_child: Some(Right(Box::new(next_token_nud.0))),
+                        ..Default::default()
+                    };
 
-                Ok((Objects::TyNode(node), next_token_nud.1))
-            } else {
-                let right =
-                    Parser::expression(current_operator_bp, token_index + 0x01, bucket.clone())?;
-                let node = Node {
-                    identifier_kind: Some(current_token.token_type),
-                    left_child: Some(Right(Box::new(left))),
-                    right_child: Some(Right(Box::new(right.0))),
-                    ..Default::default()
-                };
+                    Ok((Objects::TyNode(node), next_token_nud.1))
+                }
+                None => {
+                    let right = Parser::expression(
+                        current_operator_bp,
+                        token_index + 0x01,
+                        bucket.clone(),
+                    )?;
+                    let node = Node {
+                        identifier_kind: Some(current_token.token_type),
+                        left_child: Some(Right(Box::new(left))),
+                        right_child: Some(Right(Box::new(right.0))),
+                        ..Default::default()
+                    };
 
-                Ok((Objects::TyNode(node), right.1))
+                    Ok((Objects::TyNode(node), right.1))
+                }
             }
         }
     }
@@ -258,17 +268,13 @@ impl TokenRegistry {
         if let Some(two_step_token) = two_step_token {
             if two_step_token.token_type == IdentifierKind::SEMICOLON {
                 if next_token.token_type == IdentifierKind::INTLITERAL {
-                    let value = next_token
-                        .literal
-                        .parse::<isize>()
-                        .unwrap_or_else(|_| panic!("Failed to parse to INT"));
-                    let obj = IntergerValue { value: Some(value) };
-                    let literal = LiteralObjects::ObjIntergerValue(obj);
+                    let (literal, _idx) =
+                        Self::parse_int_literal(next_token, token_index + 0x01, bucket.clone())?;
 
                     let node = Node {
                         identifier_kind: Some(current_token.token_type),
                         left_child: Some(Right(Box::new(left))),
-                        right_child: Some(Left(literal)),
+                        right_child: Some(Right(Box::new(literal))),
                         ..Default::default()
                     };
 
@@ -296,17 +302,16 @@ impl TokenRegistry {
                 if next_token.token_type == IdentifierKind::TRUE
                     || next_token.token_type == IdentifierKind::FALSE
                 {
-                    let value = next_token
-                        .literal
-                        .parse::<bool>()
-                        .unwrap_or_else(|_| panic!("Failed to parse to BOOL"));
-                    let obj = BooleanValue { value: Some(value) };
-                    let literal = LiteralObjects::ObjBooleanValue(obj);
+                    let (literal, _idx) = Self::parse_boolean_literal(
+                        next_token,
+                        token_index + 0x01,
+                        bucket.clone(),
+                    )?;
 
                     let node = Node {
                         identifier_kind: Some(current_token.token_type),
                         left_child: Some(Right(Box::new(left))),
-                        right_child: Some(Left(literal)),
+                        right_child: Some(Right(Box::new(literal))),
                         ..Default::default()
                     };
 

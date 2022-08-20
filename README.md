@@ -36,7 +36,7 @@ let max @int = fn(x @int, y @int){
     if x > y{
         return x;
     };
-    
+
     return y;
 };
 
@@ -64,7 +64,7 @@ let fibonacci @int = fn(n @int){
     let x @int = 5;
     let y @int = 7;
     let name @string = "Karis";
-    
+
     let result0 @int = add(x,y);
     let result1 @int = sub(x,y);
     let result2 @int = mul(x,y);
@@ -72,7 +72,7 @@ let fibonacci @int = fn(n @int){
     let result4 @string = echo(name);
     let result5 @int = echo(x,y);
     let result6 @int = add(x,y) + 5 / 10 * 9;
-    let result6 @int =  5 / 10 * 9 + add(x,y);  
+    let result6 @int =  5 / 10 * 9 + add(x,y);
     let result7 @int = factorial(5);
     let result8 @int = fibonacci(3);
 
@@ -82,43 +82,42 @@ let fibonacci @int = fn(n @int){
     print(result3);
     print(result4);
     print(result5);
-    print(result7);  
-    print(result8); 
+    print(result7);
+    print(result8);
 }@end;
 
 ```
 
 ## Structure
 
-1. *Console*
+1. _Console_
 
-The `RLPL` and `REPL` are located here. It's the main entry point into the Karis. 
+The `RLPL` and `REPL` are located here. It's the main entry point into the Karis.
 
 Yet to be implemented:
 
 - CLI interface to compile source file
 
-2. *Errors*
+2. _Errors_
 
 Custom errors used throughout the entire language
 
-3. *Lexer*
+3. _Lexer_
 
 Definitions and logic to split source file into tokens that can later be interpreted.
 
-4. *Parser*
+4. _Parser_
 
-Contains logic tha builds the AST of the program before evaluation. Syntax errors are caught 
-here. [Top Down Operator Precedence or Pratt Parser](https://tdop.github.io/) is employed so 
-that we don't use some formal grammar that can be fed to something like `yacc`. 
+Contains logic tha builds the AST of the program before evaluation. Syntax errors are caught
+here. [Top Down Operator Precedence or Pratt Parser](https://tdop.github.io/) is employed so
+that we don't use some formal grammar that can be fed to something like `yacc`.
 Again, the intention is to learn.
-
 
 ## Currently not yet supported
 
 1. Multi-file source code.
 
-Having multiple source files required a module system or something similar. That is somewhat out of scope of 
+Having multiple source files required a module system or something similar. That is somewhat out of scope of
 what `Karis` what intended for.
 
 2. Libraries
@@ -143,6 +142,11 @@ can be implemented. That's for later. Currently, no string concatenation.
 
 6. Advanced language features
 
-Features like struct/classes, impl/interface, logical loops, complex mathematical operations etc,  are not supported. Check out the sample 
+Features like struct/classes, impl/interface, logical loops, complex mathematical operations etc, are not supported. Check out the sample
 program above to get a gist of a set of functionalities/features `karis` supports.
 
+## Notes
+
+- Functions are global scoped
+- Variables are local scoped
+- Functions can be defined inside another function i.e named closure

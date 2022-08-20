@@ -405,7 +405,7 @@ impl TokenRegistry {
         {
             let res = Parser::expression(0, index + 0x01, bucket.clone())?;
 
-            // we re-organize the object. We want the GROUPING kind to be the top-level object, not the root of the
+            // we re-organize the object. We want the UNION kind to be the top-level object, not the root of the
             // enclosed arthemetic expression.
             let object = reorganize_parenthesis_object(res.0.clone());
 
@@ -414,7 +414,7 @@ impl TokenRegistry {
             Err(errors::KarisError {
                 error_type: errors::KarisErrorType::InvalidSyntax,
                 message: format!(
-                    "[INVALID SYNTAX] Syntax not correct. Expected something after `{}. Ln {} Col {}  '",
+                    "[INVALID SYNTAX] Syntax not correct. Expected INT or CALLER after `{}. Ln {} Col {}  '",
                     tok.literal,tok.line_number,tok.column_number
                 ),
             })
@@ -463,26 +463,37 @@ impl TokenRegistry {
             });
         }
 
-        let value_fn = || {
-            let v = as_isize.unwrap();
-            if tok.token_type == IdentifierKind::PLUS {
-                v
-            } else {
-                -v
+        match tok.token_type {
+            IdentifierKind::PLUS | IdentifierKind::MINUS => {
+                let value_fn = || {
+                    let v = as_isize.unwrap();
+                    if tok.token_type == IdentifierKind::PLUS {
+                        v
+                    } else {
+                        -v
+                    }
+                };
+
+                let int = IntergerValue {
+                    value: Some(value_fn()),
+                };
+                let obj = LiteralObjects::ObjIntergerValue(int);
+                let node = Node {
+                    identifier_kind: Some(IdentifierKind::INTLITERAL),
+                    left_child: Some(Left(obj)),
+                    ..Default::default()
+                };
+
+                Ok((Objects::TyNode(node), index + 0x01))
             }
-        };
-
-        let int = IntergerValue {
-            value: Some(value_fn()),
-        };
-        let obj = LiteralObjects::ObjIntergerValue(int);
-        let node = Node {
-            identifier_kind: Some(IdentifierKind::INTLITERAL),
-            left_child: Some(Left(obj)),
-            ..Default::default()
-        };
-
-        Ok((Objects::TyNode(node), index + 0x01))
+            _ => Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: format!(
+                    "[INVALID SYNTAX] Syntax not correct. Expected `-` or `+` `{}. Ln {} Col {}",
+                    tok.literal, tok.line_number, tok.column_number
+                ),
+            }),
+        }
     }
 
     pub(crate) fn parse_bang_as_prefix(
@@ -604,6 +615,7 @@ impl TokenRegistry {
         let expression_node = Parser::default()
             .program_as_non_root()
             .parse_from_vec(exp_vec_tokens)?;
+
         // if block items
         let index_at_if_rbrace = Self::traverse_forward_until(
             tok.clone(),
@@ -732,7 +744,18 @@ impl TokenRegistry {
             });
         }
 
-        let items_in_block = borrow.get(index_lbrace + 0x01..index_end - 0x02).unwrap();
+        let items_in_block = borrow.get(index_lbrace + 0x01..index_end - 0x02);
+
+        if items_in_block.is_none() {
+            let msg = "Main block should not be empty".to_string();
+            return Err(errors::KarisError {
+                error_type: errors::KarisErrorType::InvalidSyntax,
+                message: format!("{:?}", msg),
+            });
+        }
+
+        let items_in_block = items_in_block.unwrap();
+
         let block_tokens = Vec::from(items_in_block);
         let block_node = Parser::default()
             .program_as_non_root()

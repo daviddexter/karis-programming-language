@@ -46,9 +46,6 @@ let printer @unit = fn(name @string){
     print("Name #name");
 };
 
-
-
-
 let echo @string = fn(name @string){
     return name;
 };
@@ -101,7 +98,7 @@ let fibonacci @int = fn(n @int){
     let result2 @int = mul(x,y);
     let result3 @int = div(x,y);
     let result4 @string = echo(name);
-    let result5 @int = echo(x,y);
+    let result5 @int = echo(x);
     let result6 @int = add(x,y) + 5 / 10 * 9;
     let result6 @int =  5 / 10 * 9 + add(x,y);
     let result7 @int = factorial(5);

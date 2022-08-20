@@ -31,7 +31,7 @@ impl fmt::Display for KarisError {
             "An error occured while processing. Details \n \t\t\t Type : {:?} \n \t\t\t Message : {:?}",
             self.error_type, self.message
         );
-        write!(fmt, "{}", err_msg)
+        write!(fmt, "{err_msg}")
     }
 }
 
