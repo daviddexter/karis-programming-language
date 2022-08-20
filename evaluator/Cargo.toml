@@ -1,0 +1,15 @@
+[package]
+name = "evaluator"
+version = "0.1.0"
+edition = "2021"
+authors = ["Mwangi Kariuki <dmwangi@kineticengines.co.ke>"]
+repository = "https://github.com/daviddexter/karis-programming-language/evaluator"
+
+
+[dependencies]
+colored = "2.0.0"
+either = "1.8.0"
+errors = { path = "../errors" }
+hashbrown = "0.12.3"
+lexer = { path = "../lexer" }
+parser = { path = "../parser" }

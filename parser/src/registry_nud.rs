@@ -150,6 +150,12 @@ impl TokenRegistry {
             }
         }
 
+        array_items = array_items
+            .iter()
+            .filter(|item| !item.is_ty_unknown())
+            .cloned()
+            .collect::<Vec<Objects>>();
+
         let node = Node {
             identifier_kind: Some(IdentifierKind::ARRAY),
             array_type: Some(Self::typing_kind(array_typing_info)),
@@ -258,10 +264,16 @@ impl TokenRegistry {
         let (block_children, last_index) =
             Self::collect_block_children(lbrace_index, bucket.clone(), Vec::new(), 0x00)?;
 
+        let block_children_filtered = block_children
+            .iter()
+            .filter(|item| !item.is_ty_unknown())
+            .cloned()
+            .collect::<Vec<Objects>>();
+
         let node = Node {
             identifier_kind: Some(IdentifierKind::FUNCTION),
             func_params: Some(function_args),
-            block_children: Some(block_children),
+            block_children: Some(block_children_filtered),
             ..Default::default()
         };
 
@@ -288,9 +300,15 @@ impl TokenRegistry {
         let (block_children, last_index) =
             Self::collect_block_children(index, bucket, Vec::new(), 0x00)?;
 
+        let block_children_filtered = block_children
+            .iter()
+            .filter(|item| !item.is_ty_unknown())
+            .cloned()
+            .collect::<Vec<Objects>>();
+
         let node = Node {
             identifier_kind: Some(IdentifierKind::BLOCK),
-            block_children: Some(block_children),
+            block_children: Some(block_children_filtered),
             ..Default::default()
         };
 
@@ -348,6 +366,7 @@ impl TokenRegistry {
             }
         } else {
             Node {
+                variable_name: Some(tok.literal),
                 identifier_kind: Some(IdentifierKind::CALLER),
                 call_params: Some(params),
                 ..Default::default()
@@ -582,7 +601,9 @@ impl TokenRegistry {
 
         let items_before_if_lbrace = borrow.get(index + 0x01..index_at_if_lbrace).unwrap();
         let exp_vec_tokens = Vec::from(items_before_if_lbrace);
-        let expression_node = Parser::default().parse_from_vec(exp_vec_tokens)?;
+        let expression_node = Parser::default()
+            .program_as_non_root()
+            .parse_from_vec(exp_vec_tokens)?;
         // if block items
         let index_at_if_rbrace = Self::traverse_forward_until(
             tok.clone(),
@@ -595,7 +616,9 @@ impl TokenRegistry {
             .get(index_at_if_lbrace + 0x01..index_at_if_rbrace)
             .unwrap();
         let if_block_vec_tokens = Vec::from(items_after_lbrace);
-        let if_block_node = Parser::default().parse_from_vec(if_block_vec_tokens)?;
+        let if_block_node = Parser::default()
+            .program_as_non_root()
+            .parse_from_vec(if_block_vec_tokens)?;
 
         // set the end to match the index of the item before RIGHT BRACE in the if_block
         end_index = index_at_if_rbrace;
@@ -618,7 +641,9 @@ impl TokenRegistry {
                 .get(else_token_index + 0x01..index_at_else_lbrace)
                 .unwrap();
             let vec_tokens = Vec::from(items);
-            let else_expression_node = Parser::default().parse_from_vec(vec_tokens)?;
+            let else_expression_node = Parser::default()
+                .program_as_non_root()
+                .parse_from_vec(vec_tokens)?;
 
             // else block items
             #[allow(clippy::redundant_clone)]
@@ -633,7 +658,9 @@ impl TokenRegistry {
                 .get(index_at_else_lbrace + 0x01..index_at_else_rbrace)
                 .unwrap();
             let else_block_vec_tokens = Vec::from(items_after_else_lbrace);
-            let else_block_node = Parser::default().parse_from_vec(else_block_vec_tokens)?;
+            let else_block_node = Parser::default()
+                .program_as_non_root()
+                .parse_from_vec(else_block_vec_tokens)?;
 
             let alt_node = Node {
                 identifier_kind: Some(IdentifierKind::ELSE),
@@ -707,7 +734,9 @@ impl TokenRegistry {
 
         let items_in_block = borrow.get(index_lbrace + 0x01..index_end - 0x02).unwrap();
         let block_tokens = Vec::from(items_in_block);
-        let block_node = Parser::default().parse_from_vec(block_tokens)?;
+        let block_node = Parser::default()
+            .program_as_non_root()
+            .parse_from_vec(block_tokens)?;
 
         // points to the tail semicolon
         let end_index = index_end + 0x01;

@@ -88,6 +88,7 @@ pub(crate) fn infix_operators(node: &Node, kind: IdentifierKind) -> NodeEdge {
     left_child_nodes
         .iter()
         .for_each(|ln| nodes.push(ln.clone()));
+
     right_child_nodes
         .iter()
         .for_each(|rn| nodes.push(rn.clone()));

@@ -183,6 +183,7 @@ impl Default for Objects {
 #[derive(Debug, Default, Clone, Serialize)]
 pub struct Program {
     pub body: Vec<Objects>,
+    pub non_root: bool,
 }
 
 impl Declaration for Program {
@@ -195,8 +196,13 @@ impl Program {
     pub fn add_object(&mut self, object: Objects) {
         self.body.push(object)
     }
+
     pub fn count(&self) -> usize {
         self.body.len()
+    }
+
+    pub fn toggle_root(&mut self) {
+        self.non_root = true;
     }
 }
 
@@ -364,6 +370,13 @@ impl Declaration for Node {
 }
 
 impl Node {
+    pub fn hash(&self) -> String {
+        let encoded: Vec<u8> = bincode::serialize(self).unwrap();
+        let mut hasher = blake3::Hasher::new();
+        hasher.update(&encoded);
+        hasher.finalize().to_string()
+    }
+
     pub(crate) fn inspect(&self) -> NodeEdge {
         if let Some(kind) = self.identifier_kind {
             match kind {
@@ -373,7 +386,17 @@ impl Node {
                 IdentifierKind::PLUS
                 | IdentifierKind::MINUS
                 | IdentifierKind::SLASH
-                | IdentifierKind::ASTERISK => infix_operators(self, kind),
+                | IdentifierKind::ASTERISK
+                | IdentifierKind::MODULUS
+                | IdentifierKind::GT
+                | IdentifierKind::LT
+                | IdentifierKind::GTOREQ
+                | IdentifierKind::LTOREQ
+                | IdentifierKind::EQ
+                | IdentifierKind::OR
+                | IdentifierKind::AND
+                | IdentifierKind::LOR
+                | IdentifierKind::LAND => infix_operators(self, kind),
 
                 IdentifierKind::RETURN => returner(self),
 

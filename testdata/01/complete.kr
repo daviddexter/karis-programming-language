@@ -1,0 +1,118 @@
+let add @int = fn(x @int, y @int){
+    return x + y;
+};
+
+let sub @int = fn(x @int, y @int){
+    return x - y;
+};
+
+let mul @int = fn(x @int, y @int){
+    return x * y;
+};
+
+let div @int = fn(x @int, y @int){
+    return x * y;
+};
+
+let mod @int = fn(x @int, y @int){
+    return x % y;
+};
+
+let greater @bool = fn(x @int, y @int){
+    return x > y;
+};
+
+let greater_or_eq @bool = fn(x @int, y @int){
+    return x >= y;
+};
+
+let less @bool = fn(x @int, y @int){
+    return x > y;
+};
+
+let less_or_eq @bool = fn(x @int, y @int){
+    return x <= y;
+};
+
+let or @bool = fn(x @int, y @int){
+    return x || y;
+};
+
+let and @bool = fn(x @int, y @int){
+    return x && y;
+};
+
+let printer @unit = fn(name @string){
+    print("Name #name");
+};
+
+
+
+
+let echo @string = fn(name @string){
+    return name;
+};
+
+let max @int = fn(x @int, y @int){
+    if x > y{
+        return x;
+    };
+
+    return y;
+};
+
+let minmax_or_product @int = fn(x @int, y @int){
+    if x < y{
+       return x + y;
+    }else x > y{
+        return x - y;
+    };
+
+    return x * y;
+};
+
+let factorial @int = fn(n @int){
+    if n == 1 {
+		return 1;
+	};
+
+    return n * factorial(n - 1);
+};
+
+let fibonacci @int = fn(n @int){
+    if n == 0 {
+		return 0;
+	};
+
+    if n == 1 || n == 2 {
+		return 1;
+	};
+
+    return fibonacci(n - 1) + fibonacci(n - 2);
+};
+
+@main fn(){
+    let x @int = 5;
+    let y @int = 7;
+    let name @string = "Karis";
+
+    let result0 @int = add(x,y);
+    let result1 @int = sub(x,y);
+    let result2 @int = mul(x,y);
+    let result3 @int = div(x,y);
+    let result4 @string = echo(name);
+    let result5 @int = echo(x,y);
+    let result6 @int = add(x,y) + 5 / 10 * 9;
+    let result6 @int =  5 / 10 * 9 + add(x,y);
+    let result7 @int = factorial(5);
+    let result8 @int = fibonacci(3);
+
+    print(result0);
+    print(result1);
+    print(result2);
+    print(result3);
+    print(result4);
+    print(result5);
+    print(result7);
+    print(result8);
+}@end;
