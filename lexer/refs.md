@@ -3,3 +3,10 @@
 - https://marketplace.visualstudio.com/items?itemName=vadimcn.vscode-lldb
 - https://www.rapidtables.com/convert/number/decimal-to-hex.html
 - https://www.astexplorer.net/
+- https://rust.godbolt.org/
+
+- https://rust-unofficial.github.io/patterns/patterns/behavioural/visitor.html
+- https://github.com/ctjhoa/rust-learning#rust-in-practice
+- https://cheats.rs/
+- https://nnethercote.github.io/perf-book/title-page.html
+- https://www.jmeiners.com/lc3-vm/

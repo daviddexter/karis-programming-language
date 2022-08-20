@@ -14,6 +14,9 @@ pub enum KarisErrorType {
     MalformedProgram,
     UnableToConvert,
     PreconditionFailure,
+    IO,
+    ReadlineError,
+    PyO3,
 }
 
 #[derive(Debug, Clone)]
@@ -41,5 +44,32 @@ impl From<KarisError> for io::Error {
                 err.error_type, err.message
             ),
         )
+    }
+}
+
+impl From<io::Error> for KarisError {
+    fn from(err: io::Error) -> Self {
+        KarisError {
+            error_type: KarisErrorType::IO,
+            message: err.to_string(),
+        }
+    }
+}
+
+impl From<rustyline::error::ReadlineError> for KarisError {
+    fn from(err: rustyline::error::ReadlineError) -> Self {
+        KarisError {
+            error_type: KarisErrorType::ReadlineError,
+            message: err.to_string(),
+        }
+    }
+}
+
+impl From<pyo3::PyErr> for KarisError {
+    fn from(err: pyo3::PyErr) -> Self {
+        KarisError {
+            error_type: KarisErrorType::PyO3,
+            message: err.to_string(),
+        }
     }
 }

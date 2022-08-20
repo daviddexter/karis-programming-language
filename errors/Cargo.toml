@@ -7,3 +7,5 @@ repository = "https://github.com/daviddexter/karis-programming-language/errors"
 
 
 [dependencies]
+pyo3 = "0.16.5"
+rustyline = "10.0.0"

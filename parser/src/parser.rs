@@ -29,6 +29,11 @@ impl Parser {
         }
     }
 
+    pub fn program_as_non_root(&mut self) -> Self {
+        self.program.toggle_root();
+        self.to_owned()
+    }
+
     /// parse internally builds a set of tokens from the lexer. This should be treated as the main entry point to the parser
     pub fn parse(&mut self, json_name: Option<&str>) -> Result<Objects, errors::KarisError> {
         // add all tokens to a bucket cache. This will be used later when doing the actual parsing
@@ -862,29 +867,18 @@ mod parser_tests {
     fn should_parse46() {
         let lx = Lexer::new(String::from(
             "
+
+        let add @int = fn(x @int, y @int){
+            return x + y;
+        };
+
         @main fn(){
             let x @int = 5;
             let y @int = 7;
             let name @string = \"Karis\";
             let result0 @int = add(x,y);
-            let result1 @int = sub(x,y);
-            let result2 @int = mul(x,y);
-            let result3 @int = div(x,y);
-            let result4 @string = echo(name);
-            let result5 @int = echo(x,y);
-            let result6 @int = add(x,y) + 5 / 10 * 9;
-            let result6 @int =  5 / 10 * 9 + add(x,y);
-            let result7 @int = factorial(5);
-            let result8 @int = fibonacci(3);
 
             print(result0);
-            print(result1);
-            print(result2);
-            print(result3);
-            print(result4);
-            print(result5);
-            print(result7);
-            print(result8);
         }@end;
         ",
         ));

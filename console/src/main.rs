@@ -4,11 +4,22 @@ use std::process;
 
 use clap::{arg, Arg, ArgAction, Command};
 
-use lexer::lexer as lex;
+use colored::*;
+use errors::errors::KarisError;
+use evaluator::evaluate::Evaluator;
+use lexer::lexer::{self as lex, Lexer};
 use parser::parser::Parser;
 
-const PROMPT: &str = ">>>";
-const EXIT: &str = "exit";
+use rustyline::validate::MatchingBracketValidator;
+use rustyline::{
+    completion::FilenameCompleter, error::ReadlineError, highlight::MatchingBracketHighlighter,
+    hint::HistoryHinter, At, Cmd, CompletionType, Config, EditMode, Editor, KeyCode, KeyEvent,
+    Modifiers, Movement, Word,
+};
+use rustyline_derive::{Completer, Helper, Highlighter, Hinter, Validator};
+
+const PROMPT: &str = ">> ";
+const EXIT: &str = ":exit";
 
 const KARIS_WELCOME_MESSAGE: &str = "
 ▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄▄
@@ -28,7 +39,7 @@ const KARIS_INTERACTIVE_MESSAGE: &str = "
 
 Welcome to Karis Lang (v0.1.0) Interactive Console";
 
-fn main() -> io::Result<()> {
+fn main() -> Result<(), KarisError> {
     let matches = Command::new(KARIS_WELCOME_MESSAGE)
         .version("v0.1.0")
         .propagate_version(true)
@@ -60,6 +71,7 @@ fn main() -> io::Result<()> {
                         .required(false),
                 ),
         )
+        .subcommand(Command::new("repl").about("Read-Evaluate-Print-Loop for Karis"))
         .get_matches();
 
     match matches.subcommand() {
@@ -88,6 +100,9 @@ fn main() -> io::Result<()> {
 
             Ok(())
         }
+
+        Some(("repl", _sub_matches)) => evaluate_from_input(),
+
         _ => {
             println!("Nothing to do");
             Ok(())
@@ -95,10 +110,10 @@ fn main() -> io::Result<()> {
     }
 }
 
-fn lexer_interactive() -> io::Result<()> {
+fn lexer_interactive() -> Result<(), KarisError> {
     println!("{}\n", KARIS_INTERACTIVE_MESSAGE);
     println!("Copy-Paste or type your Karis program after the prompt\n",);
-    println!("Type exit to close the console\n",);
+    println!("Type :exit to close the console\n",);
 
     let mut input = String::new();
 
@@ -124,7 +139,7 @@ fn lexer_interactive() -> io::Result<()> {
     }
 }
 
-fn lexer_from_file(file: &str) -> io::Result<()> {
+fn lexer_from_file(file: &str) -> Result<(), KarisError> {
     let path = Path::new(file);
     let path_str = path.to_str().expect("failed to get file path");
     if file.is_empty() {
@@ -137,7 +152,7 @@ fn lexer_from_file(file: &str) -> io::Result<()> {
     Ok(())
 }
 
-fn parser_from_file(file: &str, inspect: &bool) -> io::Result<()> {
+fn parser_from_file(file: &str, inspect: &bool) -> Result<(), KarisError> {
     let path = Path::new(file);
     let path_str = path.to_str().expect("failed to get file path");
     let file = std::fs::read_to_string(path_str)?;
@@ -154,5 +169,80 @@ fn parser_from_file(file: &str, inspect: &bool) -> io::Result<()> {
             println!("{:?}", res);
         }
     }
+    Ok(())
+}
+
+#[derive(Helper, Completer, Hinter, Validator, Highlighter)]
+struct EditorHelper {
+    #[rustyline(Completer)]
+    completer: FilenameCompleter,
+
+    #[allow(dead_code)]
+    highlighter: MatchingBracketHighlighter,
+
+    #[rustyline(Validator)]
+    validator: MatchingBracketValidator,
+
+    #[rustyline(Hinter)]
+    hinter: HistoryHinter,
+
+    #[allow(dead_code)]
+    colored_prompt: String,
+}
+
+fn evaluate_from_input() -> Result<(), KarisError> {
+    println!("{}", KARIS_INTERACTIVE_MESSAGE.cyan());
+    println!("use SHIFT+DOWN to add a new line");
+    println!(" ");
+
+    let config = Config::builder()
+        .history_ignore_space(true)
+        .completion_type(CompletionType::List)
+        .edit_mode(EditMode::Emacs)
+        .build();
+
+    let helper = EditorHelper {
+        completer: FilenameCompleter::new(),
+        highlighter: MatchingBracketHighlighter::new(),
+        hinter: HistoryHinter {},
+        colored_prompt: "".to_owned(),
+        validator: MatchingBracketValidator::new(),
+    };
+
+    let mut editor = Editor::with_config(config)?;
+    editor.set_helper(Some(helper));
+
+    editor.bind_sequence(
+        KeyEvent(KeyCode::Left, Modifiers::CTRL),
+        Cmd::Move(Movement::BackwardWord(1, Word::Big)),
+    );
+    editor.bind_sequence(
+        KeyEvent(KeyCode::Right, Modifiers::CTRL),
+        Cmd::Move(Movement::ForwardWord(1, At::AfterEnd, Word::Big)),
+    );
+
+    editor.bind_sequence(KeyEvent(KeyCode::Down, Modifiers::SHIFT), Cmd::Newline);
+
+    loop {
+        let prompt = format!("{}", PROMPT.yellow());
+
+        match editor.readline(prompt.as_str()) {
+            Ok(input) => {
+                editor.add_history_entry(input.clone());
+
+                let lx = Lexer::new(input);
+                let parser = Parser::new(lx);
+                let mut evaluator = Evaluator::new(parser);
+                evaluator.repl_evaluate_program();
+            }
+            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => break,
+
+            Err(err) => {
+                eprintln!("Error: {:?}", err);
+                break;
+            }
+        }
+    }
+
     Ok(())
 }
