@@ -62,8 +62,9 @@ pub trait Declaration {
     fn which(&self) -> DeclarationType;
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Serialize)]
+#[derive(Debug, Default, PartialEq, Eq, Clone, Serialize)]
 pub enum DeclarationType {
+    #[default]
     Unknown,
 
     Program,
@@ -71,17 +72,13 @@ pub enum DeclarationType {
     Consumable,
 }
 
-impl Default for DeclarationType {
-    fn default() -> Self {
-        DeclarationType::Unknown
-    }
-}
-
-#[derive(Debug, EnumAsInner, Clone, Serialize)]
+#[derive(Debug, Default, EnumAsInner, Clone, Serialize)]
 pub enum Objects {
     TyProgram(Program),
     TyNode(Node),
     TyConsumable,
+
+    #[default]
     TyUnknown,
 }
 
@@ -170,12 +167,6 @@ impl Declaration for Objects {
             Objects::TyConsumable => DeclarationType::Consumable,
             Objects::TyUnknown => DeclarationType::Unknown,
         }
-    }
-}
-
-impl Default for Objects {
-    fn default() -> Self {
-        Objects::TyUnknown
     }
 }
 
@@ -323,7 +314,7 @@ impl Value for StringValue {
 // type `LiteralObjects` and an `identifier kind` of type `INTLITERAL`
 //
 //
-// The tree of the abov expression will be of the form
+// The tree of the above expression will be of the form
 //
 //                 Node(=)
 //                /       \

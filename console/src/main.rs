@@ -1,6 +1,8 @@
+use std::cell::RefCell;
 use std::io;
 use std::path::Path;
 use std::process;
+use std::rc::Rc;
 
 use clap::{arg, Arg, ArgAction, Command};
 
@@ -40,6 +42,8 @@ const KARIS_INTERACTIVE_MESSAGE: &str = "
 Welcome to Karis Lang (v0.1.0) Interactive Console";
 
 fn main() -> Result<(), KarisError> {
+    env_logger::init();
+
     let matches = Command::new(KARIS_WELCOME_MESSAGE)
         .version("v0.1.0")
         .propagate_version(true)
@@ -60,7 +64,7 @@ fn main() -> Result<(), KarisError> {
         )
         .subcommand(
             Command::new("rppl")
-                .about("Read-Parser-Print-Loop parsers program and prints on stdout")
+                .about("Read-Parse-Print-Loop parsers program and prints on stdout")
                 .arg_required_else_help(true)
                 .arg(arg!(-p --filepath <PATH>).required(false))
                 .arg(
@@ -72,6 +76,12 @@ fn main() -> Result<(), KarisError> {
                 ),
         )
         .subcommand(Command::new("repl").about("Read-Evaluate-Print-Loop for Karis"))
+        .subcommand(
+            Command::new("run")
+                .about("Runs a Karis script")
+                .arg_required_else_help(true)
+                .arg(arg!(-p --filepath <PATH>).required(false)),
+        )
         .get_matches();
 
     match matches.subcommand() {
@@ -102,6 +112,16 @@ fn main() -> Result<(), KarisError> {
         }
 
         Some(("repl", _sub_matches)) => evaluate_from_input(),
+
+        Some(("run", sub_matches)) => {
+            let file_path = sub_matches.get_one::<String>("filepath");
+
+            if let Some(file_path) = file_path {
+                return run_script(file_path);
+            }
+
+            Ok(())
+        }
 
         _ => {
             println!("Nothing to do");
@@ -223,6 +243,9 @@ fn evaluate_from_input() -> Result<(), KarisError> {
 
     editor.bind_sequence(KeyEvent(KeyCode::Down, Modifiers::SHIFT), Cmd::Newline);
 
+    let global_binding_resolver = hashbrown::HashMap::new();
+    let resolver = Rc::new(RefCell::new(global_binding_resolver));
+
     loop {
         let prompt = format!("{}", PROMPT.yellow());
 
@@ -233,9 +256,12 @@ fn evaluate_from_input() -> Result<(), KarisError> {
                 let lx = Lexer::new(input);
                 let parser = Parser::new(lx);
                 let mut evaluator = Evaluator::new(parser);
-                evaluator.repl_evaluate_program();
+                evaluator.repl_evaluate_program(resolver.clone());
             }
-            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => break,
+            Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => {
+                println!("Exiting...");
+                break;
+            }
 
             Err(err) => {
                 eprintln!("Error: {:?}", err);
@@ -244,5 +270,21 @@ fn evaluate_from_input() -> Result<(), KarisError> {
         }
     }
 
+    Ok(())
+}
+
+fn run_script(file: &str) -> Result<(), KarisError> {
+    let path = Path::new(file);
+    let path_str = path.to_str().expect("failed to get file path");
+    let file = std::fs::read_to_string(path_str)?;
+    if file.is_empty() {
+        println!("Nothing to run \n");
+    } else {
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let lx = lex::Lexer::new(file);
+        let parser = Parser::new(lx);
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+    }
     Ok(())
 }

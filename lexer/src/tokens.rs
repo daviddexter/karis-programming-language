@@ -47,8 +47,9 @@ pub const RETURN: &str = "return";
 pub const FORMAT: &str = "format";
 pub const PRINT: &str = "print";
 
-#[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Serialize)]
+#[derive(Debug, Default, PartialEq, Eq, Hash, Clone, Copy, Serialize)]
 pub enum IdentifierKind {
+    #[default]
     UNKNOWN,
 
     EOF, // end of file. Nothoing more to read
@@ -114,12 +115,6 @@ pub enum IdentifierKind {
     BLOCK,
     GROUPING,
     ARRAY,
-}
-
-impl Default for IdentifierKind {
-    fn default() -> Self {
-        IdentifierKind::UNKNOWN
-    }
 }
 
 /// Token is an identifiable single unit
