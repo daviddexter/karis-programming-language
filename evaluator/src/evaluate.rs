@@ -836,7 +836,7 @@ impl Evaluate for Node {
                 let resp = left_or_right(right, scope, global.clone());
                 match resp {
                     Ok(res) => Ok(EvaluationObject::ReturnValue(Rc::new(res))),
-                    Err(_) => todo!("missing return value"),
+                    Err(_) => unreachable!(),
                 }
             }
 
