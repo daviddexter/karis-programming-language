@@ -4,6 +4,7 @@ use std::iter::zip;
 use std::rc::Rc;
 
 use colored::*;
+use errors::errors::{KarisError, KarisErrorType};
 use log::error;
 
 use enum_as_inner::EnumAsInner;
@@ -23,7 +24,9 @@ pub enum EvaluationObject {
     String(String),
     ReturnValue(Rc<EvaluationObject>),
     Function(Node),
+    Print(String),
 
+    AlternateCondition,
     #[default]
     Empty,
 }
@@ -35,7 +38,10 @@ impl fmt::Display for EvaluationObject {
             EvaluationObject::Boolean(b) => write!(f, "{}", b),
             EvaluationObject::String(s) => write!(f, "{}", s),
             EvaluationObject::ReturnValue(obj) => write!(f, "{}", obj),
-            EvaluationObject::Function(_) | EvaluationObject::Empty => Ok(()),
+            EvaluationObject::Function(_)
+            | EvaluationObject::Empty
+            | EvaluationObject::AlternateCondition
+            | EvaluationObject::Print(_) => Ok(()),
         }
     }
 }
@@ -49,7 +55,7 @@ pub trait Evaluate {
         &self,
         scope: Rc<RefCell<ScopeBindingResolver>>,
         global: Option<Rc<RefCell<ScopeBindingResolver>>>,
-    ) -> EvaluationObject;
+    ) -> Result<EvaluationObject, KarisError>;
 }
 
 pub struct Evaluator {
@@ -64,8 +70,14 @@ impl Evaluator {
     pub fn repl_evaluate_program(&mut self, scope: Rc<RefCell<ScopeBindingResolver>>) {
         match self.parser.parse(Some("repl_evaluate_program.json")) {
             Ok(program) => {
-                let evaluated = program.eval(scope, None);
-                println!("{}", evaluated);
+                if let Ok(evaluated) = program.eval(scope, None) {
+                    match evaluated {
+                        EvaluationObject::Print(msg) => println!("{}", msg),
+                        _ => {
+                            println!("{}", evaluated)
+                        }
+                    }
+                }
             }
             Err(err) => println!("{}", err.to_string().red()),
         }
@@ -77,7 +89,7 @@ impl Evaluate for Objects {
         &self,
         scope: Rc<RefCell<ScopeBindingResolver>>,
         global: Option<Rc<RefCell<ScopeBindingResolver>>>,
-    ) -> EvaluationObject {
+    ) -> Result<EvaluationObject, KarisError> {
         match self {
             Self::TyProgram(program) => program.eval(scope, global),
             Self::TyNode(node) => node.eval(scope, global),
@@ -91,17 +103,18 @@ impl Evaluate for Program {
         &self,
         scope: Rc<RefCell<ScopeBindingResolver>>,
         global: Option<Rc<RefCell<ScopeBindingResolver>>>,
-    ) -> EvaluationObject {
-        let mut evaluation_result = EvaluationObject::Empty;
+    ) -> Result<EvaluationObject, KarisError> {
+        let mut evaluation_result = Ok(EvaluationObject::Empty);
 
         for item in self.body.iter() {
-            let val = item.eval(scope.clone(), global.clone());
-            match val {
-                EvaluationObject::ReturnValue(r) => {
-                    let v = r.as_ref().clone();
-                    evaluation_result = v
+            if let Ok(val) = item.eval(scope.clone(), global.clone()) {
+                match val {
+                    EvaluationObject::ReturnValue(r) => {
+                        let v = r.as_ref().clone();
+                        evaluation_result = Ok(v)
+                    }
+                    _ => evaluation_result = Ok(val),
                 }
-                _ => evaluation_result = val,
             }
         }
 
@@ -114,7 +127,7 @@ impl Evaluate for Node {
         &self,
         scope: Rc<RefCell<ScopeBindingResolver>>,
         global: Option<Rc<RefCell<ScopeBindingResolver>>>,
-    ) -> EvaluationObject {
+    ) -> Result<EvaluationObject, KarisError> {
         let kind = self.identifier_kind.unwrap();
 
         let scope_clone = scope.clone();
@@ -124,19 +137,19 @@ impl Evaluate for Node {
                 let lit = self.left_child.as_ref().unwrap().as_ref().left().unwrap();
                 let int_value = lit.as_obj_interger_value().unwrap();
                 let int_lit = int_value.value.unwrap();
-                EvaluationObject::Integer(int_lit)
+                Ok(EvaluationObject::Integer(int_lit))
             }
             IdentifierKind::STRINGLITERAL => {
                 let lit = self.left_child.as_ref().unwrap().as_ref().left().unwrap();
                 let string_value = lit.as_obj_string_value().unwrap();
                 let string_lit = string_value.value.as_ref().unwrap();
-                EvaluationObject::String(string_lit.clone())
+                Ok(EvaluationObject::String(string_lit.clone()))
             }
             IdentifierKind::BOOLEANLITERAL => {
                 let lit = self.left_child.as_ref().unwrap().as_ref().left().unwrap();
                 let bool_value = lit.as_obj_boolean_value().unwrap();
                 let bool_lit = bool_value.value.unwrap();
-                EvaluationObject::Boolean(bool_lit)
+                Ok(EvaluationObject::Boolean(bool_lit))
             }
 
             IdentifierKind::ASSIGN => {
@@ -153,11 +166,12 @@ impl Evaluate for Node {
                 let binding_key = binding.variable_name.as_ref().unwrap();
 
                 let rhs = self.right_child.as_ref().unwrap();
-                let rhs = left_or_right(rhs, scope, global);
+                if let Ok(rhs) = left_or_right(rhs, scope, global) {
+                    let mut scope_inner_mut = scope_clone.borrow_mut();
+                    scope_inner_mut.insert(binding_key.to_string(), rhs);
+                }
 
-                let mut scope_inner_mut = scope_clone.borrow_mut();
-                scope_inner_mut.insert(binding_key.to_string(), rhs);
-                EvaluationObject::Empty
+                Ok(EvaluationObject::Empty)
             }
 
             IdentifierKind::VARIABLE => {
@@ -165,127 +179,327 @@ impl Evaluate for Node {
                 let scope_inner = scope_clone.borrow();
 
                 if let Some(val) = scope_inner.get(variable) {
-                    return val.clone();
+                    return Ok(val.clone());
                 }
-                EvaluationObject::Empty
+                Ok(EvaluationObject::Empty)
             }
 
             IdentifierKind::PLUS => {
                 let left = self.left_child.as_ref().unwrap();
                 let left = left_or_right(left, scope.clone(), global.clone());
-                let left = match left {
+                let left = match left.unwrap() {
                     EvaluationObject::Integer(int) => int,
                     _ => 0,
                 };
 
                 let right = self.right_child.as_ref().unwrap();
                 let right = left_or_right(right, scope, global);
-                let right = match right {
+                let right = match right.unwrap() {
                     EvaluationObject::Integer(int) => int,
                     _ => 0,
                 };
 
                 let sum = left + right;
-                EvaluationObject::Integer(sum)
+                Ok(EvaluationObject::Integer(sum))
             }
             IdentifierKind::MINUS => {
                 let left = self.left_child.as_ref().unwrap();
                 let left = left_or_right(left, scope.clone(), global.clone());
-                let left = match left {
+                let left = match left.unwrap() {
                     EvaluationObject::Integer(int) => int,
                     _ => 0,
                 };
 
                 let right = self.right_child.as_ref().unwrap();
                 let right = left_or_right(right, scope, global);
-                let right = match right {
+                let right = match right.unwrap() {
                     EvaluationObject::Integer(int) => int,
                     _ => 0,
                 };
 
                 let diff = left - right;
-                EvaluationObject::Integer(diff)
+                Ok(EvaluationObject::Integer(diff))
             }
             IdentifierKind::ASTERISK => {
                 let left = self.left_child.as_ref().unwrap();
                 let left = left_or_right(left, scope.clone(), global.clone());
-                let left = match left {
+                let left = match left.unwrap() {
                     EvaluationObject::Integer(int) => int,
                     _ => 0,
                 };
 
                 let right = self.right_child.as_ref().unwrap();
                 let right = left_or_right(right, scope, global);
-                let right = match right {
+                let right = match right.unwrap() {
                     EvaluationObject::Integer(int) => int,
                     _ => 0,
                 };
 
                 let product = left * right;
-                EvaluationObject::Integer(product)
+                Ok(EvaluationObject::Integer(product))
             }
             IdentifierKind::SLASH => {
                 let left = self.left_child.as_ref().unwrap();
                 let left = left_or_right(left, scope.clone(), global.clone());
-                let left = match left {
+                let left = match left.unwrap() {
                     EvaluationObject::Integer(int) => int,
                     _ => 0,
                 };
 
                 let right = self.right_child.as_ref().unwrap();
                 let right = left_or_right(right, scope, global);
-                let right = match right {
+                let right = match right.unwrap() {
                     EvaluationObject::Integer(int) => int,
                     _ => 0,
                 };
 
                 let division = left / right;
-                EvaluationObject::Integer(division)
+                Ok(EvaluationObject::Integer(division))
             }
             IdentifierKind::MODULUS => {
                 let left = self.left_child.as_ref().unwrap();
                 let left = left_or_right(left, scope.clone(), global.clone());
-                let left = match left {
+                let left = match left.unwrap() {
                     EvaluationObject::Integer(int) => int,
                     _ => 0,
                 };
 
                 let right = self.right_child.as_ref().unwrap();
                 let right = left_or_right(right, scope, global);
-                let right = match right {
+                let right = match right.unwrap() {
                     EvaluationObject::Integer(int) => int,
                     _ => 0,
                 };
 
                 let modulus = left % right;
-                EvaluationObject::Integer(modulus)
+                Ok(EvaluationObject::Integer(modulus))
             }
-            IdentifierKind::GROUPING | IdentifierKind::RETURN => {
+
+            IdentifierKind::GT => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, scope.clone(), global.clone());
+                let left = match left.unwrap() {
+                    EvaluationObject::Integer(int) => int,
+                    _ => 0,
+                };
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, scope, global);
+                let right = match right.unwrap() {
+                    EvaluationObject::Integer(int) => int,
+                    _ => 0,
+                };
+
+                let gt = left > right;
+                Ok(EvaluationObject::Boolean(gt))
+            }
+
+            IdentifierKind::GTOREQ => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, scope.clone(), global.clone());
+                let left = match left.unwrap() {
+                    EvaluationObject::Integer(int) => int,
+                    _ => 0,
+                };
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, scope, global);
+                let right = match right.unwrap() {
+                    EvaluationObject::Integer(int) => int,
+                    _ => 0,
+                };
+
+                let gteq = left >= right;
+                Ok(EvaluationObject::Boolean(gteq))
+            }
+
+            IdentifierKind::LT => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, scope.clone(), global.clone());
+                let left = match left.unwrap() {
+                    EvaluationObject::Integer(int) => int,
+                    _ => 0,
+                };
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, scope, global);
+                let right = match right.unwrap() {
+                    EvaluationObject::Integer(int) => int,
+                    _ => 0,
+                };
+
+                let lt = left < right;
+                Ok(EvaluationObject::Boolean(lt))
+            }
+
+            IdentifierKind::LTOREQ => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, scope.clone(), global.clone());
+                let left = match left.unwrap() {
+                    EvaluationObject::Integer(int) => int,
+                    _ => 0,
+                };
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, scope, global);
+                let right = match right.unwrap() {
+                    EvaluationObject::Integer(int) => int,
+                    _ => 0,
+                };
+
+                let lteq = left <= right;
+                Ok(EvaluationObject::Boolean(lteq))
+            }
+
+            IdentifierKind::EQ => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, scope.clone(), global.clone());
+                let left = match left.unwrap() {
+                    EvaluationObject::Integer(int) => int,
+                    _ => 0,
+                };
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, scope, global);
+                let right = match right.unwrap() {
+                    EvaluationObject::Integer(int) => int,
+                    _ => 0,
+                };
+
+                let eq = left == right;
+                Ok(EvaluationObject::Boolean(eq))
+            }
+
+            IdentifierKind::NOTEQ => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, scope.clone(), global.clone());
+                let left = match left.unwrap() {
+                    EvaluationObject::Integer(int) => int,
+                    _ => 0,
+                };
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, scope, global);
+                let right = match right.unwrap() {
+                    EvaluationObject::Integer(int) => int,
+                    _ => 0,
+                };
+
+                let noteq = left != right;
+                Ok(EvaluationObject::Boolean(noteq))
+            }
+
+            IdentifierKind::AND => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, scope.clone(), global.clone());
+                let left = match left.unwrap() {
+                    EvaluationObject::Boolean(b) => b,
+                    _ => false,
+                };
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, scope, global);
+                let right = match right.unwrap() {
+                    EvaluationObject::Boolean(b) => b,
+                    _ => false,
+                };
+
+                let and = left && right;
+                Ok(EvaluationObject::Boolean(and))
+            }
+
+            IdentifierKind::LAND => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, scope.clone(), global.clone());
+                let left = match left.unwrap() {
+                    EvaluationObject::Boolean(b) => b,
+                    _ => false,
+                };
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, scope, global);
+                let right = match right.unwrap() {
+                    EvaluationObject::Boolean(b) => b,
+                    _ => false,
+                };
+
+                let land = left & right;
+                Ok(EvaluationObject::Boolean(land))
+            }
+
+            IdentifierKind::OR => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, scope.clone(), global.clone());
+                let left = match left.unwrap() {
+                    EvaluationObject::Boolean(b) => b,
+                    _ => false,
+                };
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, scope, global);
+                let right = match right.unwrap() {
+                    EvaluationObject::Boolean(b) => b,
+                    _ => false,
+                };
+
+                let or = left || right;
+                Ok(EvaluationObject::Boolean(or))
+            }
+
+            IdentifierKind::LOR => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, scope.clone(), global.clone());
+                let left = match left.unwrap() {
+                    EvaluationObject::Boolean(b) => b,
+                    _ => false,
+                };
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, scope, global);
+                let right = match right.unwrap() {
+                    EvaluationObject::Boolean(b) => b,
+                    _ => false,
+                };
+
+                let or = left | right;
+                Ok(EvaluationObject::Boolean(or))
+            }
+
+            IdentifierKind::BANG => {
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, scope, global);
+                let right = match right.unwrap() {
+                    EvaluationObject::Boolean(b) => b,
+                    _ => false,
+                };
+                let negate = !right;
+                Ok(EvaluationObject::Boolean(negate))
+            }
+
+            IdentifierKind::GROUPING => {
                 let right = self.right_child.as_ref().unwrap();
                 left_or_right(right, scope, global.clone())
             }
             IdentifierKind::LPAREN => {
                 let left = self.left_child.as_ref().unwrap();
                 let left = left_or_right(left, scope.clone(), global.clone());
-                let left = match left {
+                let left = match left.unwrap() {
                     EvaluationObject::Integer(int) => int,
                     _ => 0,
                 };
 
                 let right = self.right_child.as_ref().unwrap();
                 let right = left_or_right(right, scope, global);
-                let right = match right {
+                let right = match right.unwrap() {
                     EvaluationObject::Integer(int) => int,
                     _ => 0,
                 };
 
                 let mul = left * right;
-                EvaluationObject::Integer(mul)
+                Ok(EvaluationObject::Integer(mul))
             }
-            IdentifierKind::FUNCTION => EvaluationObject::Function(self.clone()),
+            IdentifierKind::FUNCTION => Ok(EvaluationObject::Function(self.clone())),
             IdentifierKind::CALLER => {
-                let call_result = EvaluationObject::Empty;
-
                 let m = hashbrown::HashMap::new();
                 let global_scope = match global {
                     Some(m) => m,
@@ -295,10 +509,11 @@ impl Evaluate for Node {
                 let global_scope_inner = global_scope.borrow();
                 // use the global_scope to tell if the function is called outside `main` or another function
                 if global_scope_inner.is_empty() {
-                    error!(
-                        "A function can only be called inside `@main` or inside another function",
-                    );
-                    return call_result;
+                    let err:Result<EvaluationObject, KarisError> =  Err(KarisError {
+                        error_type: KarisErrorType::MissingFunctionInScope,
+                        message: "A function can only be called inside `@main` or inside another function".to_string(),
+                    });
+                    panic!("{:?}", err)
                 }
 
                 let empty_params = Vec::new();
@@ -308,6 +523,7 @@ impl Evaluate for Node {
                 };
 
                 let scope_inner = scope_clone.borrow();
+
                 let retrieve_function_def = |from_global: bool, function_name: &str| {
                     if from_global {
                         global_scope_inner.get(function_name).unwrap()
@@ -319,6 +535,7 @@ impl Evaluate for Node {
                 // closure responsible for reconstructing the function from definition object and executing it
                 let function_construct = |from_global: bool, function_name: &str| {
                     let func_def = retrieve_function_def(from_global, function_name);
+
                     let func_def = func_def.as_function().unwrap();
 
                     let func_params = match &func_def.func_params {
@@ -327,22 +544,36 @@ impl Evaluate for Node {
                     };
 
                     if call_params.len() != func_params.len() {
-                        error!(
-                            "Unexpected number of arguments for function `{}`",
-                            function_name
-                        );
-                        return EvaluationObject::Empty;
+                        let err: Result<EvaluationObject, KarisError> = Err(KarisError {
+                            error_type: KarisErrorType::IncorrectFunctionCall,
+                            message: format!("Unexpected number of arguments for function `{}`. Wanted {} but got {}.",
+                                function_name, func_params.len(),call_params.len()
+                            ),
+                        });
+                        panic!("{:?}", err)
                     }
 
                     // check that the function body is not empty. Otherwise print an error
                     if func_def.block_children.is_none() {
-                        error!("Function body is empty. Nothing to run`{}`", function_name);
-                        return EvaluationObject::Empty;
+                        let err: Result<EvaluationObject, KarisError> = Err(KarisError {
+                            error_type: KarisErrorType::IncorrectFunctionCall,
+                            message: format!(
+                                "Function body is empty. Nothing to run`{}`",
+                                function_name
+                            ),
+                        });
+                        panic!("{:?}", err)
                     }
 
                     if func_def.block_children.as_ref().unwrap().is_empty() {
-                        error!("Function body is empty. Nothing to run`{}`", function_name);
-                        return EvaluationObject::Empty;
+                        let err: Result<EvaluationObject, KarisError> = Err(KarisError {
+                            error_type: KarisErrorType::IncorrectFunctionCall,
+                            message: format!(
+                                "Function body is empty. Nothing to run`{}`",
+                                function_name
+                            ),
+                        });
+                        panic!("{:?}", err)
                     }
 
                     let mut params = Vec::new();
@@ -355,15 +586,31 @@ impl Evaluate for Node {
                     // add params to local_binding_resolver
                     for (from_func, from_call) in params {
                         if from_func.is_right() == from_call.is_right() {
-                            let from_call = from_call.clone();
-                            let call_node =
-                                from_call.right().unwrap().as_ty_node().unwrap().clone();
+                            let from_func_param = from_func.clone();
+                            let from_call_param = from_call.clone();
 
+                            let func_node = from_func_param
+                                .right()
+                                .unwrap()
+                                .as_ty_node()
+                                .unwrap()
+                                .clone();
+
+                            let call_node = from_call_param
+                                .right()
+                                .unwrap()
+                                .as_ty_node()
+                                .unwrap()
+                                .clone();
+
+                            let func_key = func_node.variable_name.unwrap_or_default();
                             // use the call node to retrieve the actual value from scope
-                            let key = call_node.variable_name.unwrap_or_default();
-                            let value = scope_inner.get(&key).unwrap_or(&EvaluationObject::Empty);
+                            let call_key = call_node.variable_name.unwrap_or_default();
+                            let call_value = scope_inner
+                                .get(&call_key)
+                                .unwrap_or(&EvaluationObject::Empty);
                             // insert in function scope
-                            local_binding_resolver.insert(key, value.clone());
+                            local_binding_resolver.insert(func_key, call_value.clone());
                         }
 
                         if from_func.is_right() == from_call.is_left() {
@@ -394,10 +641,12 @@ impl Evaluate for Node {
                         }
                     }
 
+                    let global_scope_closure = global_scope.clone();
                     // evaluate the function itself
                     evaluate_function(
                         func_def.clone(),
                         Rc::new(RefCell::new(local_binding_resolver)),
+                        Some(global_scope_closure),
                     )
                 };
 
@@ -406,18 +655,18 @@ impl Evaluate for Node {
                     Some(_func) => function_construct(false, self.variable_name.as_ref().unwrap()),
                     None => match global_scope_inner.get(self.variable_name.as_ref().unwrap()) {
                         Some(_) => function_construct(true, self.variable_name.as_ref().unwrap()),
-                        None => {
-                            error!(
+                        None => Err(KarisError {
+                            error_type: KarisErrorType::MissingFunctionInScope,
+                            message: format!(
                                 "No function named `{}` found in scope",
                                 self.variable_name.as_ref().unwrap()
-                            );
-                            call_result
-                        }
+                            ),
+                        }),
                     },
                 }
             }
             IdentifierKind::MAIN => {
-                let mut main_result = EvaluationObject::Empty;
+                let mut main_result = Ok(EvaluationObject::Empty);
                 let local_binding_resolver = hashbrown::HashMap::new();
                 let local_binding_resolver = Rc::new(RefCell::new(local_binding_resolver));
 
@@ -443,7 +692,7 @@ impl Evaluate for Node {
                                     main_result = node
                                         .eval(local_binding_resolver.clone(), Some(scope.clone()));
                                 }
-                                _ => todo!("missing impl for {:?}", kind),
+                                _ => todo!("missing impl for on main {:?}", kind),
                             }
                         }
                         _ => unreachable!(),
@@ -457,16 +706,21 @@ impl Evaluate for Node {
                 let params = self.call_params.as_ref().unwrap().first().unwrap();
                 let scope_inner = scope_clone.borrow();
 
+                let mut message = String::new();
+
                 match params {
                     Left(lit) => match lit {
                         LiteralObjects::ObjIntergerValue(i) => {
-                            println!("{:?}", i.value.unwrap_or_default());
+                            let msg = format!("{:?}", i.value.unwrap_or_default());
+                            message = msg;
                         }
                         LiteralObjects::ObjBooleanValue(b) => {
-                            println!("{:?}", b.value.unwrap_or_default());
+                            let msg = format!("{:?}", b.value.unwrap_or_default());
+                            message = msg;
                         }
                         LiteralObjects::ObjStringValue(s) => {
-                            println!("{:?}", s.value.clone());
+                            let msg = format!("{:?}", s.value.clone());
+                            message = msg;
                         }
                     },
                     Right(obj) => {
@@ -475,39 +729,118 @@ impl Evaluate for Node {
 
                         match kind {
                             IdentifierKind::CALLER => {
-                                let value = node.eval(scope, global);
-                                println!("{}", value);
+                                if let Ok(value) = node.eval(scope, global) {
+                                    let msg = format!("{}", value);
+                                    message = msg;
+                                }
                             }
                             _ => {
                                 let variable_name = node.variable_name.as_ref().unwrap();
-                                let value = scope_inner.get(variable_name).unwrap();
-                                println!("{}", value);
+                                if let Some(value) = scope_inner.get(variable_name) {
+                                    let msg = format!("{}", value);
+                                    message = msg;
+                                } else {
+                                    error!("missing variable {}", variable_name);
+                                }
                             }
                         }
                     }
                 }
 
-                EvaluationObject::Empty
+                Ok(EvaluationObject::Print(message))
             }
-            IdentifierKind::BLOCK => todo!(),
-            IdentifierKind::HASH => todo!(),
-            IdentifierKind::BANG => todo!(),
-            IdentifierKind::LT => todo!(),
-            IdentifierKind::GT => todo!(),
-            IdentifierKind::EQ => todo!(),
-            IdentifierKind::NOTEQ => todo!(),
-            IdentifierKind::GTOREQ => todo!(),
-            IdentifierKind::LTOREQ => todo!(),
-            IdentifierKind::AND => todo!(),
-            IdentifierKind::OR => todo!(),
-            IdentifierKind::LAND => todo!(),
-            IdentifierKind::LOR => todo!(),
+            IdentifierKind::IF | IdentifierKind::ELSE => {
+                let condition_statement_result = Ok(EvaluationObject::AlternateCondition);
 
-            IdentifierKind::ELSE => todo!(),
-            IdentifierKind::FORMAT => todo!(),
+                // clone the scope to create an new local binding resolver scope. If the body contains a variables with the same name,
+                // they will be overwritten (block scoped)
+                let local_binding_resolver = scope.clone();
+
+                // get the condition first and evaluate it. It should always return a boolean
+                let condition = self.right_child.as_ref().unwrap();
+                let condition = left_or_right(condition, scope, global);
+                let condition = match condition.unwrap() {
+                    EvaluationObject::Boolean(b) => b,
+                    _ => false,
+                };
+
+                let program_func_worker = |program: Program| {
+                    let mut result = Ok(EvaluationObject::Empty);
+
+                    let program_items = program.body;
+                    for item in program_items {
+                        match item {
+                            Objects::TyNode(node) => {
+                                let kind = node.identifier_kind.unwrap();
+                                match kind {
+                                    IdentifierKind::ASSIGN | IdentifierKind::PRINT => {
+                                        result = node.eval(
+                                            local_binding_resolver.clone(),
+                                            Some(local_binding_resolver.clone()), // points to the global binding scope
+                                        );
+                                    }
+                                    IdentifierKind::RETURN => {
+                                        result = node.eval(
+                                            local_binding_resolver.clone(),
+                                            Some(local_binding_resolver.clone()), // points to the global binding scope
+                                        );
+                                        break;
+                                    }
+                                    _ => {}
+                                }
+                            }
+                            _ => unreachable!(),
+                        }
+                    }
+                    result
+                };
+
+                if condition {
+                    let program = self
+                        .block_children
+                        .as_ref()
+                        .unwrap()
+                        .get(0)
+                        .unwrap()
+                        .as_ty_program()
+                        .unwrap()
+                        .clone();
+
+                    return program_func_worker(program);
+                }
+
+                let has_alternate = self.alternate.as_ref().is_some();
+                if !condition && has_alternate {
+                    let alternate = self.alternate.as_ref().unwrap();
+                    let alternate = alternate.as_ty_node().unwrap();
+
+                    let program = alternate
+                        .block_children
+                        .as_ref()
+                        .unwrap()
+                        .get(0)
+                        .unwrap()
+                        .as_ty_program()
+                        .unwrap()
+                        .clone();
+
+                    return program_func_worker(program);
+                }
+
+                condition_statement_result
+            }
+
             IdentifierKind::ARRAY => todo!(),
+            IdentifierKind::RETURN => {
+                let right = self.right_child.as_ref().unwrap();
+                let resp = left_or_right(right, scope, global.clone());
+                match resp {
+                    Ok(res) => Ok(EvaluationObject::ReturnValue(Rc::new(res))),
+                    Err(_) => todo!("missing return value"),
+                }
+            }
 
-            _ => EvaluationObject::Empty,
+            _ => Ok(EvaluationObject::Empty),
         }
     }
 }
@@ -516,31 +849,44 @@ fn left_or_right(
     object: &Either<LiteralObjects, Box<Objects>>,
     scope: Rc<RefCell<ScopeBindingResolver>>,
     global: Option<Rc<RefCell<ScopeBindingResolver>>>,
-) -> EvaluationObject {
+) -> Result<EvaluationObject, KarisError> {
     match object {
         Left(left) => match left {
             LiteralObjects::ObjIntergerValue(int) => {
                 let int_lit = int.value.unwrap();
-                EvaluationObject::Integer(int_lit)
+                Ok(EvaluationObject::Integer(int_lit))
             }
             LiteralObjects::ObjBooleanValue(bool) => {
                 let bool_lit = bool.value.unwrap();
-                EvaluationObject::Boolean(bool_lit)
+                Ok(EvaluationObject::Boolean(bool_lit))
             }
             LiteralObjects::ObjStringValue(string) => {
                 let string_lit = string.value.as_ref().unwrap();
-                EvaluationObject::String(string_lit.clone())
+                Ok(EvaluationObject::String(string_lit.clone()))
             }
         },
         Right(right) => right.eval(scope, global),
     }
 }
 
-fn evaluate_function(func: Node, scope: Rc<RefCell<ScopeBindingResolver>>) -> EvaluationObject {
-    let mut main_result = EvaluationObject::Empty;
+fn evaluate_function(
+    func: Node,
+    scope: Rc<RefCell<ScopeBindingResolver>>,
+    global: Option<Rc<RefCell<ScopeBindingResolver>>>,
+) -> Result<EvaluationObject, KarisError> {
+    let mut main_result = Ok(EvaluationObject::Empty);
 
     for item in func.block_children.unwrap() {
-        main_result = item.eval(scope.clone(), None)
+        if let Ok(res) = item.eval(scope.clone(), global.clone()) {
+            match res {
+                EvaluationObject::ReturnValue(result) => {
+                    let v = result.as_ref().clone();
+                    main_result = Ok(v);
+                    break;
+                }
+                _ => main_result = Ok(res),
+            }
+        }
     }
 
     main_result
@@ -571,6 +917,122 @@ mod evaluator_tests {
         let global_binding_resolver = hashbrown::HashMap::new();
         let mut parser = Parser::new(lx);
         let res = parser.parse(Some("should_evaluate1.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_function_recursive_call() {
+        let lx = Lexer::new(String::from(
+            "
+        let factorial @int = fn(n @int){
+            if n == 1 {
+                return 1;
+            };
+
+            let n1 @int = n - 1;
+            return n * factorial(n1);
+        };
+
+        @main fn(){
+            let result0 @int = factorial(2);
+            print(result0);
+        }@end;
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate2.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_function_with_multi_conditions() {
+        let lx = Lexer::new(String::from(
+            "
+        let minmax_or_product @int = fn(x @int, y @int){
+                if x < y{
+                   return x + y;
+                }else x > y{
+                    return x - y;
+                };
+
+                return x * y;
+        };
+
+        @main fn(){
+            let result0 @int = minmax_or_product(5,10);
+            print(result0);
+        }@end;
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate3.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_function_with_multi_conditions2() {
+        let lx = Lexer::new(String::from(
+            "
+            let minmax_or_product @int = fn(x @int, y @int){
+                if x < y{
+                   return x + y;
+                }else x > y{
+                    return x - y;
+                };
+
+                return x * y;
+            };
+
+            let factorial @int = fn(n @int){
+                if n == 1 {
+                    return 1;
+                };
+
+                return n * factorial(n - 1);
+            };
+
+            let fibonacci @int = fn(n @int){
+                if n == 0 {
+                    return 0;
+                };
+
+                if n == 1 || n == 2 {
+                    return 1;
+                };
+
+                let n0 @int = n - 1;
+                let n1 @int = n - 2;
+                return fibonacci(n0) + fibonacci(n1);
+            };
+
+            @main fn(){
+                let result1 @int = minmax_or_product(5,10);
+                let result2 @int = factorial(5);
+                let result3 @int = fibonacci(3);
+
+                print(result1);
+                print(result2);
+                print(result3);
+            }@end;
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate4.json"));
         let mut evaluator = Evaluator::new(parser);
         evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
 

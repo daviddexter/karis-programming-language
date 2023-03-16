@@ -1,0 +1,13 @@
+let factorial @int = fn(n @int){
+    if n == 1 {
+		return 1;
+	};
+
+    let n1 @int = n - 1;
+    return n * factorial(n1);
+};
+
+@main fn(){
+    let result @int = factorial(5);
+    print(result);
+}@end;
