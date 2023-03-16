@@ -17,6 +17,8 @@ pub enum KarisErrorType {
     IO,
     ReadlineError,
     PyO3,
+    MissingFunctionInScope,
+    IncorrectFunctionCall,
 }
 
 #[derive(Debug, Clone)]

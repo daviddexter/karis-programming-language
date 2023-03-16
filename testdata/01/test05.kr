@@ -1,0 +1,18 @@
+let fibonacci @int = fn(n @int){
+    if n == 0 {
+		return 0;
+	};
+
+    if n == 1 || n == 2 {
+		return 1;
+	};
+
+    let n0 @int = n - 1;
+    let n1 @int = n - 2;
+    return fibonacci(n0) + fibonacci(n1);
+};
+
+@main fn(){
+    let result @int = fibonacci(10);
+    print(result);
+}@end;
