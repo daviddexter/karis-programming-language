@@ -141,6 +141,7 @@ impl TokenRegistry {
                 closing_index = idx;
                 Ok((params, closing_index))
             }
+
             _ => Self::collect_function_call_params(
                 idx + 0x01,
                 bucket.clone(),
@@ -323,7 +324,10 @@ impl TokenRegistry {
                 closing_index = idx;
                 Ok((children, closing_index))
             }
-            IdentifierKind::RETURN | IdentifierKind::SEMICOLON | IdentifierKind::LET => {
+            IdentifierKind::RETURN
+            | IdentifierKind::SEMICOLON
+            | IdentifierKind::LET
+            | IdentifierKind::PRINT => {
                 let (node, last_index) = Parser::expression(0, next_index, bucket.clone())?;
                 children.push(node);
                 Self::collect_block_children(last_index, bucket.clone(), children, closing_index)

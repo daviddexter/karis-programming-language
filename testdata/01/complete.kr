@@ -73,7 +73,8 @@ let factorial @int = fn(n @int){
 		return 1;
 	};
 
-    return n * factorial(n - 1);
+    let n1 @int = n - 1;
+    return n * factorial(n1);
 };
 
 let fibonacci @int = fn(n @int){
@@ -85,13 +86,18 @@ let fibonacci @int = fn(n @int){
 		return 1;
 	};
 
-    return fibonacci(n - 1) + fibonacci(n - 2);
+    let n0 @int = n - 1;
+    let n1 @int = n - 2;
+    return fibonacci(n0) + fibonacci(n1);
 };
 
 @main fn(){
     let x @int = 5;
     let y @int = 7;
     let name @string = "Karis";
+    let list1 [ @string ] = [ "ka", "ris" , "karis" ];
+    let list2 [ @int ] = [ 1, 2 , 3,100,1001 ];
+    let list3 [ @bool ] = [ true, false , false,true ];
 
     let result0 @int = add(x,y);
     let result1 @int = sub(x,y);
@@ -112,4 +118,8 @@ let fibonacci @int = fn(n @int){
     print(result5);
     print(result7);
     print(result8);
+    print(list1);
+    print(list2);
+    print(list3);
+
 }@end;
