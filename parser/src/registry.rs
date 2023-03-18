@@ -84,7 +84,9 @@ impl TokenRegistry {
     pub(crate) fn literal_typing_match(tok: &Token) -> IdentifierKind {
         match tok.token_type {
             IdentifierKind::INTLITERAL => IdentifierKind::INTTYPE,
-            IdentifierKind::BOOLEANLITERAL => IdentifierKind::BOOLEANTYPE,
+            IdentifierKind::BOOLEANLITERAL | IdentifierKind::TRUE | IdentifierKind::FALSE => {
+                IdentifierKind::BOOLEANTYPE
+            }
             IdentifierKind::STRINGLITERAL => IdentifierKind::STRINGTYPE,
             _ => unreachable!("invalid token type"),
         }

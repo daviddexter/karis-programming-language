@@ -6,6 +6,7 @@ use either::Either::{Left, Right};
 use errors::errors;
 use lexer::tokens::{IdentifierKind, Token};
 
+use crate::objects::StringValue;
 use crate::registry::TokenRegistry;
 use crate::retriever::reorganize_parenthesis_object;
 use crate::{
@@ -96,7 +97,7 @@ impl TokenRegistry {
             bucket.clone(),
             IdentifierKind::RSQUAREBRACE,
         )?;
-        let rsquare_index = last_item_index + 0x01;
+        let rsquare_index = last_item_index;
 
         let borrow = bucket.borrow();
 
@@ -105,7 +106,7 @@ impl TokenRegistry {
         let array_typing_info = borrow.get(array_typing_info_index).unwrap(); // safe to unwrap here
 
         // get the items of the array
-        let items = borrow.get(index + 0x01..rsquare_index - 0x01).unwrap();
+        let items = borrow.get(index + 0x01..rsquare_index).unwrap();
         let items = items
             .iter()
             .filter(|item| item.token_type != IdentifierKind::COMMA)
@@ -133,9 +134,26 @@ impl TokenRegistry {
                     array_items.push(int.0);
                 }
 
-                IdentifierKind::BOOLEANLITERAL => {
+                IdentifierKind::BOOLEANLITERAL | IdentifierKind::TRUE | IdentifierKind::FALSE => {
                     let int = Self::parse_boolean_literal(item.clone(), index, bucket.clone())?;
                     array_items.push(int.0);
+                }
+
+                // use this an assignment project
+                IdentifierKind::STRINGLITERAL => {
+                    let obj = StringValue {
+                        value: Some(item.literal.clone()),
+                    };
+                    let literal = LiteralObjects::ObjStringValue(obj);
+
+                    let node = Node {
+                        identifier_kind: Some(IdentifierKind::STRINGLITERAL),
+                        left_child: Some(Left(literal)),
+                        ..Default::default()
+                    };
+                    let obj_type = Objects::TyNode(node);
+
+                    array_items.push(obj_type);
                 }
 
                 _ => {
@@ -164,6 +182,7 @@ impl TokenRegistry {
         };
 
         // move cursor to the next token. We don't want `RSQUAREBRACE` to be parsed
+
         Ok((Objects::TyNode(node), rsquare_index + 0x01))
     }
 

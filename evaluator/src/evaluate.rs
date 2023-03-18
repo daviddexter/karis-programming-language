@@ -22,9 +22,9 @@ pub enum EvaluationObject {
     Integer(isize),
     Boolean(bool),
     String(String),
+    Array(Vec<EvaluationObject>),
     ReturnValue(Rc<EvaluationObject>),
     Function(Node),
-    Print(String),
 
     AlternateCondition,
     #[default]
@@ -38,10 +38,19 @@ impl fmt::Display for EvaluationObject {
             EvaluationObject::Boolean(b) => write!(f, "{}", b),
             EvaluationObject::String(s) => write!(f, "{}", s),
             EvaluationObject::ReturnValue(obj) => write!(f, "{}", obj),
+            EvaluationObject::Array(list) => {
+                let mut items = Vec::new();
+
+                for item in list.iter() {
+                    let m = format!("{}", item);
+                    items.push(m);
+                }
+
+                write!(f, "{:?}", items)
+            }
             EvaluationObject::Function(_)
             | EvaluationObject::Empty
-            | EvaluationObject::AlternateCondition
-            | EvaluationObject::Print(_) => Ok(()),
+            | EvaluationObject::AlternateCondition => Ok(()),
         }
     }
 }
@@ -70,13 +79,8 @@ impl Evaluator {
     pub fn repl_evaluate_program(&mut self, scope: Rc<RefCell<ScopeBindingResolver>>) {
         match self.parser.parse(Some("repl_evaluate_program.json")) {
             Ok(program) => {
-                if let Ok(evaluated) = program.eval(scope, None) {
-                    match evaluated {
-                        EvaluationObject::Print(msg) => println!("{}", msg),
-                        _ => {
-                            println!("{}", evaluated)
-                        }
-                    }
+                if let Ok(EvaluationObject::ReturnValue(res)) = program.eval(scope, None) {
+                    println!("{}", res)
                 }
             }
             Err(err) => println!("{}", err.to_string().red()),
@@ -546,7 +550,7 @@ impl Evaluate for Node {
                     if call_params.len() != func_params.len() {
                         let err: Result<EvaluationObject, KarisError> = Err(KarisError {
                             error_type: KarisErrorType::IncorrectFunctionCall,
-                            message: format!("Unexpected number of arguments for function `{}`. Wanted {} but got {}.",
+                            message: format!("Unexpected number of arguments for function `{}`. Wanted {} but got {}. If you passed an expression, bind it to a varible first",
                                 function_name, func_params.len(),call_params.len()
                             ),
                         });
@@ -747,7 +751,10 @@ impl Evaluate for Node {
                     }
                 }
 
-                Ok(EvaluationObject::Print(message))
+                // we do the actual printing here to std::out
+                println!("{}", message);
+
+                Ok(EvaluationObject::Empty)
             }
             IdentifierKind::IF | IdentifierKind::ELSE => {
                 let condition_statement_result = Ok(EvaluationObject::AlternateCondition);
@@ -830,7 +837,16 @@ impl Evaluate for Node {
                 condition_statement_result
             }
 
-            IdentifierKind::ARRAY => todo!(),
+            IdentifierKind::ARRAY => {
+                let mut result = Vec::new();
+                for child in self.block_children.as_ref().unwrap() {
+                    if let Ok(res) = child.eval(scope.clone(), global.clone()) {
+                        result.push(res);
+                    }
+                }
+
+                Ok(EvaluationObject::Array(result))
+            }
             IdentifierKind::RETURN => {
                 let right = self.right_child.as_ref().unwrap();
                 let resp = left_or_right(right, scope, global.clone());
@@ -1001,7 +1017,8 @@ mod evaluator_tests {
                     return 1;
                 };
 
-                return n * factorial(n - 1);
+                let n1 @int = n - 1;
+                return n * factorial(n1);
             };
 
             let fibonacci @int = fn(n @int){
@@ -1033,6 +1050,24 @@ mod evaluator_tests {
         let global_binding_resolver = hashbrown::HashMap::new();
         let mut parser = Parser::new(lx);
         let res = parser.parse(Some("should_evaluate4.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_array() {
+        let lx = Lexer::new(String::from(
+            "
+        let numbers [ @int ] = [ 1,2,3,4,5 ];
+
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate5.json"));
         let mut evaluator = Evaluator::new(parser);
         evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
 

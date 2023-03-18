@@ -141,13 +141,14 @@ impl Parser {
                         left = res.0;
                         worked_on_index = res.1;
                     } else {
-                        return Err(errors::KarisError {
-                            error_type: errors::KarisErrorType::InvalidSyntax,
-                            message: format!(
-                                "[INVALID SYNTAX] Not an infix; Token {:?} Ln {} Col {}",
-                                token.literal, token.line_number, token.column_number
-                            ),
-                        });
+                        let pt0 = parser_type_fn(token.token_type)?;
+                        return match pt0.nud_fn {
+                            Some(func) => {
+                                let res = func(token.clone(), index, bucket.clone())?;
+                                Ok((res.0, res.1))
+                            }
+                            None => Ok((Objects::TyUnknown, 0x00)),
+                        };
                     }
                 }
             } else {
@@ -208,9 +209,16 @@ mod parser_tests {
 
     #[test]
     fn should_parse4b() {
-        let lx = Lexer::new(String::from("let nums [ @int ] = [ 1, 2, 3, , 5 ]; "));
+        let lx = Lexer::new(String::from(
+            "
+        let nums [ @int ] = [ 1, 2, 3, , 5 ];
+
+        print(nums);
+        ",
+        ));
         let mut parser = Parser::new(lx);
         let res = parser.parse(Some("should_parse4b.json"));
+        println!("{:?}", res);
         assert!(res.is_ok())
     }
 
