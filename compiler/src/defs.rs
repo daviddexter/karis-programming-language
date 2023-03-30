@@ -1,45 +1,50 @@
+use std::cell::RefCell;
 use std::hash::Hash;
+use std::rc::Rc;
 
 use borsh::{BorshDeserialize, BorshSerialize};
-use enum_as_inner::EnumAsInner;
 use hashbrown::HashMap;
 
+pub const DEFAULT_SCOPE_ID: usize = 1000;
+
+#[derive(Default, Clone)]
+pub enum SymbolScope {
+    #[default]
+    Global = 0x00000000,
+
+    Local,
+}
+
+#[derive(Default, Clone)]
+pub enum CallerParamType {
+    #[default]
+    Literal = 0x003,
+
+    Object,
+}
+
 pub enum OpCode {
-    OpConstant = 0x00000000,
+    OpTerminal = -0x005,
+    OpConstant = 0x005,
     OpAdd,
     OpMinus,
     OpMultiply,
     OpDivide,
     OpModulus,
     OpSetVariable,
-}
-
-#[derive(Debug, Default, Clone, BorshSerialize, BorshDeserialize)]
-pub enum SymbolScope {
-    #[default]
-    Global,
-
-    Local,
-}
-
-impl SymbolScope {
-    pub fn as_bytes(&self) -> Vec<u8> {
-        let mut res = Vec::new();
-        let r = match self {
-            SymbolScope::Global => 0_u8,
-            SymbolScope::Local => 1_u8,
-        };
-        res.push(r);
-        res
-    }
+    OpGetVariable,
+    OpFunctionDef,
+    OpGetFunctionParameter,
+    OpReturn,
+    OpCallerDef,
+    OpSetCallerParameter,
+    OpGetCallerParameter,
 }
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
-pub struct Symbol {
-    pub scope: SymbolScope,
-    pub binding_key: String,
-    pub instruction: Vec<u8>,
-}
+pub struct SymbolStoreValue<T: borsh::BorshSerialize + borsh::BorshDeserialize>(pub Vec<Vec<T>>);
+
+pub type SymbolsTableTyping = Rc<RefCell<SymbolStore<Vec<u8>, SymbolStoreValue<u8>>>>;
 
 // we use new pattern to implement foreign traits -> BorshSerialize and BorshDeserialize
 #[derive(Debug, Clone)]
@@ -125,9 +130,4 @@ where
         let _ = reader;
         Ok(None)
     }
-}
-
-#[derive(Debug, Clone, BorshSerialize, BorshDeserialize, EnumAsInner)]
-pub enum SymbolResolver {
-    Resolver(SymbolStore<Vec<u8>, Symbol>),
 }

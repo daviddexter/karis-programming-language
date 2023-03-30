@@ -580,6 +580,9 @@ impl Evaluate for Node {
                         panic!("{:?}", err)
                     }
 
+                    println!("{:#?}", func_params);
+                    println!("{:#?}", call_params);
+
                     let mut params = Vec::new();
                     for param in zip(func_params, call_params) {
                         params.push(param);
@@ -696,7 +699,7 @@ impl Evaluate for Node {
                                     main_result = node
                                         .eval(local_binding_resolver.clone(), Some(scope.clone()));
                                 }
-                                _ => todo!("missing impl for on main {:?}", kind),
+                                _ => unreachable!("invalid syntax"),
                             }
                         }
                         _ => unreachable!(),
@@ -933,6 +936,31 @@ mod evaluator_tests {
         let global_binding_resolver = hashbrown::HashMap::new();
         let mut parser = Parser::new(lx);
         let res = parser.parse(Some("should_evaluate1.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_function_call2() {
+        let lx = Lexer::new(String::from(
+            "
+        let sub @int = fn(x @int, y @int){
+            return x - y;
+        };
+
+        @main fn(){
+            let twenty @int = 20;
+            let result0 @int = sub(10,twenty);
+            print(result0);
+        }@end;
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate1b.json"));
         let mut evaluator = Evaluator::new(parser);
         evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
 
