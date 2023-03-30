@@ -7,6 +7,8 @@ use std::rc::Rc;
 use clap::{arg, Arg, ArgAction, Command};
 
 use colored::*;
+use compiler::compile::CompileWorker;
+use compiler::vm::VM;
 use errors::errors::KarisError;
 use evaluator::evaluate::Evaluator;
 use lexer::lexer::{self as lex, Lexer};
@@ -77,8 +79,20 @@ fn main() -> Result<(), KarisError> {
         )
         .subcommand(Command::new("repl").about("Read-Evaluate-Print-Loop for Karis"))
         .subcommand(
+            Command::new("script")
+                .about("Executes a Karis script")
+                .arg_required_else_help(true),
+        )
+        .subcommand(
+            Command::new("compile")
+                .about("Produces an executable program from Karis source code")
+                .arg_required_else_help(true)
+                .arg(arg!(-p --filepath <PATH>).required(false))
+                .arg(arg!(-o --output <OUTPUTNAME>).required(false)),
+        )
+        .subcommand(
             Command::new("run")
-                .about("Runs a Karis script")
+                .about("Executes a Karis executable program")
                 .arg_required_else_help(true)
                 .arg(arg!(-p --filepath <PATH>).required(false)),
         )
@@ -113,16 +127,39 @@ fn main() -> Result<(), KarisError> {
 
         Some(("repl", _sub_matches)) => evaluate_from_input(),
 
-        Some(("run", sub_matches)) => {
+        Some(("script", sub_matches)) => {
             let file_path = sub_matches.get_one::<String>("filepath");
 
             if let Some(file_path) = file_path {
-                return run_script(file_path);
+                return execute_script(file_path);
             }
 
             Ok(())
         }
 
+        Some(("compile", sub_matches)) => {
+            let file_path = sub_matches.get_one::<String>("filepath");
+            let output_name = sub_matches.get_one::<String>("output");
+
+            if let Some(file_path) = file_path {
+                if let Some(output) = output_name {
+                    return compile_program(file_path, output);
+                }
+            }
+
+            Ok(())
+        }
+
+        Some(("run", sub_matches)) => {
+            let file_path = sub_matches.get_one::<String>("filepath");
+
+            if let Some(file_path) = file_path {
+                let str = file_path.trim();
+                return run_program(str);
+            }
+
+            Ok(())
+        }
         _ => {
             println!("Nothing to do");
             Ok(())
@@ -273,7 +310,7 @@ fn evaluate_from_input() -> Result<(), KarisError> {
     Ok(())
 }
 
-fn run_script(file: &str) -> Result<(), KarisError> {
+fn execute_script(file: &str) -> Result<(), KarisError> {
     let path = Path::new(file);
     let path_str = path.to_str().expect("failed to get file path");
     let file = std::fs::read_to_string(path_str)?;
@@ -286,5 +323,33 @@ fn run_script(file: &str) -> Result<(), KarisError> {
         let mut evaluator = Evaluator::new(parser);
         evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
     }
+    Ok(())
+}
+
+fn compile_program(file: &str, output_name: &str) -> Result<(), KarisError> {
+    let path = Path::new(file);
+    let path_str = path.to_str().expect("failed to get file path");
+    let file = std::fs::read_to_string(path_str)?;
+    if file.is_empty() {
+        println!("Nothing to compile \n");
+    } else {
+        let lx = lex::Lexer::new(file);
+        let mut parser = Parser::new(lx);
+        match parser.parse(Some("repl_evaluate_program.json")) {
+            Ok(program) => {
+                let compiler = CompileWorker::new(program);
+                let byte_code = compiler.compile();
+                println!(" from  console {:#?}", byte_code);
+                compiler.write_as_executable(output_name, byte_code)?;
+            }
+            Err(_) => todo!(),
+        }
+    }
+    Ok(())
+}
+
+fn run_program(file: &str) -> Result<(), KarisError> {
+    let vm = VM::from_executable_file(file)?;
+    vm.execute();
     Ok(())
 }

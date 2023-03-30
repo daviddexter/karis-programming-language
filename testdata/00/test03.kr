@@ -1,0 +1,2 @@
+let num1 @int = 1;
+let num2 @int = 2;

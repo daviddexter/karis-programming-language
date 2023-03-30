@@ -16,6 +16,7 @@ lexer = { path = "../lexer" }
 parser = { path = "../parser" }
 errors = { path = "../errors" }
 evaluator = { path = "../evaluator" }
+compiler = { path = "../compiler" }
 hashbrown = "0.12.3"
 rustyline = { version = "10.0.0", features = ["custom-bindings"] }
 colored = "2.0.0"
