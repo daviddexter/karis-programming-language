@@ -19,6 +19,7 @@ pub enum KarisErrorType {
     PyO3,
     MissingFunctionInScope,
     IncorrectFunctionCall,
+    CorruptExecutable,
 }
 
 #[derive(Debug, Clone)]
