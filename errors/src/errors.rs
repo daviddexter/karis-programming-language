@@ -21,6 +21,7 @@ pub enum KarisErrorType {
     IncorrectFunctionCall,
     MissingFunctionBody,
     CorruptExecutable,
+    InvalidExecution,
 }
 
 #[derive(Debug, Clone)]
