@@ -5,7 +5,8 @@ use hashbrown::HashMap;
 use crate::{
     compiler_impls::Compiler,
     defs::{
-        OpCode, SymbolScope, SymbolStore, SymbolStoreValue, SymbolsTableTyping, DEFAULT_SCOPE_ID,
+        BindingType, OpCode, SymbolScope, SymbolStore, SymbolStoreValue, SymbolsTableTyping,
+        DEFAULT_SCOPE_ID,
     },
     objects::CompileObject,
 };
@@ -20,6 +21,8 @@ pub struct ByteCode {
     pub constants: Vec<CompileObject>,
 
     pub symbols_table: SymbolStore<Vec<u8>, SymbolStoreValue<u8>>,
+
+    pub global_scope_id: [u8; 2],
 }
 
 pub struct CompileWorker {
@@ -54,8 +57,7 @@ impl CompileWorker {
     pub fn compile(&self) -> ByteCode {
         let worker = Rc::new(RefCell::new(self));
 
-        let mut global_scope_id = [0; 2];
-        LittleEndian::write_u16(&mut global_scope_id, DEFAULT_SCOPE_ID.try_into().unwrap());
+        let global_scope_id = self.global_scope_id();
 
         self.program_ast
             .compile(worker.clone(), SymbolScope::Global, global_scope_id);
@@ -76,7 +78,14 @@ impl CompileWorker {
             instructions,
             constants,
             symbols_table,
+            global_scope_id,
         }
+    }
+
+    pub fn global_scope_id(&self) -> [u8; 2] {
+        let mut global_scope_id = [0; 2];
+        LittleEndian::write_u16(&mut global_scope_id, DEFAULT_SCOPE_ID.try_into().unwrap());
+        global_scope_id
     }
 
     pub fn write_as_executable(
@@ -146,6 +155,74 @@ impl CompileWorker {
         for u in param.iter() {
             instructions.push(*u);
         }
+
+        // add tail terminal
+        instructions.push(OpCode::OpTerminal as u8);
+
+        instructions
+    }
+
+    fn emit_opcode_for_binding(
+        &self,
+        code: OpCode,
+        scope: SymbolScope,
+        scope_id: [u8; 2],
+        binding_type: u8,
+        binding_name: Vec<u8>,
+    ) -> Vec<u8> {
+        // [opcode scope scopeid terminal binding_type terminal binding_name terminal]
+        let mut instructions = vec![code as u8, scope as u8];
+
+        // add scope id
+        for id in scope_id.iter() {
+            instructions.push(*id);
+        }
+
+        // add terminal
+        instructions.push(OpCode::OpTerminal as u8);
+
+        // add binding_type
+        instructions.push(binding_type);
+
+        // add terminal
+        instructions.push(OpCode::OpTerminal as u8);
+
+        // add binding_name
+        for u in binding_name.iter() {
+            instructions.push(*u);
+        }
+
+        // add tail terminal
+        instructions.push(OpCode::OpTerminal as u8);
+
+        instructions
+    }
+
+    fn emit_opcode_for_builtin(
+        &self,
+        code: OpCode,
+        scope: SymbolScope,
+        scope_id: [u8; 2],
+        binding_name: Vec<u8>,
+    ) -> Vec<u8> {
+        // [opcode scope scopeid terminal binding_name terminal]
+        let mut instructions = vec![code as u8, scope as u8];
+
+        // add scope id
+        for id in scope_id.iter() {
+            instructions.push(*id);
+        }
+
+        // add terminal
+        instructions.push(OpCode::OpTerminal as u8);
+
+        // add binding_name
+        for u in binding_name.iter() {
+            instructions.push(*u);
+        }
+
+        // add tail terminal
+        instructions.push(OpCode::OpTerminal as u8);
 
         instructions
     }
@@ -253,8 +330,8 @@ impl CompileWorker {
             instructions.push(*l)
         }
 
-        // add terminal
-        instructions.push(OpCode::OpTerminal as u8);
+        // add separator
+        instructions.push(OpCode::OpNull as u8);
 
         // add the right
         for r in right.iter() {
@@ -283,10 +360,35 @@ impl CompileWorker {
         instructions
     }
 
-    pub fn add_variable(&self, scope: SymbolScope, scope_id: [u8; 2], param: Vec<u8>) {
-        let insts =
-            self.emit_opcode_with_vec_parameter(OpCode::OpSetVariable, scope, scope_id, param);
+    pub fn add_variable_binding(
+        &self,
+        scope: SymbolScope,
+        scope_id: [u8; 2],
+        binding_type: BindingType,
+        binding_name: Vec<u8>,
+    ) {
+        let insts = self.emit_opcode_for_binding(
+            OpCode::OpSetBinding,
+            scope,
+            scope_id,
+            binding_type as u8,
+            binding_name,
+        );
+
         self.add_instruction(Some(insts), None);
+    }
+
+    pub fn add_builtin(
+        &self,
+        scope: SymbolScope,
+        scope_id: [u8; 2],
+        binding_name: Vec<u8>,
+    ) -> Vec<u8> {
+        let insts =
+            self.emit_opcode_for_builtin(OpCode::OpAddBuiltin, scope, scope_id, binding_name);
+
+        self.add_instruction(Some(insts.clone()), None);
+        insts
     }
 
     pub fn add_symbol(&self, binding_key: Vec<u8>, symbol: Vec<Vec<u8>>) {
@@ -306,31 +408,33 @@ impl CompileWorker {
         }
     }
 
-    pub fn add_function(&self, scope_id: [u8; 2]) {
-        // [opcode scope scopeid terminal ]
-        let instructions =
-            self.emit_opcode_with_scopeid(OpCode::OpFunctionDef, SymbolScope::Global, scope_id);
-
-        self.add_instruction(Some(instructions), None)
-    }
-
-    pub fn add_caller(&self, scope: SymbolScope, scope_id: [u8; 2], function: Vec<u8>) {
-        // [opcode scope scopeid terminal ]
+    pub fn add_caller(
+        &self,
+        scope: SymbolScope,
+        scope_id: [u8; 2],
+        function_name: Vec<u8>,
+    ) -> Vec<u8> {
+        // [opcode scope scopeid terminal func_name]
         let mut instructions = self.emit_opcode_with_scopeid(OpCode::OpCallerDef, scope, scope_id);
 
-        for f in function.iter() {
+        for f in function_name.iter() {
             instructions.push(*f);
         }
 
         // add tail terminal
         instructions.push(OpCode::OpTerminal as u8);
 
-        self.add_instruction(Some(instructions), None)
+        instructions
     }
 
-    pub fn add_return(&self, scope: SymbolScope, scope_id: [u8; 2], return_insts: Vec<Vec<u8>>) {
+    pub fn add_return(
+        &self,
+        scope: SymbolScope,
+        scope_id: [u8; 2],
+        operations_insts: Vec<Vec<u8>>,
+    ) -> Vec<u8> {
         // [opcode scope scopeid terminal return_insts terminal ]
-        let return_instructions = return_insts.get(0).unwrap();
+        let operations_insts = operations_insts.get(0).unwrap();
 
         let mut instructions = vec![OpCode::OpReturn as u8, scope as u8];
         for i in scope_id {
@@ -338,11 +442,11 @@ impl CompileWorker {
         }
         instructions.push(OpCode::OpTerminal as u8);
 
-        for i in return_instructions {
+        for i in operations_insts {
             instructions.push(*i);
         }
 
-        self.add_instruction(Some(instructions), None)
+        instructions
     }
 }
 
@@ -484,7 +588,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 4);
+        assert_eq!(byte_code.instructions.len(), 1);
         assert_eq!(byte_code.constants.len(), 1);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 1);
@@ -509,9 +613,32 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 7);
+        assert_eq!(byte_code.instructions.len(), 3);
         assert_eq!(byte_code.constants.len(), 2);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 3);
+    }
+
+    #[test]
+    fn should_compile4() {
+        let lx = Lexer::new(String::from(
+            "
+            let num @int = fn() {
+                let ten @int = 10;
+                print(ten);
+                print(1);
+                return ten;
+            };
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_compile4.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+
+        assert_eq!(byte_code.instructions.len(), 4);
+        assert_eq!(byte_code.constants.len(), 2);
+        let st = byte_code.symbols_table;
+        assert_eq!(st.0.len(), 4);
     }
 }

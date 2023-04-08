@@ -580,9 +580,6 @@ impl Evaluate for Node {
                         panic!("{:?}", err)
                     }
 
-                    println!("{:#?}", func_params);
-                    println!("{:#?}", call_params);
-
                     let mut params = Vec::new();
                     for param in zip(func_params, call_params) {
                         params.push(param);
