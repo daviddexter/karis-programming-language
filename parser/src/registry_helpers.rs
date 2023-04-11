@@ -335,7 +335,7 @@ impl TokenRegistry {
 
             IdentifierKind::IF => {
                 let (node, last_index) =
-                    Self::parse_if_else_expressions(child.clone(), next_index, bucket.clone())?;
+                    Self::parse_if_expressions(child.clone(), next_index, bucket.clone())?;
                 children.push(node);
                 Self::collect_block_children(last_index, bucket.clone(), children, closing_index)
             }

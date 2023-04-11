@@ -193,7 +193,7 @@ impl TokenRegistry {
 
     fn add_if_statement(&mut self) {
         let obj = ParserType {
-            nud_fn: Some(Self::parse_if_else_expressions),
+            nud_fn: Some(Self::parse_if_expressions),
             led_fn: None,
             binding_power: Some(10),
         };
@@ -202,7 +202,7 @@ impl TokenRegistry {
 
     fn add_else_statement(&mut self) {
         let obj = ParserType {
-            nud_fn: Some(Self::parse_if_else_expressions),
+            nud_fn: Some(Self::parse_else_expressions),
             led_fn: None,
             binding_power: Some(10),
         };
