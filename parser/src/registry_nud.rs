@@ -580,7 +580,7 @@ impl TokenRegistry {
     }
 
     // To parse a `if` or `else` expression, we move the cursor to the right unit we encounter a `{`.
-    // We collect item in between and parse them. After that we collect items between `{` and `}` and add them
+    // We collect items in between and parse them. After that we collect items between `{` and `}` and add them
     // to the node's `block_children`. If there is an `else` token, we do the same thing then append the resulting node
     // as part of Node `alternate`
     // Example syntax:
@@ -603,7 +603,7 @@ impl TokenRegistry {
     //     return n * factorial(n-1);
     // };
     //
-    pub(crate) fn parse_if_else_expressions(
+    pub(crate) fn parse_if_expressions(
         tok: Token,
         index: usize,
         bucket: Rc<RefCell<Vec<Token>>>,
@@ -618,8 +618,6 @@ impl TokenRegistry {
                 ),
             });
         }
-
-        let mut end_index: usize;
 
         #[allow(clippy::redundant_clone)]
         let index_at_if_lbrace = Self::traverse_forward_until(
@@ -636,76 +634,41 @@ impl TokenRegistry {
             .parse_from_vec(exp_vec_tokens)?;
 
         // if block items
-        let index_at_if_rbrace = Self::traverse_forward_until(
-            tok.clone(),
-            index,
-            bucket.clone(),
-            IdentifierKind::RBRACE,
-        )?;
+        let index_at_if_rbrace =
+            Self::traverse_forward_until(tok, index, bucket.clone(), IdentifierKind::RBRACE)?;
 
         let items_after_lbrace = borrow
             .get(index_at_if_lbrace + 0x01..index_at_if_rbrace)
             .unwrap();
+
         let if_block_vec_tokens = Vec::from(items_after_lbrace);
         let if_block_node = Parser::default()
             .program_as_non_root()
             .parse_from_vec(if_block_vec_tokens)?;
 
-        // set the end to match the index of the item before RIGHT BRACE in the if_block
-        end_index = index_at_if_rbrace;
+        // compute alternate condition
+        let alt_token_index = index_at_if_rbrace + 0x01;
+        let alt_token = borrow.get(alt_token_index).unwrap();
 
-        // compute if the `if` condition has an alternate condition
-        let mut alternate_node = None;
-        let else_token_index = index_at_if_rbrace + 0x01;
-        let else_token = borrow.get(else_token_index).unwrap();
-
-        if else_token.token_type == IdentifierKind::ELSE {
-            #[allow(clippy::redundant_clone)]
-            let index_at_else_lbrace = Self::traverse_forward_until(
-                else_token.clone(),
-                else_token_index,
-                bucket.clone(),
-                IdentifierKind::LBRACE,
-            )?;
-
-            let items = borrow
-                .get(else_token_index + 0x01..index_at_else_lbrace)
+        let (alternate_node, end_index) =
+            Self::parse_else_expressions(alt_token.clone(), alt_token_index, bucket.clone())
                 .unwrap();
-            let vec_tokens = Vec::from(items);
-            let else_expression_node = Parser::default()
-                .program_as_non_root()
-                .parse_from_vec(vec_tokens)?;
 
-            // else block items
-            #[allow(clippy::redundant_clone)]
-            let index_at_else_rbrace = Self::traverse_forward_until(
-                tok.clone(),
-                index_at_else_lbrace + 0x01,
-                bucket.clone(),
-                IdentifierKind::RBRACE,
-            )?;
-
-            let items_after_else_lbrace = borrow
-                .get(index_at_else_lbrace + 0x01..index_at_else_rbrace)
-                .unwrap();
-            let else_block_vec_tokens = Vec::from(items_after_else_lbrace);
-            let else_block_node = Parser::default()
-                .program_as_non_root()
-                .parse_from_vec(else_block_vec_tokens)?;
-
-            let alt_node = Node {
-                identifier_kind: Some(IdentifierKind::ELSE),
-                right_child: Some(Right(Box::new(else_expression_node))),
-                block_children: Some(Vec::from([else_block_node])),
-                ..Default::default()
-            };
-
-            let obj = Objects::TyNode(alt_node);
-            alternate_node = Some(Box::new(obj));
-
-            // set the end to match the index of the item before RIGHT BRACE in the else_block
-            end_index = index_at_else_rbrace;
-        }
+        let alternate_node = match alternate_node {
+            Objects::TyProgram(_) => None,
+            Objects::TyConsumable => None,
+            Objects::TyUnknown => None,
+            Objects::TyNode(node) => {
+                let kind = node.identifier_kind.unwrap();
+                match kind {
+                    IdentifierKind::ELSE => {
+                        let obj = Objects::TyNode(node);
+                        Some(Box::new(obj))
+                    }
+                    _ => None,
+                }
+            }
+        };
 
         let node = Node {
             identifier_kind: Some(IdentifierKind::IF),
@@ -716,6 +679,84 @@ impl TokenRegistry {
         };
 
         Ok((Objects::TyNode(node), end_index))
+    }
+
+    pub(crate) fn parse_else_expressions(
+        tok: Token,
+        index: usize,
+        bucket: Rc<RefCell<Vec<Token>>>,
+    ) -> Result<(Objects, usize), errors::KarisError> {
+        if tok.token_type != IdentifierKind::ELSE {
+            return Ok((Objects::TyUnknown, index));
+        }
+
+        let borrow = bucket.borrow();
+
+        #[allow(clippy::redundant_clone)]
+        let index_at_else_lbrace = Self::traverse_forward_until(
+            tok.clone(),
+            index,
+            bucket.clone(),
+            IdentifierKind::LBRACE,
+        )?;
+
+        let items = borrow.get(index + 0x01..index_at_else_lbrace).unwrap();
+        let vec_tokens = Vec::from(items);
+        let else_expression_node = Parser::default()
+            .program_as_non_root()
+            .parse_from_vec(vec_tokens)?;
+
+        // else block items
+        #[allow(clippy::redundant_clone)]
+        let index_at_else_rbrace = Self::traverse_forward_until(
+            tok.clone(),
+            index_at_else_lbrace + 0x01,
+            bucket.clone(),
+            IdentifierKind::RBRACE,
+        )?;
+
+        let items_after_else_lbrace = borrow
+            .get(index_at_else_lbrace + 0x01..index_at_else_rbrace)
+            .unwrap();
+        let else_block_vec_tokens = Vec::from(items_after_else_lbrace);
+        let else_block_node = Parser::default()
+            .program_as_non_root()
+            .parse_from_vec(else_block_vec_tokens)?;
+
+        let alt_token_index = index_at_else_rbrace + 0x01;
+        let alt_token = borrow.get(alt_token_index).unwrap();
+
+        let (alternate_node, end_index) =
+            Self::parse_else_expressions(alt_token.clone(), alt_token_index, bucket.clone())
+                .unwrap();
+
+        let alternate_node = match alternate_node {
+            Objects::TyProgram(_) => None,
+            Objects::TyConsumable => None,
+            Objects::TyUnknown => None,
+            Objects::TyNode(node) => {
+                let kind = node.identifier_kind.unwrap();
+                match kind {
+                    IdentifierKind::ELSE => {
+                        let obj = Objects::TyNode(node);
+                        Some(Box::new(obj))
+                    }
+                    _ => None,
+                }
+            }
+        };
+
+        let node = Node {
+            identifier_kind: Some(IdentifierKind::ELSE),
+            right_child: Some(Right(Box::new(else_expression_node))),
+            block_children: Some(Vec::from([else_block_node])),
+            alternate: alternate_node,
+            ..Default::default()
+        };
+
+        let obj = Objects::TyNode(node);
+
+        Ok((obj, end_index))
     }
 
     // To parse the `main` block, move the cursor to the right unitil we encounter a `@end`.

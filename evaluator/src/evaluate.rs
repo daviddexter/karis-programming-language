@@ -79,8 +79,16 @@ impl Evaluator {
     pub fn repl_evaluate_program(&mut self, scope: Rc<RefCell<ScopeBindingResolver>>) {
         match self.parser.parse(Some("repl_evaluate_program.json")) {
             Ok(program) => {
-                if let Ok(EvaluationObject::ReturnValue(res)) = program.eval(scope, None) {
-                    println!("{}", res)
+                // if let Ok(EvaluationObject::ReturnValue(res)) = program.eval(scope, None) {
+                //     println!("{}", res)
+                // }
+
+                match program.eval(scope, None) {
+                    Ok(EvaluationObject::Integer(val)) => println!("{:?}", val),
+                    Ok(EvaluationObject::String(val)) => println!("{:?}", val),
+                    Ok(EvaluationObject::Boolean(val)) => println!("{:?}", val),
+                    Ok(_) => {}
+                    Err(_) => todo!(),
                 }
             }
             Err(err) => println!("{}", err.to_string().red()),
@@ -1000,11 +1008,11 @@ mod evaluator_tests {
         let minmax_or_product @int = fn(x @int, y @int){
                 if x < y{
                    return x + y;
-                }else x > y{
+                }else x == y {
                     return x - y;
+                } else {
+                    return x * y;
                 };
-
-                return x * y;
         };
 
         @main fn(){

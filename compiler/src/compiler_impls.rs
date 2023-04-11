@@ -43,11 +43,24 @@ impl Compiler for Program {
         scope: SymbolScope,
         scope_id: [u8; 2],
     ) -> Option<Vec<Vec<u8>>> {
-        for item in self.body.iter() {
-            item.compile(worker.clone(), scope.clone(), scope_id);
-        }
+        match self.non_root {
+            true => {
+                let mut res = None;
 
-        None
+                for item in self.body.iter() {
+                    res = item.compile(worker.clone(), scope.clone(), scope_id);
+                }
+
+                res
+            }
+            false => {
+                for item in self.body.iter() {
+                    item.compile(worker.clone(), scope.clone(), scope_id);
+                }
+
+                None
+            }
+        }
     }
 }
 
@@ -167,6 +180,153 @@ impl Compiler for Node {
                 Some(vec![instructions])
             }
 
+            IdentifierKind::BANG => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, worker.clone(), scope.clone(), scope_id).unwrap();
+                let left = &left[0];
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, worker.clone(), scope, scope_id).unwrap();
+                let right = &right[0];
+
+                let wrk = worker.borrow();
+                let instructions = wrk.add_infix(OpCode::OpBang, left.to_vec(), right.to_vec());
+                Some(vec![instructions])
+            }
+            IdentifierKind::LT => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, worker.clone(), scope.clone(), scope_id).unwrap();
+                let left = &left[0];
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, worker.clone(), scope, scope_id).unwrap();
+                let right = &right[0];
+
+                let wrk = worker.borrow();
+                let instructions = wrk.add_infix(OpCode::OpLessThan, left.to_vec(), right.to_vec());
+                Some(vec![instructions])
+            }
+            IdentifierKind::GT => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, worker.clone(), scope.clone(), scope_id).unwrap();
+                let left = &left[0];
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, worker.clone(), scope, scope_id).unwrap();
+                let right = &right[0];
+
+                let wrk = worker.borrow();
+                let instructions =
+                    wrk.add_infix(OpCode::OpGreaterThan, left.to_vec(), right.to_vec());
+                Some(vec![instructions])
+            }
+            IdentifierKind::EQ => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, worker.clone(), scope.clone(), scope_id).unwrap();
+                let left = &left[0];
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, worker.clone(), scope, scope_id).unwrap();
+                let right = &right[0];
+
+                let wrk = worker.borrow();
+                let instructions = wrk.add_infix(OpCode::OpEqualTo, left.to_vec(), right.to_vec());
+                Some(vec![instructions])
+            }
+            IdentifierKind::NOTEQ => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, worker.clone(), scope.clone(), scope_id).unwrap();
+                let left = &left[0];
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, worker.clone(), scope, scope_id).unwrap();
+                let right = &right[0];
+
+                let wrk = worker.borrow();
+                let instructions =
+                    wrk.add_infix(OpCode::OpNotEqualTo, left.to_vec(), right.to_vec());
+                Some(vec![instructions])
+            }
+            IdentifierKind::GTOREQ => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, worker.clone(), scope.clone(), scope_id).unwrap();
+                let left = &left[0];
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, worker.clone(), scope, scope_id).unwrap();
+                let right = &right[0];
+
+                let wrk = worker.borrow();
+                let instructions =
+                    wrk.add_infix(OpCode::OpGreaterThanOrEqual, left.to_vec(), right.to_vec());
+                Some(vec![instructions])
+            }
+            IdentifierKind::LTOREQ => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, worker.clone(), scope.clone(), scope_id).unwrap();
+                let left = &left[0];
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, worker.clone(), scope, scope_id).unwrap();
+                let right = &right[0];
+
+                let wrk = worker.borrow();
+                let instructions =
+                    wrk.add_infix(OpCode::OpLessThanOrEqual, left.to_vec(), right.to_vec());
+                Some(vec![instructions])
+            }
+            IdentifierKind::AND => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, worker.clone(), scope.clone(), scope_id).unwrap();
+                let left = &left[0];
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, worker.clone(), scope, scope_id).unwrap();
+                let right = &right[0];
+
+                let wrk = worker.borrow();
+                let instructions = wrk.add_infix(OpCode::OpAND, left.to_vec(), right.to_vec());
+                Some(vec![instructions])
+            }
+            IdentifierKind::OR => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, worker.clone(), scope.clone(), scope_id).unwrap();
+                let left = &left[0];
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, worker.clone(), scope, scope_id).unwrap();
+                let right = &right[0];
+
+                let wrk = worker.borrow();
+                let instructions = wrk.add_infix(OpCode::OpOR, left.to_vec(), right.to_vec());
+                Some(vec![instructions])
+            }
+            IdentifierKind::LAND => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, worker.clone(), scope.clone(), scope_id).unwrap();
+                let left = &left[0];
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, worker.clone(), scope, scope_id).unwrap();
+                let right = &right[0];
+
+                let wrk = worker.borrow();
+                let instructions = wrk.add_infix(OpCode::OpLAND, left.to_vec(), right.to_vec());
+                Some(vec![instructions])
+            }
+            IdentifierKind::LOR => {
+                let left = self.left_child.as_ref().unwrap();
+                let left = left_or_right(left, worker.clone(), scope.clone(), scope_id).unwrap();
+                let left = &left[0];
+
+                let right = self.right_child.as_ref().unwrap();
+                let right = left_or_right(right, worker.clone(), scope, scope_id).unwrap();
+                let right = &right[0];
+
+                let wrk = worker.borrow();
+                let instructions = wrk.add_infix(OpCode::OpLOR, left.to_vec(), right.to_vec());
+                Some(vec![instructions])
+            }
             IdentifierKind::VARIABLE => {
                 let variable_name = self.variable_name.as_ref().unwrap();
 
@@ -179,6 +339,111 @@ impl Compiler for Node {
                     variable_name_as_bytes,
                 );
                 Some(vec![instructions])
+            }
+
+            IdentifierKind::IF => {
+                let condition_binding_key = random_string_id();
+                let condition_binding_key_as_bytes = condition_binding_key.as_bytes().to_vec();
+
+                let wrk = worker.borrow();
+                let if_scope_id = wrk.generate_scope_id_from_scope(SymbolScope::Local);
+
+                let mut condition_instructions = Vec::new();
+                // get the condition first
+                let condition = self.right_child.as_ref().unwrap();
+
+                if let Some(instructions) =
+                    left_or_right(condition, worker.clone(), scope.clone(), if_scope_id)
+                {
+                    let inst = instructions.get(0).unwrap();
+                    condition_instructions.push(inst.clone());
+
+                    condition_instructions.push(vec![OpCode::OpJumpTo as u8]);
+
+                    let block_children = self.block_children.as_ref().unwrap();
+                    for body_item in block_children.iter() {
+                        let inst =
+                            body_item.compile(worker.clone(), SymbolScope::Local, if_scope_id);
+                        if let Some(all_insts) = inst {
+                            for i in all_insts.iter() {
+                                condition_instructions.push(i.clone())
+                            }
+                        }
+                    }
+                }
+
+                // check if there is an alternate condition (ELSE)
+                if let Some(alternate_condition) = &self.alternate {
+                    if let Some(else_condition) =
+                        alternate_condition.compile(worker.clone(), scope.clone(), if_scope_id)
+                    {
+                        // we add an alternate condition marker
+                        condition_instructions.push(vec![OpCode::OpJumpToAlternate as u8]);
+
+                        for i in else_condition.iter() {
+                            condition_instructions.push(i.clone())
+                        }
+                    }
+                }
+
+                wrk.add_symbol(
+                    condition_binding_key_as_bytes.clone(),
+                    condition_instructions.clone(),
+                );
+
+                let insts = wrk.instructions_for_condition_statement(
+                    OpCode::OpAddIfCondition,
+                    scope,
+                    if_scope_id,
+                    condition_binding_key_as_bytes,
+                );
+
+                Some(vec![insts])
+            }
+
+            IdentifierKind::ELSE => {
+                let wrk = worker.borrow();
+                let else_scope_id = wrk.generate_scope_id_from_scope(SymbolScope::Local);
+
+                let mut condition_instructions = Vec::new();
+
+                let cond = self.right_child.as_ref().unwrap();
+
+                if let Some(alternate_instructions) =
+                    left_or_right(cond, worker.clone(), scope.clone(), else_scope_id)
+                {
+                    // add the alternate condition instructions
+                    let alt_cond_instructions = alternate_instructions.get(0).unwrap();
+                    condition_instructions.push(alt_cond_instructions.clone());
+                }
+
+                // add the else body.
+                condition_instructions.push(vec![OpCode::OpJumpTo as u8]);
+
+                // loop over the children and add their instructions
+                let block_children = self.block_children.as_ref().unwrap();
+                for body_item in block_children.iter() {
+                    let inst = body_item.compile(worker.clone(), SymbolScope::Local, else_scope_id);
+                    if let Some(all_insts) = inst {
+                        for i in all_insts.iter() {
+                            condition_instructions.push(i.clone())
+                        }
+                    }
+                }
+
+                if let Some(alternate) = &self.alternate {
+                    if let Some(alt_insts) = alternate.compile(worker.clone(), scope, else_scope_id)
+                    {
+                        // add alternate marker
+                        condition_instructions.push(vec![OpCode::OpJumpToAlternate as u8]);
+
+                        for i in alt_insts.iter() {
+                            condition_instructions.push(i.clone())
+                        }
+                    }
+                }
+
+                Some(condition_instructions)
             }
 
             IdentifierKind::ASSIGN => {
@@ -227,6 +492,30 @@ impl Compiler for Node {
                                     );
                                 }
 
+                                IdentifierKind::PLUS
+                                | IdentifierKind::MINUS
+                                | IdentifierKind::ASTERISK
+                                | IdentifierKind::SLASH
+                                | IdentifierKind::BANG
+                                | IdentifierKind::AND
+                                | IdentifierKind::LT
+                                | IdentifierKind::GT
+                                | IdentifierKind::EQ
+                                | IdentifierKind::NOTEQ
+                                | IdentifierKind::GTOREQ
+                                | IdentifierKind::LTOREQ
+                                | IdentifierKind::OR
+                                | IdentifierKind::LAND
+                                | IdentifierKind::LOR
+                                | IdentifierKind::MODULUS => {
+                                    wrk.add_variable_binding(
+                                        scope,
+                                        scope_id,
+                                        BindingType::Expression,
+                                        binding_key_as_bytes,
+                                    );
+                                }
+
                                 IdentifierKind::CALLER => {
                                     wrk.add_variable_binding(
                                         scope,
@@ -240,6 +529,7 @@ impl Compiler for Node {
                                 // at some point in the program, the caller binding will suffice. Otherwise it will be considered as
                                 // unused function
                                 IdentifierKind::FUNCTION => {}
+
                                 _ => unreachable!(""),
                             };
                         }
@@ -324,7 +614,7 @@ impl Compiler for Node {
                     left_or_right(right, worker.clone(), scope.clone(), scope_id).unwrap();
 
                 let wrk = worker.borrow();
-                let insts = wrk.add_return(scope, scope_id, instructions);
+                let insts = wrk.instructions_for_return(scope, scope_id, instructions);
 
                 Some(vec![insts])
             }
@@ -350,8 +640,11 @@ impl Compiler for Node {
                     let wrk = worker.borrow();
                     let caller_scope_id = wrk.generate_scope_id_from_scope(SymbolScope::Local);
 
-                    let caller_def =
-                        wrk.add_caller(scope.clone(), caller_scope_id, func_name_as_bytes);
+                    let caller_def = wrk.instructions_for_caller(
+                        scope.clone(),
+                        caller_scope_id,
+                        func_name_as_bytes,
+                    );
 
                     // the first set of instructions will point to the actual function that will be called
                     caller_instructions.push(caller_def);
@@ -398,7 +691,8 @@ impl Compiler for Node {
                     let wrk = worker.borrow();
                     wrk.add_symbol(binding_key_as_bytes.clone(), caller_instructions.clone());
 
-                    let print_instructions = wrk.add_builtin(scope, scope_id, binding_key_as_bytes);
+                    let print_instructions =
+                        wrk.instructions_for_builtin(scope, scope_id, binding_key_as_bytes);
 
                     Some(vec![print_instructions])
                 } else {

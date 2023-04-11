@@ -8,12 +8,11 @@ use errors::errors::{KarisError, KarisErrorType};
 use crate::{
     compile::ByteCode,
     defs::{BindingType, CallerParamType, OpCode},
-    objects::CompileObject,
+    objects::{CompileObject, BOOLEAN_OBJECT_TYPE, INTERGER_OBJECT_TYPE, STRING_OBJECT_TYPE},
 };
 
 pub struct VM {
     byte_code: ByteCode,
-    // stack: Rc<RefCell<Vec<u8>>>,
 }
 
 impl VM {
@@ -23,25 +22,30 @@ impl VM {
         file.read_to_end(&mut buffer)?;
 
         let byte_code = ByteCode::try_from_slice(&buffer).unwrap();
-        Ok(Self {
-            byte_code,
-            // stack: Rc::new(RefCell::new(Vec::new())),
-        })
+        Ok(Self { byte_code })
     }
 
     pub fn from_raw_bytecode(byte_code: ByteCode) -> VM {
-        Self {
-            byte_code,
-            // stack: Rc::new(RefCell::new(Vec::new())),
-        }
+        Self { byte_code }
     }
 
-    pub fn execute(&self) {
+    pub fn execute(&self) -> bool {
+        let mut result = true;
+
         let instructions = &self.byte_code.instructions;
 
         for instruction in instructions.iter() {
-            let _ = self.executor(instruction, None);
+            match self.executor(instruction, None) {
+                Ok(_) => continue,
+                Err(err) => {
+                    eprintln!("{}", err);
+                    result = false;
+                    break;
+                }
+            }
         }
+
+        result
     }
 
     fn executor(
@@ -54,7 +58,12 @@ impl VM {
 
         match command.try_into() {
             Ok(OpCode::OpTerminal) => Ok(CompileObject::Null),
-            Ok(OpCode::OpAdd) => {
+
+            Ok(OpCode::OpAdd)
+            | Ok(OpCode::OpMinus)
+            | Ok(OpCode::OpMultiply)
+            | Ok(OpCode::OpDivide)
+            | Ok(OpCode::OpModulus) => {
                 let instructions = instruction.get(2..instruction.len()).unwrap();
 
                 let separator = instructions
@@ -111,17 +120,21 @@ impl VM {
                     let rhs_value = &rhs_value.1;
                     let rhs_value = rhs_value.as_interger().unwrap();
 
-                    let sum = lhs_value + rhs_value;
+                    let result = match command.try_into() {
+                        Ok(OpCode::OpAdd) => lhs_value + rhs_value,
+                        Ok(OpCode::OpMinus) => lhs_value - rhs_value,
+                        Ok(OpCode::OpMultiply) => lhs_value * rhs_value,
+                        Ok(OpCode::OpDivide) => lhs_value / rhs_value,
+                        Ok(OpCode::OpModulus) => lhs_value % rhs_value,
+                        Ok(_) => 0_isize,
+                        Err(_) => 0_isize,
+                    };
 
-                    Ok(CompileObject::Interger(sum))
+                    Ok(CompileObject::Interger(result))
                 } else {
                     Ok(CompileObject::Interger(0))
                 }
             }
-            Ok(OpCode::OpMinus) => todo!(),
-            Ok(OpCode::OpMultiply) => todo!(),
-            Ok(OpCode::OpDivide) => todo!(),
-            Ok(OpCode::OpModulus) => todo!(),
 
             Ok(OpCode::OpSetBinding) => {
                 let binding_type = instruction.get(5).unwrap();
@@ -239,19 +252,36 @@ impl VM {
 
                         for item in block_items.iter() {
                             let code = item.first().unwrap();
-
                             match OpCode::from(*code) {
                                 OpCode::OpReturn => {
                                     caller_result = self.executor(item, Some(params.clone()));
                                     break;
                                 }
-                                _ => caller_result = self.executor(item, Some(params.clone())),
+                                OpCode::OpNull => {}
+                                _ => {
+                                    caller_result = self.executor(item, Some(params.clone()));
+                                }
                             }
                         }
 
                         caller_result
                     }
-                    Ok(BindingType::Expression) => todo!("binding for expression"),
+
+                    Ok(BindingType::Expression) => {
+                        let binding_name = instruction.get(7..instruction.len() - 1).unwrap();
+
+                        // get the function to execute from symbols table
+                        let expression_symbol =
+                            self.byte_code.symbols_table.0.get(binding_name).unwrap();
+                        let expression_instructions = &expression_symbol.0;
+
+                        let mut expression_result = Ok(CompileObject::Null);
+                        for item in expression_instructions.iter() {
+                            expression_result = self.executor(item, params.clone());
+                        }
+
+                        expression_result
+                    }
 
                     Err(_) => Err(KarisError {
                         error_type: KarisErrorType::InvalidExecution,
@@ -260,11 +290,6 @@ impl VM {
                                 .to_string(),
                     }),
                 }
-            }
-
-            Ok(OpCode::OpGetFunctionParameter) => {
-                println!("OpGetFunctionParameter : {:?}", instruction);
-                Ok(CompileObject::Null)
             }
 
             Ok(OpCode::OpReturn) => {
@@ -304,15 +329,414 @@ impl VM {
             }
 
             Ok(OpCode::OpPrint) => {
-                println!("print {:?}", instruction);
+                let print_type = instruction.get(5).unwrap();
+                let print_value: CallerParamType = CallerParamType::from(*print_type);
+
+                match print_value {
+                    CallerParamType::Literal => {
+                        let loc = instruction.get(7).unwrap();
+                        let loc = *loc as usize;
+                        let value = self.byte_code.constants.get(loc).unwrap();
+
+                        match value {
+                            CompileObject::Interger(val) => println!("{:?}", val),
+                            CompileObject::String(val) => println!("{:?}", val),
+                            CompileObject::Boolean(val) => println!("{:?}", val),
+                            _ => {}
+                        }
+                    }
+                    CallerParamType::Variable => {
+                        // TODO: revisit this
+                        let binding_name = instruction.get(7..instruction.len()).unwrap();
+                        if let Some(binding_name) = self.byte_code.symbols_table.0.get(binding_name)
+                        {
+                            let instructions = &binding_name.0;
+                            let instructions = instructions.get(0).unwrap();
+                            println!(" variable obj {:?}", instructions);
+                        }
+                    }
+                };
 
                 Ok(CompileObject::Null)
+            }
+
+            Ok(OpCode::OpAddIfCondition) => {
+                let mut result = Ok(CompileObject::Null);
+
+                let condition_binding_name = instruction.get(5..instruction.len() - 1).unwrap();
+
+                // get the binding value from symbols table
+                let condition_instructions = self
+                    .byte_code
+                    .symbols_table
+                    .0
+                    .get(condition_binding_name)
+                    .unwrap();
+                let condition_instructions = &condition_instructions.0;
+
+                let mut marker = 0;
+                while marker < condition_instructions.len() {
+                    let instructions = condition_instructions.get(marker).unwrap();
+                    let command = instructions.first().unwrap();
+                    let command = *command;
+                    let command: OpCode = command.into();
+
+                    match command {
+                        OpCode::OpGreaterThan
+                        | OpCode::OpGreaterThanOrEqual
+                        | OpCode::OpLessThan
+                        | OpCode::OpLessThanOrEqual
+                        | OpCode::OpEqualTo
+                        | OpCode::OpNotEqualTo
+                        | OpCode::OpAND
+                        | OpCode::OpOR
+                        | OpCode::OpLAND
+                        | OpCode::OpLOR
+                        | OpCode::OpBang => match self.executor(instructions, params.clone()) {
+                            Ok(val) => {
+                                let verdict = val.as_boolean().unwrap();
+                                if *verdict {
+                                    marker += 1;
+                                    continue;
+                                } else {
+                                    // move two places
+                                    marker += 2;
+                                    continue;
+                                }
+                            }
+                            Err(err) => {
+                                result = Err(err);
+                                break;
+                            }
+                        },
+                        OpCode::OpJumpTo | OpCode::OpJumpToAlternate => {
+                            marker += 1;
+                            continue;
+                        }
+                        OpCode::OpReturn => {
+                            result = self.executor(instructions, params);
+                            break;
+                        }
+                        _ => {}
+                    }
+                }
+
+                result
+            }
+
+            Ok(OpCode::OpGreaterThan)
+            | Ok(OpCode::OpGreaterThanOrEqual)
+            | Ok(OpCode::OpLessThan)
+            | Ok(OpCode::OpLessThanOrEqual)
+            | Ok(OpCode::OpEqualTo)
+            | Ok(OpCode::OpNotEqualTo)
+            | Ok(OpCode::OpAND)
+            | Ok(OpCode::OpOR)
+            | Ok(OpCode::OpLAND)
+            | Ok(OpCode::OpLOR)
+            | Ok(OpCode::OpBang) => {
+                let instructions = instruction.get(2..instruction.len()).unwrap();
+
+                let separator = instructions
+                    .iter()
+                    .find_position(|i| **i == (OpCode::OpNull as u8))
+                    .unwrap();
+                let seperator_index = separator.0;
+
+                let left = instructions.get(0..seperator_index).unwrap();
+                let right = instructions
+                    .get(seperator_index + 1..instructions.len())
+                    .unwrap();
+
+                // we check if the left hand side is argument is a variable or a literal.
+                // if a variable, we retrieve it from caller params
+                // we then return the a CompileObject
+
+                let variable_or_literal_func = |side_instructions: Vec<u8>,
+                                                is_left: bool,
+                                                operation_params: Option<
+                    Vec<(CompileObject, CompileObject)>,
+                >|
+                 -> CompileObject {
+                    let command = side_instructions.first().unwrap();
+                    let command = *command;
+                    let command: OpCode = command.into();
+
+                    if command == OpCode::OpGetBinding || command == OpCode::OpGetCallerParameter {
+                        if let Some(caller_params) = operation_params {
+                            let side_index = caller_params
+                                .iter()
+                                .position(|cp| {
+                                    let obj = &cp.0;
+                                    match obj {
+                                        CompileObject::Variable(var) => {
+                                            if is_left {
+                                                let left_binding =
+                                                    left.get(5..left.len() - 1).unwrap();
+                                                var == left_binding
+                                            } else {
+                                                let right_binding =
+                                                    right.get(5..left.len() - 1).unwrap();
+                                                var == right_binding
+                                            }
+                                        }
+                                        CompileObject::Interger(_)
+                                        | CompileObject::String(_)
+                                        | CompileObject::Boolean(_)
+                                        | CompileObject::Null => false,
+                                    }
+                                })
+                                .unwrap();
+
+                            let side_value = caller_params.get(side_index).unwrap();
+                            let side_value = &side_value.1;
+                            let side_value = side_value.clone();
+                            return side_value;
+                        }
+                    }
+
+                    if command == OpCode::OpConstant {
+                        let constant_index = side_instructions.get(5).unwrap();
+                        let side_value = self
+                            .byte_code
+                            .constants
+                            .get(*constant_index as usize)
+                            .unwrap();
+                        let side_value = side_value.clone();
+                        return side_value;
+                    }
+
+                    CompileObject::Null
+                };
+
+                let lhs = variable_or_literal_func(left.to_vec(), true, params.clone());
+                let rhs = variable_or_literal_func(right.to_vec(), false, params.clone());
+
+                if lhs.object_type() != rhs.object_type() {
+                    return Err(KarisError {
+                        error_type: KarisErrorType::InvalidExecution,
+                        message: "Comparasion type mismatch".to_string(),
+                    });
+                }
+
+                let result = match command.try_into() {
+                    Ok(OpCode::OpGreaterThan) => {
+                        let obj_type = lhs.object_type();
+                        let result = match obj_type {
+                            INTERGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_interger().unwrap();
+                                let rhs_value = rhs.as_interger().unwrap();
+                                lhs_value > rhs_value
+                            }
+                            STRING_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_string().unwrap();
+                                let rhs_value = rhs.as_string().unwrap();
+                                lhs_value.len() > rhs_value.len()
+                            }
+                            BOOLEAN_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_boolean().unwrap();
+                                let rhs_value = rhs.as_boolean().unwrap();
+                                lhs_value > rhs_value
+                            }
+                            _ => false,
+                        };
+                        result
+                    }
+
+                    Ok(OpCode::OpGreaterThanOrEqual) => {
+                        let obj_type = lhs.object_type();
+                        let result = match obj_type {
+                            INTERGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_interger().unwrap();
+                                let rhs_value = rhs.as_interger().unwrap();
+                                lhs_value >= rhs_value
+                            }
+                            STRING_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_string().unwrap();
+                                let rhs_value = rhs.as_string().unwrap();
+                                lhs_value.len() >= rhs_value.len()
+                            }
+                            BOOLEAN_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_boolean().unwrap();
+                                let rhs_value = rhs.as_boolean().unwrap();
+                                lhs_value >= rhs_value
+                            }
+                            _ => false,
+                        };
+                        result
+                    }
+
+                    Ok(OpCode::OpLessThan) => {
+                        let obj_type = lhs.object_type();
+                        let result = match obj_type {
+                            INTERGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_interger().unwrap();
+                                let rhs_value = rhs.as_interger().unwrap();
+                                lhs_value < rhs_value
+                            }
+                            STRING_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_string().unwrap();
+                                let rhs_value = rhs.as_string().unwrap();
+                                lhs_value.len() < rhs_value.len()
+                            }
+                            BOOLEAN_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_boolean().unwrap();
+                                let rhs_value = rhs.as_boolean().unwrap();
+                                lhs_value < rhs_value
+                            }
+                            _ => false,
+                        };
+                        result
+                    }
+                    Ok(OpCode::OpLessThanOrEqual) => {
+                        let obj_type = lhs.object_type();
+                        let result = match obj_type {
+                            INTERGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_interger().unwrap();
+                                let rhs_value = rhs.as_interger().unwrap();
+                                lhs_value <= rhs_value
+                            }
+                            STRING_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_string().unwrap();
+                                let rhs_value = rhs.as_string().unwrap();
+                                lhs_value.len() <= rhs_value.len()
+                            }
+                            BOOLEAN_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_boolean().unwrap();
+                                let rhs_value = rhs.as_boolean().unwrap();
+                                lhs_value <= rhs_value
+                            }
+                            _ => false,
+                        };
+                        result
+                    }
+                    Ok(OpCode::OpEqualTo) => {
+                        let obj_type = lhs.object_type();
+                        let result = match obj_type {
+                            INTERGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_interger().unwrap();
+                                let rhs_value = rhs.as_interger().unwrap();
+                                lhs_value == rhs_value
+                            }
+                            STRING_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_string().unwrap();
+                                let rhs_value = rhs.as_string().unwrap();
+                                lhs_value.len() == rhs_value.len()
+                            }
+                            BOOLEAN_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_boolean().unwrap();
+                                let rhs_value = rhs.as_boolean().unwrap();
+                                lhs_value == rhs_value
+                            }
+                            _ => false,
+                        };
+                        result
+                    }
+                    Ok(OpCode::OpNotEqualTo) => {
+                        let obj_type = lhs.object_type();
+                        let result = match obj_type {
+                            INTERGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_interger().unwrap();
+                                let rhs_value = rhs.as_interger().unwrap();
+                                lhs_value != rhs_value
+                            }
+                            STRING_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_string().unwrap();
+                                let rhs_value = rhs.as_string().unwrap();
+                                lhs_value.len() != rhs_value.len()
+                            }
+                            BOOLEAN_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_boolean().unwrap();
+                                let rhs_value = rhs.as_boolean().unwrap();
+                                lhs_value != rhs_value
+                            }
+                            _ => false,
+                        };
+                        result
+                    }
+                    Ok(OpCode::OpAND) => {
+                        let obj_type = lhs.object_type();
+                        let result = match obj_type {
+                            INTERGER_OBJECT_TYPE => false,
+                            STRING_OBJECT_TYPE => false,
+                            BOOLEAN_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_boolean().unwrap();
+                                let rhs_value = rhs.as_boolean().unwrap();
+                                *lhs_value && *rhs_value
+                            }
+                            _ => false,
+                        };
+                        result
+                    }
+                    Ok(OpCode::OpOR) => {
+                        let obj_type = lhs.object_type();
+                        let result = match obj_type {
+                            INTERGER_OBJECT_TYPE => false,
+                            STRING_OBJECT_TYPE => false,
+                            BOOLEAN_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_boolean().unwrap();
+                                let rhs_value = rhs.as_boolean().unwrap();
+                                *lhs_value || *rhs_value
+                            }
+                            _ => false,
+                        };
+                        result
+                    }
+                    Ok(OpCode::OpLAND) => {
+                        let obj_type = lhs.object_type();
+                        let result = match obj_type {
+                            INTERGER_OBJECT_TYPE => false,
+                            STRING_OBJECT_TYPE => false,
+                            BOOLEAN_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_boolean().unwrap();
+                                let rhs_value = rhs.as_boolean().unwrap();
+                                lhs_value & rhs_value
+                            }
+                            _ => false,
+                        };
+                        result
+                    }
+                    Ok(OpCode::OpLOR) => {
+                        let obj_type = lhs.object_type();
+                        let result = match obj_type {
+                            INTERGER_OBJECT_TYPE => false,
+                            STRING_OBJECT_TYPE => false,
+                            BOOLEAN_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_boolean().unwrap();
+                                let rhs_value = rhs.as_boolean().unwrap();
+                                lhs_value | rhs_value
+                            }
+                            _ => false,
+                        };
+                        result
+                    }
+                    Ok(OpCode::OpBang) => {
+                        let obj_type = lhs.object_type();
+                        let result = match obj_type {
+                            INTERGER_OBJECT_TYPE => false,
+                            STRING_OBJECT_TYPE => false,
+                            BOOLEAN_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_boolean().unwrap();
+                                !lhs_value
+                            }
+                            _ => false,
+                        };
+                        result
+                    }
+                    Ok(_) => false,
+                    Err(_) => false,
+                };
+
+                Ok(CompileObject::Boolean(result))
             }
 
             Ok(OpCode::OpNull)
             | Ok(OpCode::OpFunctionDef)
             | Ok(OpCode::OpCallerDef)
-            | Ok(OpCode::OpGetBinding) => Ok(CompileObject::Null),
+            | Ok(OpCode::OpGetBinding)
+            | Ok(OpCode::OpGetFunctionParameter)
+            | Ok(OpCode::OpJumpTo)
+            | Ok(OpCode::OpJumpToAlternate) => Ok(CompileObject::Null),
             Err(_) => unreachable!("Malformed program"),
         }
     }
@@ -346,7 +770,7 @@ mod vm_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
         let vm = VM::from_raw_bytecode(byte_code);
-        vm.execute();
+        assert!(vm.execute());
     }
 
     #[test]
@@ -355,7 +779,6 @@ mod vm_tests {
             "
             let summation @int = fn(x @int, y @int) {
                 print(x);
-                print(10);
                 return x + y;
             };
 
@@ -370,26 +793,126 @@ mod vm_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
         let vm = VM::from_raw_bytecode(byte_code);
-        vm.execute();
+        assert!(vm.execute());
+    }
+
+    #[test]
+    fn should_execute2() {
+        let lx = Lexer::new(String::from(
+            "
+            let minus @int = fn(x @int, y @int) {
+                print(x);
+                return x - y;
+            };
+
+            @main fn(){
+                let a @int = 10;
+                let sub @int = minus(a,20);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_execute2.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+        let vm = VM::from_raw_bytecode(byte_code);
+        assert!(vm.execute());
+    }
+
+    #[test]
+    fn should_execute3() {
+        let lx = Lexer::new(String::from(
+            "
+            let multiply @int = fn(x @int, y @int) {
+                print(x);
+                return x * y;
+            };
+
+            @main fn(){
+                let a @int = 10;
+                let mul @int = multiply(a,20);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_execute3.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+        let vm = VM::from_raw_bytecode(byte_code);
+        assert!(vm.execute());
+    }
+
+    #[test]
+    fn should_execute4() {
+        let lx = Lexer::new(String::from(
+            "
+            let divide @int = fn(x @int, y @int) {
+                print(x);
+                return x / y;
+            };
+
+            @main fn(){
+                let a @int = 10;
+                let div @int = divide(a,20);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_execute4.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+        let vm = VM::from_raw_bytecode(byte_code);
+        assert!(vm.execute());
+    }
+
+    #[test]
+    fn should_execute5() {
+        let lx = Lexer::new(String::from(
+            "
+            let modulus @int = fn(x @int, y @int) {
+                print(x);
+                return x / y;
+            };
+
+            @main fn(){
+                let a @int = 10;
+                let mod @int = modulus(a,20);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_execute5.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+        let vm = VM::from_raw_bytecode(byte_code);
+        assert!(vm.execute());
+    }
+
+    #[test]
+    fn should_execute6() {
+        let lx = Lexer::new(String::from(
+            "
+            let multi_conditions @int = fn(x @int, y @int){
+                if 3 > x {
+                    return x + y;
+                }else x > y {
+                    return x - y;
+                } else {
+                    return x * y;
+                };
+            };
+
+            @main fn(){
+                let result1 @int = multi_conditions(10, 20);
+                print(result1);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_execute6.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+        let vm = VM::from_raw_bytecode(byte_code);
+        assert!(vm.execute());
     }
 }
-
-// @main fn(){
-//     let a @int = 10;
-//     let sum @int = summation(a, 20);
-// }@end;
-
-// This example shows that Karis requires function calls to be bound to a variable
-// for them to be executed
-//
-//
-// let summation @unit = fn(x @int, y @int) {
-//     let sum @int =  x + y;
-//     print(sum);
-// };
-
-// @main fn(){
-//     let _ @unit = summation(10,20);
-// }@end;
-//
-//

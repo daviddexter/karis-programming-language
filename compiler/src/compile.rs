@@ -94,7 +94,7 @@ impl CompileWorker {
         byte_code: ByteCode,
     ) -> std::io::Result<()> {
         let encoded = byte_code.try_to_vec().unwrap();
-        let file_name = format!("{}.bin", output_name);
+        let file_name = format!("{}.krbin", output_name);
         let mut file = File::create(file_name)?;
 
         let mut perms = file.metadata()?.permissions();
@@ -338,9 +338,6 @@ impl CompileWorker {
             instructions.push(*r)
         }
 
-        // add tail terminal
-        instructions.push(OpCode::OpTerminal as u8);
-
         // we don't add the instructions into the CompileWorker instructions vector.
         // Typically these instructions are RETURNED or PRINTED, hence they will be consumed by
         // those OpCodes
@@ -378,17 +375,23 @@ impl CompileWorker {
         self.add_instruction(Some(insts), None);
     }
 
-    pub fn add_builtin(
+    pub fn instructions_for_condition_statement(
+        &self,
+        op: OpCode,
+        scope: SymbolScope,
+        scope_id: [u8; 2],
+        binding_name: Vec<u8>,
+    ) -> Vec<u8> {
+        self.emit_opcode_for_builtin(op, scope, scope_id, binding_name)
+    }
+
+    pub fn instructions_for_builtin(
         &self,
         scope: SymbolScope,
         scope_id: [u8; 2],
         binding_name: Vec<u8>,
     ) -> Vec<u8> {
-        let insts =
-            self.emit_opcode_for_builtin(OpCode::OpAddBuiltin, scope, scope_id, binding_name);
-
-        self.add_instruction(Some(insts.clone()), None);
-        insts
+        self.emit_opcode_for_builtin(OpCode::OpAddBuiltin, scope, scope_id, binding_name)
     }
 
     pub fn add_symbol(&self, binding_key: Vec<u8>, symbol: Vec<Vec<u8>>) {
@@ -408,7 +411,7 @@ impl CompileWorker {
         }
     }
 
-    pub fn add_caller(
+    pub fn instructions_for_caller(
         &self,
         scope: SymbolScope,
         scope_id: [u8; 2],
@@ -427,7 +430,7 @@ impl CompileWorker {
         instructions
     }
 
-    pub fn add_return(
+    pub fn instructions_for_return(
         &self,
         scope: SymbolScope,
         scope_id: [u8; 2],
@@ -636,9 +639,98 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 4);
+        assert_eq!(byte_code.instructions.len(), 2);
         assert_eq!(byte_code.constants.len(), 2);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 4);
+    }
+
+    #[test]
+    fn should_compile5() {
+        let lx = Lexer::new(String::from(
+            "
+            let minmax_or_product @int = fn(x @int, y @int){
+                if x < y{
+                   return x + y;
+                }else x > y{
+                    return x - y;
+                };
+
+                return x * y;
+            };
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_compile5.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+
+        assert_eq!(byte_code.instructions.len(), 0);
+        assert_eq!(byte_code.constants.len(), 0);
+        let st = byte_code.symbols_table;
+        assert_eq!(st.0.len(), 2);
+    }
+
+    #[test]
+    fn should_compile6() {
+        let lx = Lexer::new(String::from(
+            "
+            let minmax_or_product @int = fn(x @int, y @int){
+                if x < y{
+                   return x + y;
+                }else x == y{
+                    return x - y;
+                };
+
+                return x * y;
+            };
+
+            @main fn(){
+                let minmax @int = minmax_or_product(10, 20);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_compile6.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+
+        assert_eq!(byte_code.instructions.len(), 1);
+        assert_eq!(byte_code.constants.len(), 2);
+        let st = byte_code.symbols_table;
+        assert_eq!(st.0.len(), 3);
+    }
+
+    #[test]
+    fn should_compile7() {
+        let lx = Lexer::new(String::from(
+            "
+            let multi_conditions @int = fn(x @int, y @int){
+                if x < 3 {
+                    let x1 @int = x + 5;
+                    let y @int = y + 10;
+                    return x1 + y;
+                }else x > y {
+                    return x - y;
+                } else {
+                    return x * y;
+                };
+            };
+
+            @main fn(){
+                let val @int = multi_conditions(10, 20);
+                print(val);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_compile7.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+
+        assert_eq!(byte_code.instructions.len(), 6);
+        assert_eq!(byte_code.constants.len(), 5);
+        let st = byte_code.symbols_table;
+        assert_eq!(st.0.len(), 6);
     }
 }

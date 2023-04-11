@@ -83,9 +83,9 @@ pub enum IdentifierKind {
     ASSIGN,   //  "="
     PLUS,     // "+"
     MINUS,    // "-"
-    BANG,     //  "!" // logical negation
     ASTERISK, // "*"
     SLASH,    // "/"
+    BANG,     //  "!" // logical negation
     LT,       // "<"
     GT,       //  ">"
     EQ,       // "=="

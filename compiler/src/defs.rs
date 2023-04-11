@@ -55,7 +55,7 @@ impl From<u8> for BindingType {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum OpCode {
     OpTerminal = -0x08,
     // acts as a seperator in some cases
@@ -67,6 +67,7 @@ pub enum OpCode {
     OpMultiply,
     OpDivide,
     OpModulus,
+
     OpSetBinding,
     OpGetBinding,
     OpFunctionDef,
@@ -76,6 +77,20 @@ pub enum OpCode {
     OpGetCallerParameter,
     OpAddBuiltin,
     OpPrint,
+    OpAddIfCondition,
+    OpGreaterThan,
+    OpGreaterThanOrEqual,
+    OpLessThan,
+    OpLessThanOrEqual,
+    OpEqualTo,
+    OpNotEqualTo,
+    OpAND,
+    OpOR,
+    OpLAND,
+    OpLOR,
+    OpBang,
+    OpJumpTo,
+    OpJumpToAlternate,
 }
 
 impl From<u8> for OpCode {
@@ -112,6 +127,34 @@ impl From<u8> for OpCode {
             OpCode::OpAddBuiltin
         } else if value == OpCode::OpPrint as u8 {
             OpCode::OpPrint
+        } else if value == OpCode::OpAddIfCondition as u8 {
+            OpCode::OpAddIfCondition
+        } else if value == OpCode::OpGreaterThan as u8 {
+            OpCode::OpGreaterThan
+        } else if value == OpCode::OpGreaterThanOrEqual as u8 {
+            OpCode::OpGreaterThanOrEqual
+        } else if value == OpCode::OpLessThan as u8 {
+            OpCode::OpLessThan
+        } else if value == OpCode::OpLessThanOrEqual as u8 {
+            OpCode::OpLessThanOrEqual
+        } else if value == OpCode::OpEqualTo as u8 {
+            OpCode::OpEqualTo
+        } else if value == OpCode::OpNotEqualTo as u8 {
+            OpCode::OpNotEqualTo
+        } else if value == OpCode::OpAND as u8 {
+            OpCode::OpAND
+        } else if value == OpCode::OpOR as u8 {
+            OpCode::OpOR
+        } else if value == OpCode::OpLAND as u8 {
+            OpCode::OpLAND
+        } else if value == OpCode::OpLOR as u8 {
+            OpCode::OpLOR
+        } else if value == OpCode::OpBang as u8 {
+            OpCode::OpBang
+        } else if value == OpCode::OpJumpTo as u8 {
+            OpCode::OpJumpTo
+        } else if value == OpCode::OpJumpToAlternate as u8 {
+            OpCode::OpJumpToAlternate
         } else {
             OpCode::OpNull
         }

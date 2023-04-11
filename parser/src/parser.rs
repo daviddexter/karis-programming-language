@@ -387,9 +387,6 @@ mod parser_tests {
 
     #[test]
     fn should_parse14() {
-        // (10 / (2 * 3)) + 20;
-        // (10 / 2 + 5 - 2 ) * 3 + 20 - 3;
-
         let lx = Lexer::new(String::from("let num @int = (10 / (2 * 3)) + 20;"));
         let mut parser = Parser::new(lx);
         let res = parser.parse(Some("should_parse14.json"));
@@ -1030,5 +1027,38 @@ mod parser_tests {
         let mut parser = Parser::new(lx);
         let res = parser.parse(Some("should_parse57.json"));
         assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_parse58() {
+        let lx = Lexer::new(String::from(
+            "
+
+            let multi_conditions @int = fn(x @int, y @int){
+                if x < y{
+                   return x + y;
+                }else x == y {
+                    return x * y;
+                }else x > 5 {
+                    return x + y + 5;
+                } else {
+                    return x - y;
+                };
+
+            };
+
+        ",
+        ));
+
+        let mut parser = Parser::new(lx);
+
+        let res = parser.parse(Some("should_parse58.json"));
+        assert!(res.is_ok());
+
+        let res = res.unwrap();
+        let program = res.as_ty_program().unwrap();
+
+        assert_eq!(program.non_root, false);
+        assert_eq!(program.body.len(), 1);
     }
 }
