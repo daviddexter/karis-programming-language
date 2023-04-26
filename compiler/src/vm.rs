@@ -515,7 +515,7 @@ impl VM {
                 if lhs.object_type() != rhs.object_type() {
                     return Err(KarisError {
                         error_type: KarisErrorType::InvalidExecution,
-                        message: "Comparasion type mismatch".to_string(),
+                        message: "Comparison type mismatch".to_string(),
                     });
                 }
 
@@ -657,8 +657,19 @@ impl VM {
                     Ok(OpCode::OpAND) => {
                         let obj_type = lhs.object_type();
                         let result = match obj_type {
-                            INTERGER_OBJECT_TYPE => false,
-                            STRING_OBJECT_TYPE => false,
+                            // conditional AND operation on integers return the most significant interger
+                            INTERGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_interger().unwrap();
+                                let rhs_value = rhs.as_interger().unwrap();
+                                lhs_value > rhs_value
+                            }
+
+                            // conditional AND operation on string return the most significant string length
+                            STRING_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_string().unwrap();
+                                let rhs_value = rhs.as_string().unwrap();
+                                lhs_value.len() > rhs_value.len()
+                            }
                             BOOLEAN_OBJECT_TYPE => {
                                 let lhs_value = lhs.as_boolean().unwrap();
                                 let rhs_value = rhs.as_boolean().unwrap();
@@ -671,8 +682,18 @@ impl VM {
                     Ok(OpCode::OpOR) => {
                         let obj_type = lhs.object_type();
                         let result = match obj_type {
-                            INTERGER_OBJECT_TYPE => false,
-                            STRING_OBJECT_TYPE => false,
+                            // conditional OR operation on integers return the least significant interger
+                            INTERGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_interger().unwrap();
+                                let rhs_value = rhs.as_interger().unwrap();
+                                lhs_value < rhs_value
+                            }
+                            // conditional AND operation on string return the most significant string length
+                            STRING_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_string().unwrap();
+                                let rhs_value = rhs.as_string().unwrap();
+                                lhs_value.len() < rhs_value.len()
+                            }
                             BOOLEAN_OBJECT_TYPE => {
                                 let lhs_value = lhs.as_boolean().unwrap();
                                 let rhs_value = rhs.as_boolean().unwrap();
@@ -685,8 +706,18 @@ impl VM {
                     Ok(OpCode::OpLAND) => {
                         let obj_type = lhs.object_type();
                         let result = match obj_type {
-                            INTERGER_OBJECT_TYPE => false,
-                            STRING_OBJECT_TYPE => false,
+                            // Bitwise OR operation on integers return the least significant bit
+                            INTERGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_interger().unwrap();
+                                let rhs_value = rhs.as_interger().unwrap();
+                                lhs_value < rhs_value
+                            }
+                            // Bitwise OR operation on string return the least significant bit on the string length
+                            STRING_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_string().unwrap();
+                                let rhs_value = rhs.as_string().unwrap();
+                                lhs_value.len() < rhs_value.len()
+                            }
                             BOOLEAN_OBJECT_TYPE => {
                                 let lhs_value = lhs.as_boolean().unwrap();
                                 let rhs_value = rhs.as_boolean().unwrap();
@@ -699,8 +730,18 @@ impl VM {
                     Ok(OpCode::OpLOR) => {
                         let obj_type = lhs.object_type();
                         let result = match obj_type {
-                            INTERGER_OBJECT_TYPE => false,
-                            STRING_OBJECT_TYPE => false,
+                            // Bitwise OR operation on integers return the most significant bit
+                            INTERGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_interger().unwrap();
+                                let rhs_value = rhs.as_interger().unwrap();
+                                lhs_value > rhs_value
+                            }
+                            // Bitwise OR operation on string return the most significant bit on the string length
+                            STRING_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_string().unwrap();
+                                let rhs_value = rhs.as_string().unwrap();
+                                lhs_value.len() > rhs_value.len()
+                            }
                             BOOLEAN_OBJECT_TYPE => {
                                 let lhs_value = lhs.as_boolean().unwrap();
                                 let rhs_value = rhs.as_boolean().unwrap();
@@ -731,6 +772,7 @@ impl VM {
             }
 
             Ok(OpCode::OpNull)
+            | Ok(OpCode::OpMain)
             | Ok(OpCode::OpFunctionDef)
             | Ok(OpCode::OpCallerDef)
             | Ok(OpCode::OpGetBinding)
@@ -910,6 +952,24 @@ mod vm_tests {
         ));
         let mut parser = Parser::new(lx);
         let ast = parser.parse(Some("should_execute6.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+        let vm = VM::from_raw_bytecode(byte_code);
+        assert!(vm.execute());
+    }
+
+    #[test]
+    fn should_execute7() {
+        let lx = Lexer::new(String::from(
+            "
+            @main fn(){
+                let val @bool = !!true;
+                print(val);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_execute7.json")).unwrap();
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
         let vm = VM::from_raw_bytecode(byte_code);

@@ -66,19 +66,35 @@ impl CompileWorker {
         let instructions = instructions.as_ref().clone();
         let instructions = instructions.into_inner();
 
-        let constants = self.constants.clone();
-        let constants = constants.as_ref().clone();
-        let constants = constants.into_inner();
+        // check that there is a main instruction. If not, end the program with an error
+        let mut main_count = 0;
+        instructions.iter().for_each(|item| {
+            item.iter().for_each(|val| {
+                let val = *val;
+                let op: OpCode = val.into();
+                if op == OpCode::OpMain {
+                    main_count += 1;
+                }
+            })
+        });
 
-        let symbols_table = self.symbols_table.clone();
-        let symbols_table = symbols_table.as_ref().clone();
-        let symbols_table = symbols_table.into_inner();
+        if main_count == 1 {
+            let constants = self.constants.clone();
+            let constants = constants.as_ref().clone();
+            let constants = constants.into_inner();
 
-        ByteCode {
-            instructions,
-            constants,
-            symbols_table,
-            global_scope_id,
+            let symbols_table = self.symbols_table.clone();
+            let symbols_table = symbols_table.as_ref().clone();
+            let symbols_table = symbols_table.into_inner();
+
+            ByteCode {
+                instructions,
+                constants,
+                symbols_table,
+                global_scope_id,
+            }
+        } else {
+            panic!("Program main function not found in scope")
         }
     }
 
@@ -313,6 +329,11 @@ impl CompileWorker {
 
 // these are public methods add instructions and symbols to the worker
 impl CompileWorker {
+    pub fn add_main(&self) {
+        let mut instructions = self.instructions.borrow_mut();
+        instructions.push(vec![OpCode::OpMain as u8]);
+    }
+
     pub fn append_to_constant_pool(&self, obj: CompileObject) -> u8 {
         let mut consts = self.constants.borrow_mut();
         consts.push(obj);
@@ -549,20 +570,12 @@ mod compile_tests {
     }
 
     #[test]
-    fn should_compile0() {
-        let lx = Lexer::new(String::from("1"));
-        let mut parser = Parser::new(lx);
-        let ast = parser.parse(Some("should_compile0.json")).unwrap();
-        let worker = CompileWorker::new(ast);
-        let byte_code = worker.compile();
-        assert_eq!(byte_code.instructions.len(), 1);
-    }
-
-    #[test]
     fn should_compile1() {
         let lx = Lexer::new(String::from(
             "
-            let num @int = 1;
+            @main fn(){
+                let num @int = 1;
+            }@end;
         ",
         ));
         let mut parser = Parser::new(lx);
@@ -570,7 +583,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 2);
+        assert_eq!(byte_code.instructions.len(), 3);
         assert_eq!(byte_code.constants.len(), 1);
         let st = byte_code.symbols_table;
 
@@ -584,6 +597,10 @@ mod compile_tests {
             let num @int = fn() {
                 return 1;
             };
+
+            @main fn(){
+                num();
+            }@end;
         ",
         ));
         let mut parser = Parser::new(lx);
@@ -591,7 +608,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 1);
+        assert_eq!(byte_code.instructions.len(), 2);
         assert_eq!(byte_code.constants.len(), 1);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 1);
@@ -616,7 +633,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 3);
+        assert_eq!(byte_code.instructions.len(), 4);
         assert_eq!(byte_code.constants.len(), 2);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 3);
@@ -632,6 +649,10 @@ mod compile_tests {
                 print(1);
                 return ten;
             };
+
+            @main fn(){
+                num();
+            }@end;
         ",
         ));
         let mut parser = Parser::new(lx);
@@ -639,14 +660,34 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 2);
+        assert_eq!(byte_code.instructions.len(), 3);
         assert_eq!(byte_code.constants.len(), 2);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 4);
     }
 
     #[test]
-    fn should_compile5() {
+    fn should_compile4a() {
+        let lx = Lexer::new(String::from(
+            "
+            @main fn(){
+                let val @bool = !!true;
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_compile4a.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+
+        assert_eq!(byte_code.instructions.len(), 3);
+        assert_eq!(byte_code.constants.len(), 1);
+        let st = byte_code.symbols_table;
+        assert_eq!(st.0.len(), 1);
+    }
+
+    #[test]
+    fn should_compile4b() {
         let lx = Lexer::new(String::from(
             "
             let minmax_or_product @int = fn(x @int, y @int){
@@ -658,21 +699,25 @@ mod compile_tests {
 
                 return x * y;
             };
+
+            @main fn(){
+                minmax_or_product();
+            }@end;
         ",
         ));
         let mut parser = Parser::new(lx);
-        let ast = parser.parse(Some("should_compile5.json")).unwrap();
+        let ast = parser.parse(Some("should_compile4b.json")).unwrap();
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 0);
+        assert_eq!(byte_code.instructions.len(), 1);
         assert_eq!(byte_code.constants.len(), 0);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 2);
     }
 
     #[test]
-    fn should_compile6() {
+    fn should_compile5() {
         let lx = Lexer::new(String::from(
             "
             let minmax_or_product @int = fn(x @int, y @int){
@@ -691,18 +736,18 @@ mod compile_tests {
         ",
         ));
         let mut parser = Parser::new(lx);
-        let ast = parser.parse(Some("should_compile6.json")).unwrap();
+        let ast = parser.parse(Some("should_compile5.json")).unwrap();
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 1);
+        assert_eq!(byte_code.instructions.len(), 2);
         assert_eq!(byte_code.constants.len(), 2);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 3);
     }
 
     #[test]
-    fn should_compile7() {
+    fn should_compile6() {
         let lx = Lexer::new(String::from(
             "
             let multi_conditions @int = fn(x @int, y @int){
@@ -724,7 +769,28 @@ mod compile_tests {
         ",
         ));
         let mut parser = Parser::new(lx);
-        let ast = parser.parse(Some("should_compile7.json")).unwrap();
+        let ast = parser.parse(Some("should_compile6.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+
+        assert_eq!(byte_code.instructions.len(), 7);
+        assert_eq!(byte_code.constants.len(), 5);
+        let st = byte_code.symbols_table;
+        assert_eq!(st.0.len(), 6);
+    }
+
+    #[test]
+    fn should_compile9() {
+        let lx = Lexer::new(String::from(
+            "
+            @main fn(){
+                let val @int = multi_conditions(10, 20);
+                print(val);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_compile9.json")).unwrap();
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 

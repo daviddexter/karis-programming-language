@@ -181,16 +181,14 @@ impl Compiler for Node {
             }
 
             IdentifierKind::BANG => {
-                let left = self.left_child.as_ref().unwrap();
-                let left = left_or_right(left, worker.clone(), scope.clone(), scope_id).unwrap();
-                let left = &left[0];
+                let left = vec![OpCode::OpNull as u8];
 
                 let right = self.right_child.as_ref().unwrap();
                 let right = left_or_right(right, worker.clone(), scope, scope_id).unwrap();
                 let right = &right[0];
 
                 let wrk = worker.borrow();
-                let instructions = wrk.add_infix(OpCode::OpBang, left.to_vec(), right.to_vec());
+                let instructions = wrk.add_infix(OpCode::OpBang, left, right.to_vec());
                 Some(vec![instructions])
             }
             IdentifierKind::LT => {
@@ -558,12 +556,12 @@ impl Compiler for Node {
                 // check that the function body is not empty. Otherwise end the compilation
                 if self.block_children.is_none() {
                     eprintln!("{:?}", empty_function_err);
-                    process::exit(0x0100)
+                    process::exit(0x0200)
                 }
 
                 if self.block_children.as_ref().unwrap().is_empty() {
                     eprintln!("{:?}", empty_function_err);
-                    process::exit(0x0100)
+                    process::exit(0x0200)
                 }
 
                 let mut function_instructions = Vec::new();
@@ -574,8 +572,7 @@ impl Compiler for Node {
                 for param in func_params {
                     // check that literals are not in the function definition. It's an invalid syntax
                     if param.is_left() {
-                        eprintln!("Invalid parameter type: {:?}", param);
-                        process::exit(0x0100)
+                        panic!("Invalid parameter type: {:?}", param)
                     }
 
                     // param will always be a `Objects` (RIGHT of Either)
@@ -665,8 +662,7 @@ impl Compiler for Node {
 
                     Some(caller_instructions)
                 } else {
-                    eprintln!("Function of name {:?} not found in global scope", func_name);
-                    process::exit(0x0100)
+                    panic!("Function of name {:?} not found in global scope", func_name)
                 }
             }
 
@@ -714,6 +710,14 @@ impl Compiler for Node {
                     .clone();
 
                 let program_items = program.body;
+
+                if program_items.is_empty() {
+                    panic!("Program main function should not be empty")
+                }
+
+                // add a MAIN marker. This marker will be used to indicate that the program is an executable
+                // remember Karis only supports executables, not libraries
+                wrk.add_main();
 
                 for item in program_items {
                     match item {
