@@ -61,7 +61,8 @@ pub enum OpCode {
     // acts as a seperator in some cases
     OpNull = -0x09,
 
-    OpConstant = 0x09,
+    OpMain = 0x09,
+    OpConstant,
     OpAdd,
     OpMinus,
     OpMultiply,
@@ -97,6 +98,8 @@ impl From<u8> for OpCode {
     fn from(value: u8) -> Self {
         if value == OpCode::OpTerminal as u8 {
             OpCode::OpTerminal
+        } else if value == OpCode::OpMain as u8 {
+            OpCode::OpMain
         } else if value == OpCode::OpConstant as u8 {
             OpCode::OpConstant
         } else if value == OpCode::OpAdd as u8 {
