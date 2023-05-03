@@ -135,6 +135,7 @@ impl Compiler for Node {
 
                 let wrk = worker.borrow();
                 let instructions = wrk.add_infix(OpCode::OpMinus, left.to_vec(), right.to_vec());
+                println!("MINUS Insts {:?}", instructions);
                 Some(vec![instructions])
             }
 
@@ -460,20 +461,35 @@ impl Compiler for Node {
 
                 let rhs = self.right_child.as_ref().unwrap();
 
+                let wrk = worker.borrow();
+
+                // we initialize the symbol table with the binding key. We do this so that we can
+                // handle recursive calls correctly
+                wrk.add_symbol(
+                    binding_key_as_bytes.clone(),
+                    vec![vec![OpCode::OpNull as u8]],
+                );
+
                 let insts = if let Some(instructions) =
                     left_or_right(rhs, worker.clone(), scope.clone(), scope_id)
                 {
-                    let wrk = worker.borrow();
+                    // update the instructions in the binding table
                     wrk.add_symbol(binding_key_as_bytes.clone(), instructions.clone());
+
+                    println!(
+                        "Binding key {:?}  : Instructions {:?} ",
+                        binding_key, instructions
+                    );
 
                     match rhs {
                         Left(_) => {
-                            wrk.add_variable_binding(
+                            let i = wrk.add_variable_binding(
                                 scope,
                                 scope_id,
                                 BindingType::Literal,
                                 binding_key_as_bytes,
                             );
+                            Some(vec![i])
                         }
                         Right(right) => {
                             let rght = right.as_ty_node().unwrap();
@@ -482,12 +498,13 @@ impl Compiler for Node {
                                 IdentifierKind::INTLITERAL
                                 | IdentifierKind::STRINGLITERAL
                                 | IdentifierKind::BOOLEANLITERAL => {
-                                    wrk.add_variable_binding(
+                                    let i = wrk.add_variable_binding(
                                         scope,
                                         scope_id,
                                         BindingType::Literal,
                                         binding_key_as_bytes,
                                     );
+                                    Some(vec![i])
                                 }
 
                                 IdentifierKind::PLUS
@@ -506,34 +523,32 @@ impl Compiler for Node {
                                 | IdentifierKind::LAND
                                 | IdentifierKind::LOR
                                 | IdentifierKind::MODULUS => {
-                                    wrk.add_variable_binding(
+                                    let i = wrk.add_variable_binding(
                                         scope,
                                         scope_id,
                                         BindingType::Expression,
                                         binding_key_as_bytes,
                                     );
+                                    Some(vec![i])
                                 }
 
                                 IdentifierKind::CALLER => {
-                                    wrk.add_variable_binding(
+                                    let i = wrk.add_variable_binding(
                                         scope,
                                         scope_id,
                                         BindingType::Caller,
                                         binding_key_as_bytes,
                                     );
+                                    Some(vec![i])
                                 }
 
                                 // for function we don't attach it to a binding instruction. In the event the funtion is called
                                 // at some point in the program, the caller binding will suffice. Otherwise it will be considered as
                                 // unused function
-                                IdentifierKind::FUNCTION => {}
-
-                                _ => unreachable!(""),
-                            };
+                                _ => None,
+                            }
                         }
-                    };
-
-                    Some(instructions)
+                    }
                 } else {
                     None
                 };
@@ -581,8 +596,8 @@ impl Compiler for Node {
                     if let Some(instructions) = function_or_caller_object_param_access_instructions(
                         &obj,
                         worker.clone(),
-                        SymbolScope::Global,
-                        wrk.global_scope_id(),
+                        SymbolScope::Local,
+                        scope_id,
                         OpCode::OpGetFunctionParameter,
                     ) {
                         function_instructions.push(instructions);
@@ -630,7 +645,7 @@ impl Compiler for Node {
 
                 let wrk = worker.borrow();
 
-                // we check that the function exists in global scope
+                // we check that the function exists in  scope
                 if let Some(_function_symbol) = wrk.get_symbol(func_name_as_bytes.clone()) {
                     let mut caller_instructions = Vec::new();
 
@@ -690,6 +705,8 @@ impl Compiler for Node {
                     let print_instructions =
                         wrk.instructions_for_builtin(scope, scope_id, binding_key_as_bytes);
 
+                    wrk.add_builtin_instructions(print_instructions.clone());
+
                     Some(vec![print_instructions])
                 } else {
                     None
@@ -698,7 +715,7 @@ impl Compiler for Node {
 
             IdentifierKind::MAIN => {
                 let wrk = worker.borrow();
-                let main_scope_id = wrk.generate_scope_id_from_scope(SymbolScope::Local);
+                let main_scope_id = wrk.generate_scope_id_from_scope(SymbolScope::Main);
                 let program = self
                     .block_children
                     .as_ref()
@@ -918,8 +935,6 @@ fn call_parameter_map(
                 for i in insts {
                     instructions.push(i);
                 }
-
-                instructions.push(OpCode::OpTerminal as u8);
 
                 caller_instructions.push(instructions);
             }

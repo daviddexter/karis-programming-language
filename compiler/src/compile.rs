@@ -78,23 +78,38 @@ impl CompileWorker {
             })
         });
 
-        if main_count == 1 {
-            let constants = self.constants.clone();
-            let constants = constants.as_ref().clone();
-            let constants = constants.into_inner();
+        // if main_count == 1 {
+        //     let constants = self.constants.clone();
+        //     let constants = constants.as_ref().clone();
+        //     let constants = constants.into_inner();
 
-            let symbols_table = self.symbols_table.clone();
-            let symbols_table = symbols_table.as_ref().clone();
-            let symbols_table = symbols_table.into_inner();
+        //     let symbols_table = self.symbols_table.clone();
+        //     let symbols_table = symbols_table.as_ref().clone();
+        //     let symbols_table = symbols_table.into_inner();
 
-            ByteCode {
-                instructions,
-                constants,
-                symbols_table,
-                global_scope_id,
-            }
-        } else {
-            panic!("Program main function not found in scope")
+        //     ByteCode {
+        //         instructions,
+        //         constants,
+        //         symbols_table,
+        //         global_scope_id,
+        //     }
+        // } else {
+        //     panic!("Program main function not found in scope")
+        // }
+
+        let constants = self.constants.clone();
+        let constants = constants.as_ref().clone();
+        let constants = constants.into_inner();
+
+        let symbols_table = self.symbols_table.clone();
+        let symbols_table = symbols_table.as_ref().clone();
+        let symbols_table = symbols_table.into_inner();
+
+        ByteCode {
+            instructions,
+            constants,
+            symbols_table,
+            global_scope_id,
         }
     }
 
@@ -372,27 +387,33 @@ impl CompileWorker {
         obj: CompileObject,
     ) -> Vec<u8> {
         let operand = self.append_to_constant_pool(obj);
-        let instructions =
-            self.emit_opcode_with_parameter(OpCode::OpConstant, scope, scope_id, operand);
-        self.add_instruction(Some(instructions.clone()), None);
-        instructions
+        // constant instructions should not be added to the instructions vector. The binding to this constant will set the appropriate
+        // instruction to access the constant literal
+        self.emit_opcode_with_parameter(OpCode::OpConstant, scope, scope_id, operand)
     }
 
+    // we pass the instruction `OpGetBinding`. Look at it from the VM's perspective. When a variable or an expression is needed it,
+    // must fetch it from somewhere, either the constant pool or symboltable
     pub fn add_variable_binding(
         &self,
         scope: SymbolScope,
         scope_id: [u8; 2],
         binding_type: BindingType,
         binding_name: Vec<u8>,
-    ) {
+    ) -> Vec<u8> {
         let insts = self.emit_opcode_for_binding(
-            OpCode::OpSetBinding,
+            OpCode::OpGetBinding,
             scope,
             scope_id,
             binding_type as u8,
             binding_name,
         );
 
+        self.add_instruction(Some(insts.clone()), None);
+        insts
+    }
+
+    pub fn add_builtin_instructions(&self, insts: Vec<u8>) {
         self.add_instruction(Some(insts), None);
     }
 
@@ -498,7 +519,7 @@ impl CompileWorker {
                 LittleEndian::write_u16(&mut scope_id, DEFAULT_SCOPE_ID.try_into().unwrap());
                 scope_id
             }
-            SymbolScope::Local => self.generate_scope_id(),
+            SymbolScope::Local | SymbolScope::Main => self.generate_scope_id(),
         }
     }
 
@@ -583,24 +604,28 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 3);
+        assert_eq!(byte_code.instructions.len(), 2);
         assert_eq!(byte_code.constants.len(), 1);
         let st = byte_code.symbols_table;
 
         assert_eq!(st.0.len(), 1);
     }
 
+    // this test shows that a literal must be first assigned to a variable before returning it.
+    // this is a language design decision to ensure that a value has occupied some space in memory before returning it
     #[test]
     fn should_compile2() {
         let lx = Lexer::new(String::from(
             "
             let num @int = fn() {
-                return 1;
+                let one @int = 1;
+                return one;
             };
 
-            @main fn(){
-                num();
+            @main fn (){
+                let num0 @int = num();
             }@end;
+
         ",
         ));
         let mut parser = Parser::new(lx);
@@ -608,10 +633,10 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 2);
+        assert_eq!(byte_code.instructions.len(), 3);
         assert_eq!(byte_code.constants.len(), 1);
         let st = byte_code.symbols_table;
-        assert_eq!(st.0.len(), 1);
+        assert_eq!(st.0.len(), 3);
     }
 
     #[test]
@@ -633,7 +658,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 4);
+        assert_eq!(byte_code.instructions.len(), 3);
         assert_eq!(byte_code.constants.len(), 2);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 3);
@@ -660,7 +685,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 3);
+        assert_eq!(byte_code.instructions.len(), 4);
         assert_eq!(byte_code.constants.len(), 2);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 4);
@@ -680,7 +705,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 3);
+        assert_eq!(byte_code.instructions.len(), 2);
         assert_eq!(byte_code.constants.len(), 1);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 1);
@@ -773,7 +798,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 7);
+        assert_eq!(byte_code.instructions.len(), 5);
         assert_eq!(byte_code.constants.len(), 5);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 6);
@@ -783,6 +808,18 @@ mod compile_tests {
     fn should_compile9() {
         let lx = Lexer::new(String::from(
             "
+            let multi_conditions @int = fn(x @int, y @int){
+                if x < 3 {
+                    let x1 @int = x + 5;
+                    let y @int = y + 10;
+                    return x1 + y;
+                }else x > y {
+                    return x - y;
+                } else {
+                    return x * y;
+                };
+            };
+
             @main fn(){
                 let val @int = multi_conditions(10, 20);
                 print(val);
@@ -794,9 +831,37 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 6);
+        assert_eq!(byte_code.instructions.len(), 5);
         assert_eq!(byte_code.constants.len(), 5);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 6);
+    }
+
+    #[test]
+    fn should_compile10() {
+        let lx = Lexer::new(String::from(
+            "
+            let downer @int = fn(n @int){
+                if n == 0 {
+                    return 0;
+                };
+                let n0 @int = n - 1;
+                return downer(n0);
+            };
+
+            @main fn(){
+                let result @int = downer(3);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_compile10.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+
+        assert_eq!(byte_code.instructions.len(), 3);
+        assert_eq!(byte_code.constants.len(), 4);
+        let st = byte_code.symbols_table;
+        assert_eq!(st.0.len(), 4);
     }
 }

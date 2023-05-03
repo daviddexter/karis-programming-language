@@ -3,3 +3,4 @@ pub mod compiler_impls;
 pub mod defs;
 pub mod objects;
 pub mod vm;
+pub mod vm_executor;

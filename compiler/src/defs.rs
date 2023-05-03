@@ -14,6 +14,8 @@ pub enum SymbolScope {
     Global = 0x00000000,
 
     Local,
+
+    Main,
 }
 
 #[derive(Default, Clone)]
@@ -69,7 +71,6 @@ pub enum OpCode {
     OpDivide,
     OpModulus,
 
-    OpSetBinding,
     OpGetBinding,
     OpFunctionDef,
     OpGetFunctionParameter,
@@ -114,8 +115,6 @@ impl From<u8> for OpCode {
             OpCode::OpModulus
         } else if value == OpCode::OpGetBinding as u8 {
             OpCode::OpGetBinding
-        } else if value == OpCode::OpSetBinding as u8 {
-            OpCode::OpSetBinding
         } else if value == OpCode::OpFunctionDef as u8 {
             OpCode::OpFunctionDef
         } else if value == OpCode::OpGetFunctionParameter as u8 {
