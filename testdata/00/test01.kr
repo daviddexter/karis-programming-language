@@ -2,11 +2,6 @@ let add @int = fn(x @int, y @int){
     return x + y;
 };
 
-@main fn(){
-    let x @int = 5;
-    let y @int = 7;
-    let result0 @int = add(x,y);
-
-    print(result0);
-    print(add(x,y));
-}@end;
+let x @int = 5;
+let y @int = 7;
+let sum @int = x + y;

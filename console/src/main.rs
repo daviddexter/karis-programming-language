@@ -249,6 +249,8 @@ struct EditorHelper {
 
 fn evaluate_from_input() -> Result<(), KarisError> {
     println!("{}", KARIS_INTERACTIVE_MESSAGE.cyan());
+    println!("use SHIFT+ENTER to add a new line");
+    println!("use SHIFT+UP to move up");
     println!("use SHIFT+DOWN to add a new line");
     println!(" ");
 
@@ -278,7 +280,16 @@ fn evaluate_from_input() -> Result<(), KarisError> {
         Cmd::Move(Movement::ForwardWord(1, At::AfterEnd, Word::Big)),
     );
 
-    editor.bind_sequence(KeyEvent(KeyCode::Down, Modifiers::SHIFT), Cmd::Newline);
+    editor.bind_sequence(KeyEvent(KeyCode::Enter, Modifiers::SHIFT), Cmd::Newline);
+
+    editor.bind_sequence(
+        KeyEvent(KeyCode::Up, Modifiers::SHIFT),
+        Cmd::Move(Movement::LineUp(1)),
+    );
+    editor.bind_sequence(
+        KeyEvent(KeyCode::Down, Modifiers::SHIFT),
+        Cmd::Move(Movement::LineUp(1)),
+    );
 
     let global_binding_resolver = hashbrown::HashMap::new();
     let resolver = Rc::new(RefCell::new(global_binding_resolver));
