@@ -1061,4 +1061,21 @@ mod parser_tests {
         assert_eq!(program.non_root, false);
         assert_eq!(program.body.len(), 1);
     }
+
+    #[test]
+    fn should_parse59() {
+        let lx = Lexer::new(String::from(
+            "
+        let add @int = fn(x @int, y @int){
+            return x + y;
+        };
+
+        let result @int = add(10,20);
+
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_parse59.json"));
+        assert!(res.is_ok());
+    }
 }
