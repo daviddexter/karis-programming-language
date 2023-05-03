@@ -78,19 +78,13 @@ impl Evaluator {
 
     pub fn repl_evaluate_program(&mut self, scope: Rc<RefCell<ScopeBindingResolver>>) {
         match self.parser.parse(Some("repl_evaluate_program.json")) {
-            Ok(program) => {
-                // if let Ok(EvaluationObject::ReturnValue(res)) = program.eval(scope, None) {
-                //     println!("{}", res)
-                // }
-
-                match program.eval(scope, None) {
-                    Ok(EvaluationObject::Integer(val)) => println!("{:?}", val),
-                    Ok(EvaluationObject::String(val)) => println!("{:?}", val),
-                    Ok(EvaluationObject::Boolean(val)) => println!("{:?}", val),
-                    Ok(_) => {}
-                    Err(_) => todo!(),
-                }
-            }
+            Ok(program) => match program.eval(scope, None) {
+                Ok(EvaluationObject::Integer(val)) => println!("{:?}", val),
+                Ok(EvaluationObject::String(val)) => println!("{:?}", val),
+                Ok(EvaluationObject::Boolean(val)) => println!("{:?}", val),
+                Ok(_) => {}
+                Err(_) => todo!(),
+            },
             Err(err) => println!("{}", err.to_string().red()),
         }
     }
@@ -764,8 +758,9 @@ impl Evaluate for Node {
 
                 Ok(EvaluationObject::Empty)
             }
+
             IdentifierKind::IF | IdentifierKind::ELSE => {
-                let condition_statement_result = Ok(EvaluationObject::AlternateCondition);
+                let condition_statement_result = Ok(EvaluationObject::Empty);
 
                 // clone the scope to create an new local binding resolver scope. If the body contains a variables with the same name,
                 // they will be overwritten (block scoped)
@@ -779,36 +774,37 @@ impl Evaluate for Node {
                     _ => false,
                 };
 
-                let program_func_worker = |program: Program| {
-                    let mut result = Ok(EvaluationObject::Empty);
+                let program_func_worker =
+                    |program: Program| -> Result<EvaluationObject, KarisError> {
+                        let mut result = Ok(EvaluationObject::Empty);
 
-                    let program_items = program.body;
-                    for item in program_items {
-                        match item {
-                            Objects::TyNode(node) => {
-                                let kind = node.identifier_kind.unwrap();
-                                match kind {
-                                    IdentifierKind::ASSIGN | IdentifierKind::PRINT => {
-                                        result = node.eval(
-                                            local_binding_resolver.clone(),
-                                            Some(local_binding_resolver.clone()), // points to the global binding scope
-                                        );
+                        let program_items = program.body;
+                        for item in program_items {
+                            match item {
+                                Objects::TyNode(node) => {
+                                    let kind = node.identifier_kind.unwrap();
+                                    match kind {
+                                        IdentifierKind::ASSIGN | IdentifierKind::PRINT => {
+                                            result = node.eval(
+                                                local_binding_resolver.clone(),
+                                                Some(local_binding_resolver.clone()), // points to the global binding scope
+                                            );
+                                        }
+                                        IdentifierKind::RETURN => {
+                                            result = node.eval(
+                                                local_binding_resolver.clone(),
+                                                Some(local_binding_resolver.clone()), // points to the global binding scope
+                                            );
+                                            break;
+                                        }
+                                        _ => {}
                                     }
-                                    IdentifierKind::RETURN => {
-                                        result = node.eval(
-                                            local_binding_resolver.clone(),
-                                            Some(local_binding_resolver.clone()), // points to the global binding scope
-                                        );
-                                        break;
-                                    }
-                                    _ => {}
                                 }
+                                _ => unreachable!(),
                             }
-                            _ => unreachable!(),
                         }
-                    }
-                    result
-                };
+                        result
+                    };
 
                 if condition {
                     let program = self
@@ -922,6 +918,231 @@ mod evaluator_tests {
     use lexer::lexer::Lexer;
 
     use super::*;
+
+    #[test]
+    fn should_evaluate_primitives_int() {
+        let lx = Lexer::new(String::from(
+            "
+        let num @int = 123;
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate_primitives_int.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_primitives_boolean() {
+        let lx = Lexer::new(String::from(
+            "
+        let verdict @bool = true;
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate_primitives_boolean.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_primitives_string() {
+        let lx = Lexer::new(String::from(
+            "
+        let name @string = \"Karis\";
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate_primitives_string.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_infix1() {
+        let lx = Lexer::new(String::from(
+            "
+        let vall @int = 1 + 3;
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate_infix1.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_infix2() {
+        let lx = Lexer::new(String::from(
+            "
+        let val @int = 1 - 3;
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate_infix2.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_infix3() {
+        let lx = Lexer::new(String::from(
+            "
+        let val @int = 4 * 2;
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate_infix3.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_infix4() {
+        let lx = Lexer::new(String::from(
+            "
+        let val @int = 4 / 2;
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate_infix4.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_infix5() {
+        let lx = Lexer::new(String::from(
+            "
+        let val @int = (10 / (2 * 3)) + 20;
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate_infix5.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_prefix1() {
+        let lx = Lexer::new(String::from(
+            "
+        let val @bool = !true;
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate_prefix1.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_function_return() {
+        let lx = Lexer::new(String::from(
+            "
+        let number @int = fn(){
+            return 10;
+        };
+
+        @main fn(){
+            let num @int = number();
+        }@end;
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate_function_return.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_print() {
+        let lx = Lexer::new(String::from(
+            "
+        print(10);
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate_print.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_print2() {
+        let lx = Lexer::new(String::from(
+            "
+        print(1 + 2);
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate_print2.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_evaluate_function_call0() {
+        let lx = Lexer::new(String::from(
+            "
+        let add_and_print @int = fn(x @int, y @int){
+            let sum @int =  x + y;
+            print(sum);
+        };
+
+        @main fn(){
+            let _ @unit = add_and_print(10,20);
+        }@end;
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate_function_call0.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+
+        assert!(res.is_ok());
+    }
 
     #[test]
     fn should_evaluate_function_call() {
