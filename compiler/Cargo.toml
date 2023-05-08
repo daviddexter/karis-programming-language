@@ -13,7 +13,7 @@ errors = { path = "../errors" }
 parser = { path = "../parser" }
 lexer = { path = "../lexer" }
 serde = { version = "1.0.140", features = ["serde_derive"] }
-borsh = "0.10.3"
+borsh =  { version = "0.10.3", features = ["std","rc"] }
 either = "1.6.1"
 hashbrown = "0.12.3"
 enum-as-inner = "0.5.1"

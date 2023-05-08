@@ -1078,4 +1078,12 @@ mod parser_tests {
         let res = parser.parse(Some("should_parse59.json"));
         assert!(res.is_ok());
     }
+
+    #[test]
+    fn should_parse_array() {
+        let lx = Lexer::new(String::from("let items [ @int ] = [ 1, 2, 3 ];"));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_parse_array.json"));
+        assert!(res.is_ok());
+    }
 }

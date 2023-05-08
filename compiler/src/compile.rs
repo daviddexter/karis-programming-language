@@ -78,38 +78,23 @@ impl CompileWorker {
             })
         });
 
-        // if main_count == 1 {
-        //     let constants = self.constants.clone();
-        //     let constants = constants.as_ref().clone();
-        //     let constants = constants.into_inner();
+        if main_count == 1 {
+            let constants = self.constants.clone();
+            let constants = constants.as_ref().clone();
+            let constants = constants.into_inner();
 
-        //     let symbols_table = self.symbols_table.clone();
-        //     let symbols_table = symbols_table.as_ref().clone();
-        //     let symbols_table = symbols_table.into_inner();
+            let symbols_table = self.symbols_table.clone();
+            let symbols_table = symbols_table.as_ref().clone();
+            let symbols_table = symbols_table.into_inner();
 
-        //     ByteCode {
-        //         instructions,
-        //         constants,
-        //         symbols_table,
-        //         global_scope_id,
-        //     }
-        // } else {
-        //     panic!("Program main function not found in scope")
-        // }
-
-        let constants = self.constants.clone();
-        let constants = constants.as_ref().clone();
-        let constants = constants.into_inner();
-
-        let symbols_table = self.symbols_table.clone();
-        let symbols_table = symbols_table.as_ref().clone();
-        let symbols_table = symbols_table.into_inner();
-
-        ByteCode {
-            instructions,
-            constants,
-            symbols_table,
-            global_scope_id,
+            ByteCode {
+                instructions,
+                constants,
+                symbols_table,
+                global_scope_id,
+            }
+        } else {
+            panic!("Program main function not found in scope")
         }
     }
 
@@ -247,6 +232,9 @@ impl CompileWorker {
         // add terminal
         instructions.push(OpCode::OpTerminal as u8);
 
+        println!("Print before binding name: {:?}", instructions);
+        println!("the binding name: {:?}", binding_name);
+
         // add binding_name
         for u in binding_name.iter() {
             instructions.push(*u);
@@ -254,6 +242,8 @@ impl CompileWorker {
 
         // add tail terminal
         instructions.push(OpCode::OpTerminal as u8);
+
+        println!("Print after binding name: {:?}", instructions);
 
         instructions
     }
@@ -863,5 +853,26 @@ mod compile_tests {
         assert_eq!(byte_code.constants.len(), 4);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 4);
+    }
+
+    #[test]
+    fn should_compile11() {
+        let lx = Lexer::new(String::from(
+            "
+            @main fn(){
+                let items [ @int ] = [ 1, 2, 3 ];
+                print(items);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_compile11.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+
+        assert_eq!(byte_code.instructions.len(), 3);
+        assert_eq!(byte_code.constants.len(), 3);
+        let st = byte_code.symbols_table;
+        assert_eq!(st.0.len(), 2);
     }
 }

@@ -27,8 +27,6 @@ impl VM {
             | OpCode::OpMultiply
             | OpCode::OpDivide
             | OpCode::OpModulus => {
-                println!("infix instructions {:?}", instruction);
-
                 let instructions = instruction.get(2..instruction.len()).unwrap();
 
                 let separator = instructions
@@ -55,6 +53,7 @@ impl VM {
                                 CompileObject::Interger(_)
                                 | CompileObject::String(_)
                                 | CompileObject::Boolean(_)
+                                | CompileObject::Array(_)
                                 | CompileObject::Null => false,
                             }
                         })
@@ -76,6 +75,7 @@ impl VM {
                                 CompileObject::Interger(_)
                                 | CompileObject::String(_)
                                 | CompileObject::Boolean(_)
+                                | CompileObject::Array(_)
                                 | CompileObject::Null => false,
                             }
                         })
@@ -247,6 +247,17 @@ impl VM {
 
                         expression_result
                     }
+
+                    BindingType::Array => {
+                        let binding_name = instruction.get(7..instruction.len() - 1).unwrap();
+
+                        // get the array to execute from symbols table
+                        let array_symbol =
+                            self.byte_code.symbols_table.0.get(binding_name).unwrap();
+                        let array_instructions = &array_symbol.0;
+
+                        Ok(CompileObject::Array(array_instructions.clone()))
+                    }
                 }
             }
 
@@ -275,6 +286,8 @@ impl VM {
             }
 
             OpCode::OpAddBuiltin => {
+                println!("Add builtin {:?}", instruction);
+
                 let symbol_key = instruction.get(5..instruction.len() - 1).unwrap();
 
                 if let Some(symbol) = self.byte_code.symbols_table.0.get(symbol_key) {
@@ -305,12 +318,13 @@ impl VM {
                     }
                     CallerParamType::Variable => {
                         // TODO: revisit this
+
                         let binding_name = instruction.get(7..instruction.len()).unwrap();
                         if let Some(binding_name) = self.byte_code.symbols_table.0.get(binding_name)
                         {
                             let instructions = &binding_name.0;
                             let instructions = instructions.get(0).unwrap();
-                            println!(" variable obj {:?}", instructions);
+                            println!("{:?}", instructions);
                         }
                     }
                 };
@@ -349,8 +363,7 @@ impl VM {
                         | OpCode::OpAND
                         | OpCode::OpOR
                         | OpCode::OpLAND
-                        | OpCode::OpLOR
-                        | OpCode::OpBang => match self.executor(instructions, params.clone()) {
+                        | OpCode::OpLOR => match self.executor(instructions, params.clone()) {
                             Ok(val) => {
                                 let verdict = val.as_boolean().unwrap();
                                 if *verdict {
@@ -440,6 +453,7 @@ impl VM {
                                         CompileObject::Interger(_)
                                         | CompileObject::String(_)
                                         | CompileObject::Boolean(_)
+                                        | CompileObject::Array(_)
                                         | CompileObject::Null => false,
                                     }
                                 })
@@ -727,7 +741,8 @@ impl VM {
                 Ok(CompileObject::Boolean(result))
             }
 
-            OpCode::OpBang => todo!("implement for todo"),
+            // FIXME:
+            OpCode::OpBang => panic!(""),
 
             OpCode::OpNull
             | OpCode::OpMain

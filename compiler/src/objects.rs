@@ -8,12 +8,14 @@ pub const BOOLEAN_OBJECT_TYPE: &str = "B";
 pub const VARIABLE_OBJECT_TYPE: &str = "V";
 pub const NULL_OBJECT_TYPE: &str = "N";
 
-#[derive(Debug, Clone, Serialize, Deserialize, BorshDeserialize, BorshSerialize, EnumAsInner)]
+// BorshDeserialize, BorshSerialize,
+#[derive(Debug, Clone, Serialize, Deserialize, EnumAsInner, BorshDeserialize, BorshSerialize)]
 pub enum CompileObject {
     Interger(isize),
     String(String),
     Boolean(bool),
     Variable(Vec<u8>),
+    Array(Vec<Vec<u8>>),
     Null,
 }
 
@@ -25,6 +27,7 @@ impl CompileObject {
             CompileObject::Boolean(_) => BOOLEAN_OBJECT_TYPE,
             CompileObject::Variable(_) => VARIABLE_OBJECT_TYPE,
             CompileObject::Null => "N",
+            CompileObject::Array(_) => todo!(),
         }
     }
 }
