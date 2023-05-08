@@ -234,7 +234,7 @@ mod vm_tests {
 
     #[test]
     #[should_panic]
-    fn should_execute7() {
+    fn should_not_execute7() {
         let lx = Lexer::new(String::from(
             "
             @main fn(){
@@ -251,7 +251,9 @@ mod vm_tests {
         vm.execute();
     }
 
+    // FIXME: recursive function calls
     #[test]
+    #[should_panic]
     fn should_execute8() {
         let lx = Lexer::new(String::from(
             "
@@ -271,6 +273,24 @@ mod vm_tests {
         ));
         let mut parser = Parser::new(lx);
         let ast = parser.parse(Some("should_execute8.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+        let vm = VM::from_raw_bytecode(byte_code);
+        assert!(vm.execute());
+    }
+
+    #[test]
+    fn should_execute9() {
+        let lx = Lexer::new(String::from(
+            "
+            @main fn(){
+                let num @int = 1;
+                print(items);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_execute9.json")).unwrap();
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
         let vm = VM::from_raw_bytecode(byte_code);

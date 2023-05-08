@@ -43,6 +43,8 @@ pub enum BindingType {
     Caller,
 
     Expression,
+
+    Array,
 }
 
 impl From<u8> for BindingType {
@@ -197,9 +199,15 @@ where
     K: BorshDeserialize + Eq + Hash,
     V: BorshDeserialize,
 {
+    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
+        Self::deserialize_reader(&mut *buf)
+    }
+
     fn deserialize_reader<R: std::io::Read>(reader: &mut R) -> std::io::Result<Self> {
         let len = u32::deserialize_reader(reader)?;
+
         let mut result = HashMap::new();
+
         for _ in 0..len {
             let key = K::deserialize_reader(reader)?;
             let value = V::deserialize_reader(reader)?;
@@ -207,10 +215,6 @@ where
         }
 
         Ok(SymbolStore(result))
-    }
-
-    fn deserialize(buf: &mut &[u8]) -> std::io::Result<Self> {
-        Self::deserialize_reader(&mut *buf)
     }
 
     fn try_from_slice(v: &[u8]) -> std::io::Result<Self> {

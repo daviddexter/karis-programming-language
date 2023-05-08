@@ -113,7 +113,6 @@ impl TokenRegistry {
             .collect::<Vec<&Token>>();
 
         let mut array_items: Vec<Objects> = Vec::new();
-        let tok = &tok;
 
         for item in items.iter() {
             let item = *item;

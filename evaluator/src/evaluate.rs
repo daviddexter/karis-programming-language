@@ -1223,29 +1223,31 @@ mod evaluator_tests {
     }
 
     #[test]
-    fn should_evaluate_function_with_multi_conditions() {
+    fn should_evaluate_function_with_multi_conditions0() {
         let lx = Lexer::new(String::from(
             "
-        let minmax_or_product @int = fn(x @int, y @int){
+            let minmax_or_product @unit = fn(x @int, y @int){
                 if x < y{
-                   return x + y;
-                }else x == y {
-                    return x - y;
+                    let sum @int =  x + y;
+                    print(sum);
+                }else x > y {
+                    let diff @int = x - y;
+                    print(diff);
                 } else {
-                    return x * y;
+                    let prod @int =  x * y;
+                    print(prod);
                 };
-        };
+            };
 
         @main fn(){
-            let result0 @int = minmax_or_product(5,10);
-            print(result0);
+            let _ @unit = minmax_or_product(20,10);
         }@end;
         ",
         ));
 
         let global_binding_resolver = hashbrown::HashMap::new();
         let mut parser = Parser::new(lx);
-        let res = parser.parse(Some("should_evaluate3.json"));
+        let res = parser.parse(Some("should_evaluate_function_with_multi_conditions0.json"));
         let mut evaluator = Evaluator::new(parser);
         evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
 
@@ -1303,7 +1305,7 @@ mod evaluator_tests {
 
         let global_binding_resolver = hashbrown::HashMap::new();
         let mut parser = Parser::new(lx);
-        let res = parser.parse(Some("should_evaluate4.json"));
+        let res = parser.parse(Some("should_evaluate_function_with_multi_conditions2.json"));
         let mut evaluator = Evaluator::new(parser);
         evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
 
@@ -1321,7 +1323,7 @@ mod evaluator_tests {
 
         let global_binding_resolver = hashbrown::HashMap::new();
         let mut parser = Parser::new(lx);
-        let res = parser.parse(Some("should_evaluate5.json"));
+        let res = parser.parse(Some("should_evaluate_array.json"));
         let mut evaluator = Evaluator::new(parser);
         evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
 

@@ -340,6 +340,23 @@ impl Compiler for Node {
                 Some(vec![instructions])
             }
 
+            IdentifierKind::ARRAY => {
+                let mut array_items_instructions = Vec::new();
+                let array_items = self.block_children.as_ref().unwrap();
+
+                for item in array_items.iter() {
+                    let item: Either<LiteralObjects, Box<Objects>> = Right(Box::new(item.clone()));
+                    let item_as_instruction =
+                        left_or_right(&item, worker.clone(), scope.clone(), scope_id).unwrap();
+                    // since we are sure array items will only be literals, we pick the first from the instructions vector
+                    let item_as_instruction = item_as_instruction.first().unwrap();
+                    let item_as_instruction = item_as_instruction.clone();
+                    array_items_instructions.push(item_as_instruction);
+                }
+
+                Some(array_items_instructions)
+            }
+
             IdentifierKind::IF => {
                 let condition_binding_key = random_string_id();
                 let condition_binding_key_as_bytes = condition_binding_key.as_bytes().to_vec();
@@ -474,12 +491,7 @@ impl Compiler for Node {
                     left_or_right(rhs, worker.clone(), scope.clone(), scope_id)
                 {
                     // update the instructions in the binding table
-                    wrk.add_symbol(binding_key_as_bytes.clone(), instructions.clone());
-
-                    println!(
-                        "Binding key {:?}  : Instructions {:?} ",
-                        binding_key, instructions
-                    );
+                    wrk.add_symbol(binding_key_as_bytes.clone(), instructions);
 
                     match rhs {
                         Left(_) => {
@@ -497,7 +509,8 @@ impl Compiler for Node {
                             match kind {
                                 IdentifierKind::INTLITERAL
                                 | IdentifierKind::STRINGLITERAL
-                                | IdentifierKind::BOOLEANLITERAL => {
+                                | IdentifierKind::BOOLEANLITERAL
+                                | IdentifierKind::ARRAY => {
                                     let i = wrk.add_variable_binding(
                                         scope,
                                         scope_id,
@@ -748,9 +761,7 @@ impl Compiler for Node {
                 None
             }
 
-            _ => {
-                todo!("implement for {:?}", kind)
-            }
+            _ => None,
         }
     }
 }
