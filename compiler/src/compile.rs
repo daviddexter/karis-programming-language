@@ -232,9 +232,6 @@ impl CompileWorker {
         // add terminal
         instructions.push(OpCode::OpTerminal as u8);
 
-        println!("Print before binding name: {:?}", instructions);
-        println!("the binding name: {:?}", binding_name);
-
         // add binding_name
         for u in binding_name.iter() {
             instructions.push(*u);
@@ -242,8 +239,6 @@ impl CompileWorker {
 
         // add tail terminal
         instructions.push(OpCode::OpTerminal as u8);
-
-        println!("Print after binding name: {:?}", instructions);
 
         instructions
     }

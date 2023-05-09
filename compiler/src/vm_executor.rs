@@ -1,4 +1,5 @@
 use crate::vm::VM;
+use debug_print::debug_println;
 use errors::errors::{KarisError, KarisErrorType};
 use itertools::Itertools;
 use std::iter::zip;
@@ -112,6 +113,7 @@ impl VM {
                         // get the literal from symbols table
                         let literal_symbol =
                             self.byte_code.symbols_table.0.get(binding_name).unwrap();
+
                         let literal_instructions = &literal_symbol.0;
                         let literal_instructions = literal_instructions.get(0).unwrap();
 
@@ -286,7 +288,7 @@ impl VM {
             }
 
             OpCode::OpAddBuiltin => {
-                println!("Add builtin {:?}", instruction);
+                debug_println!("Add builtin {:?}", instruction);
 
                 let symbol_key = instruction.get(5..instruction.len() - 1).unwrap();
 
@@ -323,8 +325,8 @@ impl VM {
                         if let Some(binding_name) = self.byte_code.symbols_table.0.get(binding_name)
                         {
                             let instructions = &binding_name.0;
-                            let instructions = instructions.get(0).unwrap();
-                            println!("{:?}", instructions);
+                            let _instructions = instructions.get(0).unwrap();
+                            debug_println!("{:?}", _instructions);
                         }
                     }
                 };
