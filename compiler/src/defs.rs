@@ -36,29 +36,6 @@ impl From<u8> for CallerParamType {
     }
 }
 
-#[derive(Clone)]
-pub enum BindingType {
-    Literal = 0x004,
-
-    Caller,
-
-    Expression,
-
-    Array,
-}
-
-impl From<u8> for BindingType {
-    fn from(value: u8) -> Self {
-        if value == BindingType::Caller as u8 {
-            BindingType::Caller
-        } else if value == BindingType::Expression as u8 {
-            BindingType::Expression
-        } else {
-            BindingType::Literal
-        }
-    }
-}
-
 #[derive(Debug, Clone, PartialEq, PartialOrd)]
 pub enum OpCode {
     OpTerminal = -0x08,
@@ -73,12 +50,12 @@ pub enum OpCode {
     OpDivide,
     OpModulus,
 
-    OpGetBinding,
     OpFunctionDef,
     OpGetFunctionParameter,
     OpReturn,
-    OpCallerDef,
+    OpFunctionCaller,
     OpGetCallerParameter,
+    OpGetBinding,
     OpAddBuiltin,
     OpPrint,
     OpAddIfCondition,
@@ -95,6 +72,7 @@ pub enum OpCode {
     OpBang,
     OpJumpTo,
     OpJumpToAlternate,
+    OpArray,
 }
 
 impl From<u8> for OpCode {
@@ -115,18 +93,18 @@ impl From<u8> for OpCode {
             OpCode::OpDivide
         } else if value == OpCode::OpModulus as u8 {
             OpCode::OpModulus
-        } else if value == OpCode::OpGetBinding as u8 {
-            OpCode::OpGetBinding
         } else if value == OpCode::OpFunctionDef as u8 {
             OpCode::OpFunctionDef
         } else if value == OpCode::OpGetFunctionParameter as u8 {
             OpCode::OpGetFunctionParameter
         } else if value == OpCode::OpReturn as u8 {
             OpCode::OpReturn
-        } else if value == OpCode::OpCallerDef as u8 {
-            OpCode::OpCallerDef
+        } else if value == OpCode::OpFunctionCaller as u8 {
+            OpCode::OpFunctionCaller
         } else if value == OpCode::OpGetCallerParameter as u8 {
             OpCode::OpGetCallerParameter
+        } else if value == OpCode::OpGetBinding as u8 {
+            OpCode::OpGetBinding
         } else if value == OpCode::OpAddBuiltin as u8 {
             OpCode::OpAddBuiltin
         } else if value == OpCode::OpPrint as u8 {
@@ -159,6 +137,8 @@ impl From<u8> for OpCode {
             OpCode::OpJumpTo
         } else if value == OpCode::OpJumpToAlternate as u8 {
             OpCode::OpJumpToAlternate
+        } else if value == OpCode::OpArray as u8 {
+            OpCode::OpArray
         } else {
             OpCode::OpNull
         }

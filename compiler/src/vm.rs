@@ -27,7 +27,9 @@ impl VM {
         let instructions = &self.byte_code.instructions;
 
         for instruction in instructions.iter() {
-            match self.executor(instruction, None) {
+            let instruction = instruction.clone();
+            let instruction = vec![instruction];
+            match self.executor(&instruction, None) {
                 Ok(_) => continue,
                 Err(err) => {
                     eprintln!("{}", err);
@@ -61,6 +63,7 @@ mod vm_tests {
             @main fn(){
                 let ten @int = 10;
                 let sum @int = summation(ten,20);
+                print(sum);
             }@end;
         ",
         ));
@@ -205,6 +208,52 @@ mod vm_tests {
     }
 
     #[test]
+    fn should_execute_logical1() {
+        let lx = Lexer::new(String::from(
+            "
+            let greater @bool = fn(x @int, y @int){
+                return x > y;
+            };
+
+            @main fn(){
+                let a @int = 10;
+                let verdict @bool = greater(20,10);
+                print(verdict);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_execute_logical1.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+        let vm = VM::from_raw_bytecode(byte_code);
+        assert!(vm.execute());
+    }
+
+    #[test]
+    fn should_execute_logical2() {
+        let lx = Lexer::new(String::from(
+            "
+            let less @bool = fn(x @int, y @int){
+                return x < y;
+            };
+
+            @main fn(){
+                let a @int = 10;
+                let verdict @bool = less(a,20);
+                print(verdict);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_execute_logical2.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+        let vm = VM::from_raw_bytecode(byte_code);
+        assert!(vm.execute());
+    }
+
+    #[test]
     fn should_execute6() {
         let lx = Lexer::new(String::from(
             "
@@ -259,17 +308,16 @@ mod vm_tests {
     fn should_execute8() {
         let lx = Lexer::new(String::from(
             "
-            let downer @int = fn(n @int){
-                if n == 0 {
-                    return 0;
+            let factorial @int = fn(n @int){
+                if n == 1 {
+                    return 1;
                 };
-
-                let n0 @int = n - 1;
-                return downer(n0);
+                return n * factorial(n - 1);
             };
 
             @main fn(){
-                let result @int = downer(3);
+                let result @int = factorial(3);
+                print(result);
             }@end;
         ",
         ));
@@ -329,6 +377,24 @@ mod vm_tests {
         ));
         let mut parser = Parser::new(lx);
         let ast = parser.parse(Some("should_execute12.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+        let vm = VM::from_raw_bytecode(byte_code);
+        assert!(vm.execute());
+    }
+
+    #[test]
+    fn should_execute13() {
+        let lx = Lexer::new(String::from(
+            "
+            @main fn(){
+                let sum @int = 10 + 20;
+                print(sum);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_execute13.json")).unwrap();
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
         let vm = VM::from_raw_bytecode(byte_code);

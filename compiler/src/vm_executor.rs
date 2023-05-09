@@ -1,21 +1,22 @@
-use crate::vm::VM;
+use crate::{objects::ArrayObject, vm::VM};
 use debug_print::debug_println;
 use errors::errors::{KarisError, KarisErrorType};
 use itertools::Itertools;
 use std::iter::zip;
 
 use crate::{
-    defs::{BindingType, CallerParamType, OpCode},
+    defs::{CallerParamType, OpCode},
     objects::{CompileObject, BOOLEAN_OBJECT_TYPE, INTERGER_OBJECT_TYPE, STRING_OBJECT_TYPE},
 };
 
 impl VM {
     pub(crate) fn executor(
         &self,
-        instruction: &Vec<u8>,
+        instruction: &Vec<Vec<u8>>,
         params: Option<Vec<(CompileObject, CompileObject)>>,
     ) -> Result<CompileObject, errors::errors::KarisError> {
         let command = instruction.first().unwrap();
+        let command = command.first().unwrap();
         let command = *command;
 
         let command: OpCode = command.into();
@@ -28,7 +29,8 @@ impl VM {
             | OpCode::OpMultiply
             | OpCode::OpDivide
             | OpCode::OpModulus => {
-                let instructions = instruction.get(2..instruction.len()).unwrap();
+                let op_instruction = instruction.first().unwrap();
+                let instructions = op_instruction.get(2..op_instruction.len()).unwrap();
 
                 let separator = instructions
                     .iter()
@@ -36,251 +38,113 @@ impl VM {
                     .unwrap();
                 let seperator_index = separator.0;
 
-                let left = instructions.get(0..seperator_index).unwrap();
+                let left = instructions.get(0..seperator_index).unwrap().to_vec();
+                let left = vec![left];
+
                 let right = instructions
                     .get(seperator_index + 1..instructions.len())
-                    .unwrap();
+                    .unwrap()
+                    .to_vec();
+                let right = vec![right];
 
-                if let Some(caller_params) = params {
-                    let lhs_index = caller_params
-                        .iter()
-                        .position(|cp| {
-                            let obj = &cp.0;
-                            match obj {
-                                CompileObject::Variable(var) => {
-                                    let left_binding = left.get(5..left.len() - 1).unwrap();
-                                    var == left_binding
-                                }
-                                CompileObject::Interger(_)
-                                | CompileObject::String(_)
-                                | CompileObject::Boolean(_)
-                                | CompileObject::Array(_)
-                                | CompileObject::Null => false,
-                            }
-                        })
-                        .unwrap();
+                debug_println!("Left: {:?}", left);
+                debug_println!("Right: {:?}", right);
 
-                    let lhs_value = caller_params.get(lhs_index).unwrap();
-                    let lhs_value = &lhs_value.1;
-                    let lhs_value = lhs_value.as_interger().unwrap();
-
-                    let rhs_index = caller_params
-                        .iter()
-                        .position(|cp| {
-                            let obj = &cp.0;
-                            match obj {
-                                CompileObject::Variable(var) => {
-                                    let right_binding = right.get(5..left.len() - 1).unwrap();
-                                    var == right_binding
-                                }
-                                CompileObject::Interger(_)
-                                | CompileObject::String(_)
-                                | CompileObject::Boolean(_)
-                                | CompileObject::Array(_)
-                                | CompileObject::Null => false,
-                            }
-                        })
-                        .unwrap();
-
-                    let rhs_value = caller_params.get(rhs_index).unwrap();
-                    let rhs_value = &rhs_value.1;
-                    let rhs_value = rhs_value.as_interger().unwrap();
-
-                    let result = match command {
-                        OpCode::OpAdd => lhs_value + rhs_value,
-                        OpCode::OpMinus => lhs_value - rhs_value,
-                        OpCode::OpMultiply => lhs_value * rhs_value,
-                        OpCode::OpDivide => lhs_value / rhs_value,
-                        OpCode::OpModulus => lhs_value % rhs_value,
+                let left_value = match self.executor(&left, params.clone()) {
+                    Ok(obj) => match obj {
+                        CompileObject::Interger(number) => number,
                         _ => 0_isize,
-                    };
+                    },
+                    Err(_) => 0_isize,
+                };
 
-                    Ok(CompileObject::Interger(result))
-                } else {
-                    Ok(CompileObject::Interger(0))
-                }
+                let right_value = match self.executor(&right, params.clone()) {
+                    Ok(obj) => match obj {
+                        CompileObject::Interger(number) => number,
+                        _ => 0_isize,
+                    },
+                    Err(_) => 0_isize,
+                };
+
+                let result = match command {
+                    OpCode::OpAdd => left_value + right_value,
+                    OpCode::OpMinus => left_value - right_value,
+                    OpCode::OpMultiply => left_value * right_value,
+                    OpCode::OpDivide => left_value / right_value,
+                    OpCode::OpModulus => left_value % right_value,
+                    _ => 0_isize,
+                };
+
+                Ok(CompileObject::Interger(result))
             }
 
             OpCode::OpGetBinding => {
-                let binding_type = instruction.get(5).unwrap();
-                let binding_value = *binding_type;
-                let binding_type: BindingType = binding_value.into();
+                debug_println!("get binding {:?}", instruction);
 
-                match binding_type {
-                    BindingType::Literal => {
-                        let binding_name = instruction.get(7..instruction.len() - 1).unwrap();
+                let op_instruction = instruction.first().unwrap();
+                let binding_name = op_instruction
+                    .get(5..op_instruction.len())
+                    .unwrap()
+                    .to_vec();
 
-                        // get the literal from symbols table
-                        let literal_symbol =
-                            self.byte_code.symbols_table.0.get(binding_name).unwrap();
+                let binding_name = binding_name
+                    .iter()
+                    .filter(|elem| **elem != OpCode::OpTerminal as u8)
+                    .copied()
+                    .collect::<Vec<u8>>();
 
-                        let literal_instructions = &literal_symbol.0;
-                        let literal_instructions = literal_instructions.get(0).unwrap();
+                debug_println!("binding name {:?}", binding_name);
 
-                        let constant_address = literal_instructions.get(5).unwrap();
-
-                        let constant_address = *constant_address as usize;
-
-                        let constant_object =
-                            self.byte_code.constants.get(constant_address).unwrap();
-                        Ok(constant_object.clone())
-                    }
-
-                    BindingType::Caller => {
-                        let binding_name = instruction.get(7..instruction.len() - 1).unwrap();
-
-                        // get the function to execute from symbols table
-                        let caller_symbol =
-                            self.byte_code.symbols_table.0.get(binding_name).unwrap();
-                        let caller_instructions = &caller_symbol.0;
-
-                        let caller_function = caller_instructions.get(0).unwrap();
-
-                        let caller_parameters =
-                            caller_instructions.get(1..caller_instructions.len());
-                        let caller_parameters = caller_parameters.unwrap();
-
-                        let caller_function_name =
-                            caller_function.get(5..caller_function.len() - 1).unwrap();
-
-                        let function_definition = self
-                            .byte_code
-                            .symbols_table
-                            .0
-                            .get(caller_function_name)
-                            .unwrap();
-                        let function_definition_instructions = &function_definition.0;
-
-                        // retrieve function parameters
-                        let separator = function_definition_instructions
-                            .iter()
-                            .find_position(|v| v[0] == OpCode::OpNull as u8)
-                            .unwrap();
-                        let seperator_index = separator.0;
-
-                        let empty_things = Vec::new();
-                        let function_parameters =
-                            match function_definition_instructions.get(0..seperator_index) {
-                                Some(p) => p,
-                                None => &empty_things,
-                            };
-
-                        let caller_parameters: Vec<CompileObject> = caller_parameters
-                            .iter()
-                            .map(|param| {
-                                let param_type = param.get(5).unwrap();
-                                let param_type = CallerParamType::from(*param_type);
-                                match param_type {
-                                    CallerParamType::Literal => {
-                                        let param_location = param.get(7).unwrap();
-                                        let param_location = *param_location as usize;
-                                        let param_object_value =
-                                            self.byte_code.constants.get(param_location).unwrap();
-                                        param_object_value.clone()
-                                    }
-                                    CallerParamType::Variable => {
-                                        let param_instructions =
-                                            param.get(7..param.len() - 1).unwrap();
-                                        let param_instructions = param_instructions.to_vec();
-                                        if let Ok(obj) =
-                                            self.executor(&param_instructions, params.clone())
-                                        {
-                                            obj
-                                        } else {
-                                            CompileObject::Null
-                                        }
-                                    }
-                                }
-                            })
-                            .collect();
-
-                        let function_def_parameters: Vec<CompileObject> = function_parameters
-                            .iter()
-                            .map(|param| {
-                                let binding_name = param.get(5..param.len() - 1).unwrap();
-                                CompileObject::Variable(binding_name.to_vec())
-                            })
-                            .collect();
-
-                        let mut params = Vec::new();
-                        for param in zip(function_def_parameters, caller_parameters) {
-                            params.push(param);
+                let binding_value =
+                    // fetch the binding from symbol table. If not present, fetch from params
+                    if let Some(symbol) = self.byte_code.symbols_table.0.get(&binding_name) {
+                        let symbol = &symbol.0;
+                        if let Ok(obj) = self.executor(symbol, params) {
+                            obj
+                        } else {
+                            CompileObject::Null
                         }
+                    } else if let Some(parameters) = params   {
+                            let parameter = parameters.iter().filter(|elem| {
+                                    let name_binding = elem.0.as_variable().unwrap();
+                                    let name_binding = name_binding.clone();
+                                    name_binding == binding_name
+                                }).collect::<Vec<&(CompileObject,CompileObject)>>();
 
-                        // retrieve function block items
-                        let block_items = match function_definition_instructions
-                            .get(seperator_index..function_definition_instructions.len())
-                        {
-                            Some(p) => p,
-                            None => &empty_things, // the likelihood of this is zero
-                        };
+                            let parameter = parameter.first().unwrap();
+                            parameter.1.clone()
+                    }else{
+                            CompileObject::Null
+                    };
 
-                        let mut caller_result = Ok(CompileObject::Null);
-
-                        for item in block_items.iter() {
-                            let code = item.first().unwrap();
-                            match OpCode::from(*code) {
-                                OpCode::OpReturn => {
-                                    caller_result = self.executor(item, Some(params.clone()));
-                                    break;
-                                }
-                                OpCode::OpNull => {}
-                                _ => {
-                                    caller_result = self.executor(item, Some(params.clone()));
-                                }
-                            }
-                        }
-
-                        caller_result
-                    }
-
-                    BindingType::Expression => {
-                        let binding_name = instruction.get(7..instruction.len() - 1).unwrap();
-
-                        // get the function to execute from symbols table
-                        let expression_symbol =
-                            self.byte_code.symbols_table.0.get(binding_name).unwrap();
-                        let expression_instructions = &expression_symbol.0;
-
-                        let mut expression_result = Ok(CompileObject::Null);
-                        for item in expression_instructions.iter() {
-                            expression_result = self.executor(item, params.clone());
-                        }
-
-                        expression_result
-                    }
-
-                    BindingType::Array => {
-                        let binding_name = instruction.get(7..instruction.len() - 1).unwrap();
-
-                        // get the array to execute from symbols table
-                        let array_symbol =
-                            self.byte_code.symbols_table.0.get(binding_name).unwrap();
-                        let array_instructions = &array_symbol.0;
-
-                        Ok(CompileObject::Array(array_instructions.clone()))
-                    }
-                }
+                debug_println!("binding value {:?}", binding_value);
+                Ok(binding_value)
             }
 
             OpCode::OpReturn => {
-                let return_instructions = instruction.get(5..instruction.len() - 1).unwrap();
+                let op_instruction = instruction.first().unwrap();
+                let return_instructions = op_instruction.get(5..op_instruction.len() - 1).unwrap();
                 let return_instructions = return_instructions.to_vec();
+                let return_instructions = vec![return_instructions];
                 self.executor(&return_instructions, params)
             }
 
             OpCode::OpGetCallerParameter => {
-                let binding_name = instruction.get(5..instruction.len()).unwrap();
+                let op_instruction = instruction.first().unwrap();
+                let binding_name = op_instruction.get(5..op_instruction.len()).unwrap();
 
                 // get the binding value from symbols table
                 let binding_symbol = self.byte_code.symbols_table.0.get(binding_name).unwrap();
                 let binding_instructions = &binding_symbol.0;
                 let binding_instructions = binding_instructions.get(0).unwrap();
-                self.executor(binding_instructions, params)
+                let binding_instructions = binding_instructions.clone();
+                let binding_instructions = vec![binding_instructions];
+                self.executor(&binding_instructions, params)
             }
 
             OpCode::OpConstant => {
-                let location = instruction.get(5).unwrap();
+                let op_instruction = instruction.first().unwrap();
+                let location = op_instruction.get(5).unwrap();
                 let location = *location as usize;
                 let obj = self.byte_code.constants.get(location).unwrap();
                 let obj = obj.clone();
@@ -288,26 +152,84 @@ impl VM {
             }
 
             OpCode::OpAddBuiltin => {
-                debug_println!("Add builtin {:?}", instruction);
+                let op_instruction = instruction.first().unwrap();
 
-                let symbol_key = instruction.get(5..instruction.len() - 1).unwrap();
+                let symbol_key = op_instruction.get(5..op_instruction.len() - 1).unwrap();
 
                 if let Some(symbol) = self.byte_code.symbols_table.0.get(symbol_key) {
                     let instructions = &symbol.0;
                     let instructions = instructions.get(0).unwrap();
-                    return self.executor(instructions, params);
+                    let instructions = instructions.clone();
+                    let instructions = vec![instructions];
+                    return self.executor(&instructions, params);
+                }
+
+                Ok(CompileObject::Null)
+            }
+
+            OpCode::OpArray => {
+                let op_instruction = instruction.first().unwrap();
+                let array_binding = op_instruction.get(5..op_instruction.len() - 1).unwrap();
+                let symbol = self.byte_code.symbols_table.0.get(array_binding).unwrap();
+                let symbol: &Vec<Vec<u8>> = &symbol.0;
+
+                let mut int_items = Vec::new();
+                let mut string_items = Vec::new();
+                let mut bool_items = Vec::new();
+
+                let mut is_int_item: bool = false;
+                let mut is_string_item: bool = false;
+                let mut is_bool_item: bool = false;
+
+                for array_item_instructions in symbol.iter() {
+                    let array_item_instructions = array_item_instructions.clone();
+                    let array_item_instructions = vec![array_item_instructions];
+
+                    if let Ok(item) = self.executor(&array_item_instructions, params.clone()) {
+                        match item {
+                            CompileObject::Interger(integer) => {
+                                is_int_item = true;
+                                int_items.push(integer);
+                            }
+                            CompileObject::String(string) => {
+                                is_string_item = true;
+                                string_items.push(string);
+                            }
+                            CompileObject::Boolean(boolean) => {
+                                is_bool_item = true;
+                                bool_items.push(boolean);
+                            }
+                            _ => {}
+                        }
+                    }
+                }
+
+                if is_int_item {
+                    let obj = CompileObject::Array(ArrayObject::Interger(int_items));
+                    return Ok(obj);
+                }
+
+                if is_string_item {
+                    let obj = CompileObject::Array(ArrayObject::String(string_items));
+                    return Ok(obj);
+                }
+
+                if is_bool_item {
+                    let obj = CompileObject::Array(ArrayObject::Boolean(bool_items));
+                    return Ok(obj);
                 }
 
                 Ok(CompileObject::Null)
             }
 
             OpCode::OpPrint => {
-                let print_type = instruction.get(5).unwrap();
+                let op_instruction = instruction.first().unwrap();
+                let print_type = op_instruction.get(5).unwrap();
                 let print_value: CallerParamType = CallerParamType::from(*print_type);
 
                 match print_value {
                     CallerParamType::Literal => {
-                        let loc = instruction.get(7).unwrap();
+                        let loc = op_instruction.get(7).unwrap();
                         let loc = *loc as usize;
                         let value = self.byte_code.constants.get(loc).unwrap();
 
@@ -319,14 +241,25 @@ impl VM {
                         }
                     }
                     CallerParamType::Variable => {
-                        // TODO: revisit this
+                        let variable_access_instructions =
+                            op_instruction.get(7..op_instruction.len()).unwrap();
 
-                        let binding_name = instruction.get(7..instruction.len()).unwrap();
-                        if let Some(binding_name) = self.byte_code.symbols_table.0.get(binding_name)
-                        {
-                            let instructions = &binding_name.0;
-                            let _instructions = instructions.get(0).unwrap();
-                            debug_println!("{:?}", _instructions);
+                        let access_command = variable_access_instructions.first().unwrap();
+                        let access_command = *access_command;
+                        let access_command: OpCode = access_command.into();
+
+                        if access_command == OpCode::OpGetCallerParameter {
+                            // get the access instructions
+                            let access_key = variable_access_instructions
+                                .get(5..variable_access_instructions.len() - 1)
+                                .unwrap();
+
+                            if let Some(symbol) = self.byte_code.symbols_table.0.get(access_key) {
+                                let symbols: Vec<Vec<u8>> = symbol.0.clone();
+                                if let Ok(response) = self.executor(&symbols, params) {
+                                    println!("{:?}", response)
+                                }
+                            }
                         }
                     }
                 };
@@ -335,9 +268,11 @@ impl VM {
             }
 
             OpCode::OpAddIfCondition => {
+                let op_instruction = instruction.first().unwrap();
                 let mut result = Ok(CompileObject::Null);
 
-                let condition_binding_name = instruction.get(5..instruction.len() - 1).unwrap();
+                let condition_binding_name =
+                    op_instruction.get(5..op_instruction.len() - 1).unwrap();
 
                 // get the binding value from symbols table
                 let condition_instructions = self
@@ -350,7 +285,9 @@ impl VM {
 
                 let mut marker = 0;
                 while marker < condition_instructions.len() {
-                    let instructions = condition_instructions.get(marker).unwrap();
+                    let instructions: Vec<u8> =
+                        condition_instructions.get(marker).unwrap().to_vec();
+
                     let command = instructions.first().unwrap();
                     let command = *command;
                     let command: OpCode = command.into();
@@ -365,29 +302,36 @@ impl VM {
                         | OpCode::OpAND
                         | OpCode::OpOR
                         | OpCode::OpLAND
-                        | OpCode::OpLOR => match self.executor(instructions, params.clone()) {
-                            Ok(val) => {
-                                let verdict = val.as_boolean().unwrap();
-                                if *verdict {
-                                    marker += 1;
-                                    continue;
-                                } else {
-                                    // move two places
-                                    marker += 2;
-                                    continue;
+                        | OpCode::OpLOR => {
+                            let instructions = instructions.clone();
+                            let instructions = vec![instructions];
+                            match self.executor(&instructions, params.clone()) {
+                                Ok(val) => {
+                                    let verdict = val.as_boolean().unwrap();
+                                    if *verdict {
+                                        marker += 1;
+                                        continue;
+                                    } else {
+                                        // move two places
+                                        marker += 2;
+                                        continue;
+                                    }
+                                }
+                                Err(err) => {
+                                    result = Err(err);
+                                    break;
                                 }
                             }
-                            Err(err) => {
-                                result = Err(err);
-                                break;
-                            }
-                        },
+                        }
+
                         OpCode::OpJumpTo | OpCode::OpJumpToAlternate => {
                             marker += 1;
                             continue;
                         }
                         OpCode::OpReturn => {
-                            result = self.executor(instructions, params);
+                            let instructions = instructions.clone();
+                            let instructions = vec![instructions];
+                            result = self.executor(&instructions, params);
                             break;
                         }
                         _ => {}
@@ -407,7 +351,8 @@ impl VM {
             | OpCode::OpOR
             | OpCode::OpLAND
             | OpCode::OpLOR => {
-                let instructions = instruction.get(2..instruction.len()).unwrap();
+                let op_instruction = instruction.first().unwrap();
+                let instructions = op_instruction.get(2..op_instruction.len()).unwrap();
 
                 let separator = instructions
                     .iter()
@@ -420,70 +365,20 @@ impl VM {
                     .get(seperator_index + 1..instructions.len())
                     .unwrap();
 
-                // we check if the left hand side is argument is a variable or a literal.
-                // if a variable, we retrieve it from caller params
-                // we then return the a CompileObject
-
-                let variable_or_literal_func = |side_instructions: Vec<u8>,
-                                                is_left: bool,
-                                                operation_params: Option<
-                    Vec<(CompileObject, CompileObject)>,
-                >|
-                 -> CompileObject {
-                    let command = side_instructions.first().unwrap();
-                    let command = *command;
-                    let command: OpCode = command.into();
-
-                    if command == OpCode::OpGetBinding || command == OpCode::OpGetCallerParameter {
-                        if let Some(caller_params) = operation_params {
-                            let side_index = caller_params
-                                .iter()
-                                .position(|cp| {
-                                    let obj = &cp.0;
-                                    match obj {
-                                        CompileObject::Variable(var) => {
-                                            if is_left {
-                                                let left_binding =
-                                                    left.get(5..left.len() - 1).unwrap();
-                                                var == left_binding
-                                            } else {
-                                                let right_binding =
-                                                    right.get(5..left.len() - 1).unwrap();
-                                                var == right_binding
-                                            }
-                                        }
-                                        CompileObject::Interger(_)
-                                        | CompileObject::String(_)
-                                        | CompileObject::Boolean(_)
-                                        | CompileObject::Array(_)
-                                        | CompileObject::Null => false,
-                                    }
-                                })
-                                .unwrap();
-
-                            let side_value = caller_params.get(side_index).unwrap();
-                            let side_value = &side_value.1;
-                            let side_value = side_value.clone();
-                            return side_value;
+                let variable_or_literal_func =
+                    |side_instructions: Vec<u8>,
+                     operation_params: Option<Vec<(CompileObject, CompileObject)>>|
+                     -> CompileObject {
+                        let instructions = vec![side_instructions];
+                        if let Ok(obj) = self.executor(&instructions, operation_params) {
+                            obj
+                        } else {
+                            CompileObject::Null
                         }
-                    }
+                    };
 
-                    if command == OpCode::OpConstant {
-                        let constant_index = side_instructions.get(5).unwrap();
-                        let side_value = self
-                            .byte_code
-                            .constants
-                            .get(*constant_index as usize)
-                            .unwrap();
-                        let side_value = side_value.clone();
-                        return side_value;
-                    }
-
-                    CompileObject::Null
-                };
-
-                let lhs = variable_or_literal_func(left.to_vec(), true, params.clone());
-                let rhs = variable_or_literal_func(right.to_vec(), false, params.clone());
+                let lhs = variable_or_literal_func(left.to_vec(), params.clone());
+                let rhs = variable_or_literal_func(right.to_vec(), params);
 
                 if lhs.object_type() != rhs.object_type() {
                     return Err(KarisError {
@@ -492,7 +387,7 @@ impl VM {
                     });
                 }
 
-                let result = match command {
+                match command {
                     OpCode::OpGreaterThan => {
                         let obj_type = lhs.object_type();
                         let result = match obj_type {
@@ -513,7 +408,7 @@ impl VM {
                             }
                             _ => false,
                         };
-                        result
+                        Ok(CompileObject::Boolean(result))
                     }
 
                     OpCode::OpGreaterThanOrEqual => {
@@ -536,7 +431,7 @@ impl VM {
                             }
                             _ => false,
                         };
-                        result
+                        Ok(CompileObject::Boolean(result))
                     }
 
                     OpCode::OpLessThan => {
@@ -559,7 +454,7 @@ impl VM {
                             }
                             _ => false,
                         };
-                        result
+                        Ok(CompileObject::Boolean(result))
                     }
                     OpCode::OpLessThanOrEqual => {
                         let obj_type = lhs.object_type();
@@ -581,7 +476,7 @@ impl VM {
                             }
                             _ => false,
                         };
-                        result
+                        Ok(CompileObject::Boolean(result))
                     }
                     OpCode::OpEqualTo => {
                         let obj_type = lhs.object_type();
@@ -603,7 +498,7 @@ impl VM {
                             }
                             _ => false,
                         };
-                        result
+                        Ok(CompileObject::Boolean(result))
                     }
                     OpCode::OpNotEqualTo => {
                         let obj_type = lhs.object_type();
@@ -625,7 +520,7 @@ impl VM {
                             }
                             _ => false,
                         };
-                        result
+                        Ok(CompileObject::Boolean(result))
                     }
                     OpCode::OpAND => {
                         let obj_type = lhs.object_type();
@@ -650,7 +545,7 @@ impl VM {
                             }
                             _ => false,
                         };
-                        result
+                        Ok(CompileObject::Boolean(result))
                     }
                     OpCode::OpOR => {
                         let obj_type = lhs.object_type();
@@ -674,7 +569,7 @@ impl VM {
                             }
                             _ => false,
                         };
-                        result
+                        Ok(CompileObject::Boolean(result))
                     }
                     OpCode::OpLAND => {
                         let obj_type = lhs.object_type();
@@ -698,7 +593,7 @@ impl VM {
                             }
                             _ => false,
                         };
-                        result
+                        Ok(CompileObject::Boolean(result))
                     }
                     OpCode::OpLOR => {
                         let obj_type = lhs.object_type();
@@ -722,7 +617,7 @@ impl VM {
                             }
                             _ => false,
                         };
-                        result
+                        Ok(CompileObject::Boolean(result))
                     }
                     OpCode::OpBang => {
                         let obj_type = lhs.object_type();
@@ -735,12 +630,113 @@ impl VM {
                             }
                             _ => false,
                         };
-                        result
+                        Ok(CompileObject::Boolean(result))
                     }
-                    _ => false,
+                    _ => Ok(CompileObject::Boolean(false)),
+                }
+            }
+
+            OpCode::OpFunctionCaller => {
+                let op_instruction = instruction.first().unwrap();
+                let binding_name = op_instruction.get(5..op_instruction.len() - 1).unwrap();
+
+                let caller_parameters = instruction.get(1..instruction.len());
+
+                #[allow(clippy::useless_vec)]
+                let caller_parameters = caller_parameters
+                    .unwrap_or(&vec![vec![OpCode::OpNull as u8]])
+                    .to_vec();
+
+                // get the function to execute from symbols table
+                let function_definition = self.byte_code.symbols_table.0.get(binding_name).unwrap();
+                let function_definition_instructions = &function_definition.0;
+
+                // retrieve function parameters
+                let separator = function_definition_instructions
+                    .iter()
+                    .find_position(|v| v[0] == OpCode::OpNull as u8)
+                    .unwrap();
+                let seperator_index = separator.0;
+
+                let empty_things = Vec::new();
+                let function_parameters =
+                    match function_definition_instructions.get(0..seperator_index) {
+                        Some(p) => p,
+                        None => &empty_things,
+                    };
+
+                let caller_parameters: Vec<CompileObject> = caller_parameters
+                    .iter()
+                    .map(|param| {
+                        let param_type = param.get(5).unwrap();
+                        let param_type = CallerParamType::from(*param_type);
+                        match param_type {
+                            CallerParamType::Literal => {
+                                let param_location = param.get(7).unwrap();
+                                let param_location = *param_location as usize;
+                                let param_object_value =
+                                    self.byte_code.constants.get(param_location).unwrap();
+                                param_object_value.clone()
+                            }
+                            CallerParamType::Variable => {
+                                let param_instructions = param.get(7..param.len() - 1).unwrap();
+                                let param_instructions = param_instructions.to_vec();
+                                let param_instructions = vec![param_instructions];
+                                if let Ok(obj) = self.executor(&param_instructions, params.clone())
+                                {
+                                    obj
+                                } else {
+                                    CompileObject::Null
+                                }
+                            }
+                        }
+                    })
+                    .collect();
+
+                let function_def_parameters: Vec<CompileObject> = function_parameters
+                    .iter()
+                    .map(|param| {
+                        let binding_name = param.get(5..param.len() - 1).unwrap();
+                        CompileObject::Variable(binding_name.to_vec())
+                    })
+                    .collect();
+
+                let mut params = Vec::new();
+                for param in zip(function_def_parameters, caller_parameters) {
+                    params.push(param);
+                }
+
+                debug_println!("caller parameters: {:?}", params);
+
+                // retrieve function block items
+                let block_items = match function_definition_instructions
+                    .get(seperator_index..function_definition_instructions.len())
+                {
+                    Some(p) => p,
+                    None => &empty_things, // the likelihood of this is zero
                 };
 
-                Ok(CompileObject::Boolean(result))
+                let mut caller_result = Ok(CompileObject::Null);
+
+                for item in block_items.iter() {
+                    let code = item.first().unwrap();
+                    match OpCode::from(*code) {
+                        OpCode::OpReturn => {
+                            let item = item.clone();
+                            let item = vec![item];
+                            caller_result = self.executor(&item, Some(params.clone()));
+                            break;
+                        }
+                        OpCode::OpNull => {}
+                        _ => {
+                            let item = item.clone();
+                            let item = vec![item];
+                            caller_result = self.executor(&item, Some(params.clone()));
+                        }
+                    }
+                }
+
+                caller_result
             }
 
             // FIXME:
@@ -749,7 +745,6 @@ impl VM {
             OpCode::OpNull
             | OpCode::OpMain
             | OpCode::OpFunctionDef
-            | OpCode::OpCallerDef
             | OpCode::OpGetFunctionParameter
             | OpCode::OpJumpTo
             | OpCode::OpJumpToAlternate => Ok(CompileObject::Null),
