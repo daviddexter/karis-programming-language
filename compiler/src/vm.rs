@@ -219,6 +219,8 @@ mod vm_tests {
             };
 
             @main fn(){
+                let x @int = 10;
+                let y @int = 20;
                 let result1 @int = multi_conditions(10, 20);
                 print(result1);
             }@end;
@@ -284,13 +286,143 @@ mod vm_tests {
         let lx = Lexer::new(String::from(
             "
             @main fn(){
-                let num @int = 1;
-                print(items);
+                let list [ @int ] = [ 1, 2 , 3, 100, 1001 ];
+                print(list);
             }@end;
         ",
         ));
         let mut parser = Parser::new(lx);
         let ast = parser.parse(Some("should_execute9.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+        let vm = VM::from_raw_bytecode(byte_code);
+        assert!(vm.execute());
+    }
+
+    #[test]
+    fn should_execute11() {
+        let lx = Lexer::new(String::from(
+            "
+            @main fn(){
+                let list [ @string ] = [ \"ka\", \"ris\" , \"karis\" ];
+                print(list);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_execute11.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+        let vm = VM::from_raw_bytecode(byte_code);
+        assert!(vm.execute());
+    }
+
+    #[test]
+    fn should_execute12() {
+        let lx = Lexer::new(String::from(
+            "
+            @main fn(){
+                let list [ @bool ] = [ true, false , false, true ];
+                print(list);
+            }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser.parse(Some("should_execute12.json")).unwrap();
+        let worker = CompileWorker::new(ast);
+        let byte_code = worker.compile();
+        let vm = VM::from_raw_bytecode(byte_code);
+        assert!(vm.execute());
+    }
+
+    #[test]
+    fn should_execute_full_program() {
+        let lx = Lexer::new(String::from(
+            "
+        let add @int = fn(x @int, y @int){
+            return x + y;
+        };
+
+        let sub @int = fn(x @int, y @int){
+            return x - y;
+        };
+
+        let mul @int = fn(x @int, y @int){
+            return x * y;
+        };
+
+        let div @int = fn(x @int, y @int){
+            return x * y;
+        };
+
+        let mod @int = fn(x @int, y @int){
+            return x % y;
+        };
+
+        let greater @bool = fn(x @int, y @int){
+            return x > y;
+        };
+
+        let greater_or_eq @bool = fn(x @int, y @int){
+            return x >= y;
+        };
+
+        let less @bool = fn(x @int, y @int){
+            return x > y;
+        };
+
+        let less_or_eq @bool = fn(x @int, y @int){
+            return x <= y;
+        };
+
+        let or @bool = fn(x @int, y @int){
+            return x || y;
+        };
+
+        let and @bool = fn(x @int, y @int){
+            return x && y;
+        };
+
+
+        @main fn(){
+            let x @int = 5;
+            let y @int = 7;
+            let name @string = \"Karis\";
+
+            let list1 [ @string ] = [ \"ka\", \"ris\" , \"karis\" ];
+            let list2 [ @int ] = [ 1, 2 , 3, 100, 1001 ];
+            let list3 [ @bool ] = [ true, false , false, true ];
+
+            let result0 @int = add(x,y);
+            let result1 @int = sub(x,y);
+            let result2 @int = mul(x,y);
+            let result3 @int = div(x,y);
+            let result4 @int = mod(x,y);
+            let result5 @int = greater(x,y);
+            let result6 @int = greater_or_eq(x,y);
+            let result7 @int = less(x,y);
+            let result8 @int = less_or_eq(x,y);
+            let result9 @int = or(x,y);
+            let result10 @int = and(x,y);
+
+            print(result0);
+            print(result1);
+            print(result2);
+            print(result3);
+            print(result4);
+            print(result5);
+            print(result6);
+            print(result7);
+            print(result8);
+            print(result9);
+            print(result10);
+        }@end;
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let ast = parser
+            .parse(Some("should_execute_full_program.json"))
+            .unwrap();
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
         let vm = VM::from_raw_bytecode(byte_code);

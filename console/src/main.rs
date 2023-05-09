@@ -5,6 +5,7 @@ use std::process;
 use std::rc::Rc;
 
 use clap::{arg, Arg, ArgAction, Command};
+use debug_print::debug_println;
 
 use colored::*;
 use compiler::compile::CompileWorker;
@@ -161,7 +162,7 @@ fn main() -> Result<(), KarisError> {
             Ok(())
         }
         _ => {
-            println!("Nothing to do");
+            debug_println!("Nothing to do");
             Ok(())
         }
     }
@@ -350,7 +351,7 @@ fn compile_program(file: &str, output_name: &str) -> Result<(), KarisError> {
             Ok(program) => {
                 let compiler = CompileWorker::new(program);
                 let byte_code = compiler.compile();
-                println!(" from  console {:#?}", byte_code);
+                debug_println!("from console {:#?}", byte_code);
                 compiler.write_as_executable(output_name, byte_code)?;
             }
             Err(_) => todo!(),

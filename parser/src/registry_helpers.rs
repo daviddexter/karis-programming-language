@@ -30,7 +30,7 @@ impl TokenRegistry {
             return Err(errors::KarisError {
                 error_type: errors::KarisErrorType::InvalidSyntax,
                 message: format!(
-                    "[INVALID SYNTAX] Syntax not correct. Expected to find {:?}. Ln {} Col {}",
+                    "[INVALID SYNTAX] from traverse_forward_until Syntax not correct. Expected to find {:?}. Ln {} Col {}",
                     kind, tok.line_number, tok.column_number
                 ),
             });

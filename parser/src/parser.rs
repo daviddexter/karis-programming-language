@@ -73,19 +73,19 @@ impl Parser {
     }
 
     fn build_program_expressions(&mut self, index: usize) -> Result<(), errors::KarisError> {
-        if index >= self.bucket.borrow().len() {
-            return Ok(());
+        if index < self.bucket.borrow().len() {
+            return match Self::expression(0, index, self.bucket.clone()) {
+                Ok((o, i)) => {
+                    if !o.is_ty_unknown() && !o.is_ty_consumable() {
+                        self.program.add_object(o);
+                    };
+                    self.build_program_expressions(i + 0x01)
+                }
+                Err(e) => Err(e),
+            };
         }
 
-        match Self::expression(0, index, self.bucket.clone()) {
-            Ok((o, i)) => {
-                if !o.is_ty_unknown() && !o.is_ty_consumable() {
-                    self.program.add_object(o);
-                };
-                self.build_program_expressions(i + 0x01)
-            }
-            Err(e) => Err(e),
-        }
+        Ok(())
     }
 }
 
@@ -169,6 +169,8 @@ impl Parser {
 #[cfg(test)]
 mod parser_tests {
 
+    use debug_print::debug_println;
+
     use crate::retriever::{
         interger_value_from_nested_node, node_child, node_from_object, right_side_of_either,
     };
@@ -218,7 +220,7 @@ mod parser_tests {
         ));
         let mut parser = Parser::new(lx);
         let res = parser.parse(Some("should_parse4b.json"));
-        println!("{:?}", res);
+        debug_println!("{:?}", res);
         assert!(res.is_ok())
     }
 
@@ -459,7 +461,7 @@ mod parser_tests {
         let lx = Lexer::new(String::from("let num @int = (10 / (2 * 3)) + 20;"));
         let mut parser = Parser::new(lx);
         let res = parser.parse(Some("should_parse16.json"));
-        println!("{:?}", res);
+        debug_println!("{:?}", res);
         assert!(res.is_ok())
     }
 
@@ -470,7 +472,7 @@ mod parser_tests {
         ));
         let mut parser = Parser::new(lx);
         let res = parser.parse(Some("should_parse16b.json"));
-        println!("{:?}", res);
+        debug_println!("{:?}", res);
         assert!(res.is_ok())
     }
 
@@ -495,7 +497,7 @@ mod parser_tests {
         let lx = Lexer::new(String::from("let num @int = 10(23 * (true,false));"));
         let mut parser = Parser::new(lx);
         let res = parser.parse(Some("should_parse16e.json"));
-        println!("err : {res:?}");
+        debug_println!("err : {res:?}");
         assert!(res.is_err())
     }
 
@@ -700,7 +702,7 @@ mod parser_tests {
         let lx = Lexer::new(String::from("return sum(x,y) + add(3,5);"));
         let mut parser = Parser::new(lx);
         let res = parser.parse(Some("should_parse35.json"));
-        println!("{:?}", res);
+        debug_println!("{:?}", res);
         assert!(res.is_ok())
     }
 
@@ -1044,8 +1046,11 @@ mod parser_tests {
                 } else {
                     return x - y;
                 };
-
             };
+
+            @main fn(){
+                let _ @unit = multi_conditions(10,20);
+            }@end;
 
         ",
         ));
@@ -1059,7 +1064,7 @@ mod parser_tests {
         let program = res.as_ty_program().unwrap();
 
         assert_eq!(program.non_root, false);
-        assert_eq!(program.body.len(), 1);
+        assert_eq!(program.body.len(), 2);
     }
 
     #[test]
@@ -1070,7 +1075,11 @@ mod parser_tests {
             return x + y;
         };
 
-        let result @int = add(10,20);
+        @main fn(){
+            let x @int = 5;
+            let y @int = 7;
+            let result @int = add(x,y) + 5;
+        }@end;
 
         ",
         ));
@@ -1084,6 +1093,106 @@ mod parser_tests {
         let lx = Lexer::new(String::from("let items [ @int ] = [ 1, 2, 3 ];"));
         let mut parser = Parser::new(lx);
         let res = parser.parse(Some("should_parse_array.json"));
+        assert!(res.is_ok());
+    }
+
+    #[test]
+    fn should_parse_full_program() {
+        let lx = Lexer::new(String::from(
+            "
+        let add @int = fn(x @int, y @int){
+            return x + y;
+        };
+
+        let sub @int = fn(x @int, y @int){
+            return x - y;
+        };
+
+        let mul @int = fn(x @int, y @int){
+            return x * y;
+        };
+
+        let div @int = fn(x @int, y @int){
+            return x * y;
+        };
+
+        let mod @int = fn(x @int, y @int){
+            return x % y;
+        };
+
+        let greater @bool = fn(x @int, y @int){
+            return x > y;
+        };
+
+        let greater_or_eq @bool = fn(x @int, y @int){
+            return x >= y;
+        };
+
+        let less @bool = fn(x @int, y @int){
+            return x > y;
+        };
+
+        let less_or_eq @bool = fn(x @int, y @int){
+            return x <= y;
+        };
+
+        let or @bool = fn(x @int, y @int){
+            return x || y;
+        };
+
+        let and @bool = fn(x @int, y @int){
+            return x && y;
+        };
+
+        let max @int = fn(x @int, y @int){
+            if x > y{
+                return x;
+            };
+
+            return y;
+        };
+
+        let minmax_or_product @int = fn(x @int, y @int){
+            if x < y{
+               return x + y;
+            }else x > y{
+                return x - y;
+            };
+
+            return x * y;
+        };
+
+
+        @main fn(){
+            let x @int = 5;
+            let y @int = 7;
+            let name @string = \"Karis\";
+
+            let list1 [ @string ] = [ \"ka\", \"ris\" , \"karis\" ];
+            let list2 [ @int ] = [ 1, 2 , 3, 100, 1001 ];
+            let list3 [ @bool ] = [ true, false , false, true ];
+
+            let result0 @int = add(x,y);
+            let result1 @int = sub(x,y);
+            let result2 @int = mul(x,y);
+            let result3 @int = div(x,y);
+            let result4 @int = mod(x,y)
+            let result5 @int = greater(x,y);
+            let result6 @int = greater_or_eq(x,y);
+            let result7 @int = less(x,y);
+            let result8 @int = less_or_eq(x,y);
+            let result9 @int = or(x,y);
+            let result10 @int = and(x,y);
+            let result10 @int = max(x,y);
+
+
+
+        }@end;
+
+        ",
+        ));
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_parse_full_program.json"));
         assert!(res.is_ok());
     }
 }

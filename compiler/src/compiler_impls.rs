@@ -135,7 +135,7 @@ impl Compiler for Node {
 
                 let wrk = worker.borrow();
                 let instructions = wrk.add_infix(OpCode::OpMinus, left.to_vec(), right.to_vec());
-                println!("MINUS Insts {:?}", instructions);
+
                 Some(vec![instructions])
             }
 

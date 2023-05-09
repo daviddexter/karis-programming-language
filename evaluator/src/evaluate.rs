@@ -1329,4 +1329,120 @@ mod evaluator_tests {
 
         assert!(res.is_ok());
     }
+
+    #[test]
+    fn should_evaluate_full_program() {
+        let lx = Lexer::new(String::from(
+            "
+        let add @int = fn(x @int, y @int){
+            return x + y;
+        };
+
+        let sub @int = fn(x @int, y @int){
+            return x - y;
+        };
+
+        let mul @int = fn(x @int, y @int){
+            return x * y;
+        };
+
+        let div @int = fn(x @int, y @int){
+            return x * y;
+        };
+
+        let mod @int = fn(x @int, y @int){
+            return x % y;
+        };
+
+        let greater @bool = fn(x @int, y @int){
+            return x > y;
+        };
+
+        let greater_or_eq @bool = fn(x @int, y @int){
+            return x >= y;
+        };
+
+        let less @bool = fn(x @int, y @int){
+            return x > y;
+        };
+
+        let less_or_eq @bool = fn(x @int, y @int){
+            return x <= y;
+        };
+
+        let or @bool = fn(x @int, y @int){
+            return x || y;
+        };
+
+        let and @bool = fn(x @int, y @int){
+            return x && y;
+        };
+
+        let echo @string = fn(name @string){
+            return name;
+        };
+
+        let max @int = fn(x @int, y @int){
+            if x > y{
+                return x;
+            };
+
+            return y;
+        };
+
+        let minmax_or_product @int = fn(x @int, y @int){
+            if x < y{
+               return x + y;
+            }else x > y{
+                return x - y;
+            };
+
+            return x * y;
+        };
+
+
+        @main fn(){
+            let x @int = 5;
+            let y @int = 7;
+            let name @string = \"Karis\";
+            let list1 [ @string ] = [ \"ka\", \"ris\" , \"karis\" ];
+            let list2 [ @int ] = [ 1, 2 , 3, 100, 1001 ];
+            let list3 [ @bool ] = [ true, false , false,true ];
+
+            let result0 @int = add(x,y);
+            let result1 @int = sub(x,y);
+            let result2 @int = mul(x,y);
+            let result3 @int = div(x,y);
+            let result4 @string = echo(name);
+            let result5 @int = echo(x);
+            let result6 @int = add(x,y) + 5 / 10 * 9;
+            let result6 @int =  5 / 10 * 9 + add(x,y);
+            let result6 @int =  minmax_or_product(10,20);
+            let result7 @int =  minmax_or_product(20,10);
+            let result8 @int =  minmax_or_product(20,20);
+
+            print(list1);
+            print(list2);
+            print(list3);
+            print(result0);
+            print(result1);
+            print(result2);
+            print(result3);
+            print(result4);
+            print(result5);
+            print(result7);
+            print(result8);
+        }@end;
+
+        ",
+        ));
+
+        let global_binding_resolver = hashbrown::HashMap::new();
+        let mut parser = Parser::new(lx);
+        let res = parser.parse(Some("should_evaluate_full_program(.json"));
+        let mut evaluator = Evaluator::new(parser);
+        evaluator.repl_evaluate_program(Rc::new(RefCell::new(global_binding_resolver)));
+
+        assert!(res.is_ok());
+    }
 }
