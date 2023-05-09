@@ -5,8 +5,7 @@ use hashbrown::HashMap;
 use crate::{
     compiler_impls::Compiler,
     defs::{
-        BindingType, OpCode, SymbolScope, SymbolStore, SymbolStoreValue, SymbolsTableTyping,
-        DEFAULT_SCOPE_ID,
+        OpCode, SymbolScope, SymbolStore, SymbolStoreValue, SymbolsTableTyping, DEFAULT_SCOPE_ID,
     },
     objects::CompileObject,
 };
@@ -178,6 +177,7 @@ impl CompileWorker {
         instructions
     }
 
+    #[allow(dead_code)]
     fn emit_opcode_for_binding(
         &self,
         code: OpCode,
@@ -377,27 +377,6 @@ impl CompileWorker {
         self.emit_opcode_with_parameter(OpCode::OpConstant, scope, scope_id, operand)
     }
 
-    // we pass the instruction `OpGetBinding`. Look at it from the VM's perspective. When a variable or an expression is needed it,
-    // must fetch it from somewhere, either the constant pool or symboltable
-    pub fn add_variable_binding(
-        &self,
-        scope: SymbolScope,
-        scope_id: [u8; 2],
-        binding_type: BindingType,
-        binding_name: Vec<u8>,
-    ) -> Vec<u8> {
-        let insts = self.emit_opcode_for_binding(
-            OpCode::OpGetBinding,
-            scope,
-            scope_id,
-            binding_type as u8,
-            binding_name,
-        );
-
-        self.add_instruction(Some(insts.clone()), None);
-        insts
-    }
-
     pub fn add_builtin_instructions(&self, insts: Vec<u8>) {
         self.add_instruction(Some(insts), None);
     }
@@ -419,6 +398,15 @@ impl CompileWorker {
         binding_name: Vec<u8>,
     ) -> Vec<u8> {
         self.emit_opcode_for_builtin(OpCode::OpAddBuiltin, scope, scope_id, binding_name)
+    }
+
+    pub fn instructions_for_array(
+        &self,
+        scope: SymbolScope,
+        scope_id: [u8; 2],
+        binding_name: Vec<u8>,
+    ) -> Vec<u8> {
+        self.emit_opcode_for_builtin(OpCode::OpArray, scope, scope_id, binding_name)
     }
 
     pub fn add_symbol(&self, binding_key: Vec<u8>, symbol: Vec<Vec<u8>>) {
@@ -445,7 +433,8 @@ impl CompileWorker {
         function_name: Vec<u8>,
     ) -> Vec<u8> {
         // [opcode scope scopeid terminal func_name]
-        let mut instructions = self.emit_opcode_with_scopeid(OpCode::OpCallerDef, scope, scope_id);
+        let mut instructions =
+            self.emit_opcode_with_scopeid(OpCode::OpFunctionCaller, scope, scope_id);
 
         for f in function_name.iter() {
             instructions.push(*f);
@@ -589,7 +578,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 2);
+        assert_eq!(byte_code.instructions.len(), 1);
         assert_eq!(byte_code.constants.len(), 1);
         let st = byte_code.symbols_table;
 
@@ -618,7 +607,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 3);
+        assert_eq!(byte_code.instructions.len(), 1);
         assert_eq!(byte_code.constants.len(), 1);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 3);
@@ -643,7 +632,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 3);
+        assert_eq!(byte_code.instructions.len(), 1);
         assert_eq!(byte_code.constants.len(), 2);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 3);
@@ -670,7 +659,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 4);
+        assert_eq!(byte_code.instructions.len(), 3);
         assert_eq!(byte_code.constants.len(), 2);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 4);
@@ -690,7 +679,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 2);
+        assert_eq!(byte_code.instructions.len(), 1);
         assert_eq!(byte_code.constants.len(), 1);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 1);
@@ -750,7 +739,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 2);
+        assert_eq!(byte_code.instructions.len(), 1);
         assert_eq!(byte_code.constants.len(), 2);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 3);
@@ -783,7 +772,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 5);
+        assert_eq!(byte_code.instructions.len(), 2);
         assert_eq!(byte_code.constants.len(), 5);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 6);
@@ -816,7 +805,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 5);
+        assert_eq!(byte_code.instructions.len(), 2);
         assert_eq!(byte_code.constants.len(), 5);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 6);
@@ -844,7 +833,7 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 3);
+        assert_eq!(byte_code.instructions.len(), 1);
         assert_eq!(byte_code.constants.len(), 4);
         let st = byte_code.symbols_table;
         assert_eq!(st.0.len(), 4);
@@ -865,9 +854,9 @@ mod compile_tests {
         let worker = CompileWorker::new(ast);
         let byte_code = worker.compile();
 
-        assert_eq!(byte_code.instructions.len(), 3);
+        assert_eq!(byte_code.instructions.len(), 2);
         assert_eq!(byte_code.constants.len(), 3);
         let st = byte_code.symbols_table;
-        assert_eq!(st.0.len(), 2);
+        assert_eq!(st.0.len(), 3);
     }
 }

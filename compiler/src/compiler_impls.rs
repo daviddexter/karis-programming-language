@@ -8,7 +8,7 @@ use random_string::generate;
 
 use crate::{
     compile::CompileWorker,
-    defs::{BindingType, CallerParamType, OpCode, SymbolScope},
+    defs::{CallerParamType, OpCode, SymbolScope},
     objects::CompileObject,
 };
 
@@ -150,6 +150,7 @@ impl Compiler for Node {
 
                 let wrk = worker.borrow();
                 let instructions = wrk.add_infix(OpCode::OpMultiply, left.to_vec(), right.to_vec());
+
                 Some(vec![instructions])
             }
 
@@ -326,6 +327,7 @@ impl Compiler for Node {
                 let instructions = wrk.add_infix(OpCode::OpLOR, left.to_vec(), right.to_vec());
                 Some(vec![instructions])
             }
+
             IdentifierKind::VARIABLE => {
                 let variable_name = self.variable_name.as_ref().unwrap();
 
@@ -354,7 +356,19 @@ impl Compiler for Node {
                     array_items_instructions.push(item_as_instruction);
                 }
 
-                Some(array_items_instructions)
+                let binding_key = random_string_id();
+                let binding_key_as_bytes = binding_key.as_bytes().to_vec();
+
+                let wrk = worker.borrow();
+                wrk.add_symbol(
+                    binding_key_as_bytes.clone(),
+                    array_items_instructions.clone(),
+                );
+
+                let array_instructions =
+                    wrk.instructions_for_array(scope, scope_id, binding_key_as_bytes);
+
+                Some(vec![array_instructions])
             }
 
             IdentifierKind::IF => {
@@ -487,86 +501,14 @@ impl Compiler for Node {
                     vec![vec![OpCode::OpNull as u8]],
                 );
 
-                let insts = if let Some(instructions) =
-                    left_or_right(rhs, worker.clone(), scope.clone(), scope_id)
-                {
+                if let Some(instructions) = left_or_right(rhs, worker.clone(), scope, scope_id) {
                     // update the instructions in the binding table
-                    wrk.add_symbol(binding_key_as_bytes.clone(), instructions);
+                    wrk.add_symbol(binding_key_as_bytes, instructions);
 
-                    match rhs {
-                        Left(_) => {
-                            let i = wrk.add_variable_binding(
-                                scope,
-                                scope_id,
-                                BindingType::Literal,
-                                binding_key_as_bytes,
-                            );
-                            Some(vec![i])
-                        }
-                        Right(right) => {
-                            let rght = right.as_ty_node().unwrap();
-                            let kind = rght.identifier_kind.unwrap();
-                            match kind {
-                                IdentifierKind::INTLITERAL
-                                | IdentifierKind::STRINGLITERAL
-                                | IdentifierKind::BOOLEANLITERAL
-                                | IdentifierKind::ARRAY => {
-                                    let i = wrk.add_variable_binding(
-                                        scope,
-                                        scope_id,
-                                        BindingType::Literal,
-                                        binding_key_as_bytes,
-                                    );
-                                    Some(vec![i])
-                                }
-
-                                IdentifierKind::PLUS
-                                | IdentifierKind::MINUS
-                                | IdentifierKind::ASTERISK
-                                | IdentifierKind::SLASH
-                                | IdentifierKind::BANG
-                                | IdentifierKind::AND
-                                | IdentifierKind::LT
-                                | IdentifierKind::GT
-                                | IdentifierKind::EQ
-                                | IdentifierKind::NOTEQ
-                                | IdentifierKind::GTOREQ
-                                | IdentifierKind::LTOREQ
-                                | IdentifierKind::OR
-                                | IdentifierKind::LAND
-                                | IdentifierKind::LOR
-                                | IdentifierKind::MODULUS => {
-                                    let i = wrk.add_variable_binding(
-                                        scope,
-                                        scope_id,
-                                        BindingType::Expression,
-                                        binding_key_as_bytes,
-                                    );
-                                    Some(vec![i])
-                                }
-
-                                IdentifierKind::CALLER => {
-                                    let i = wrk.add_variable_binding(
-                                        scope,
-                                        scope_id,
-                                        BindingType::Caller,
-                                        binding_key_as_bytes,
-                                    );
-                                    Some(vec![i])
-                                }
-
-                                // for function we don't attach it to a binding instruction. In the event the funtion is called
-                                // at some point in the program, the caller binding will suffice. Otherwise it will be considered as
-                                // unused function
-                                _ => None,
-                            }
-                        }
-                    }
+                    None
                 } else {
                     None
-                };
-
-                insts
+                }
             }
 
             IdentifierKind::FUNCTION => {
@@ -698,16 +640,23 @@ impl Compiler for Node {
                 if let Some(caller_params) = &self.call_params {
                     let mut caller_instructions = Vec::new();
 
-                    for param in caller_params.iter() {
-                        call_parameter_map(
-                            param,
-                            worker.clone(),
-                            &mut caller_instructions,
-                            scope.clone(),
-                            scope_id,
-                            OpCode::OpPrint,
+                    if (caller_params.is_empty()) || (caller_params.len() > 1) {
+                        eprintln!(
+                            "Invalid number of print parameters : {:?}",
+                            caller_params.len()
                         );
+                        process::exit(0x0100)
                     }
+
+                    let caller_param = caller_params.first().unwrap();
+                    call_parameter_map(
+                        caller_param,
+                        worker.clone(),
+                        &mut caller_instructions,
+                        scope.clone(),
+                        scope_id,
+                        OpCode::OpPrint,
+                    );
 
                     let binding_key = random_string_id();
                     let binding_key_as_bytes = binding_key.as_bytes().to_vec();
@@ -813,7 +762,6 @@ fn function_or_caller_object_param_access_instructions(
             match kind {
                 IdentifierKind::VARIABLE => {
                     let variable_name = node.variable_name.as_ref().unwrap();
-
                     let variable_name_as_bytes = variable_name.as_bytes().to_vec();
                     let wrk = worker.borrow();
                     let instructions = wrk.generate_opcode_with_scope_and_vec_parameter(
@@ -929,6 +877,7 @@ fn call_parameter_map(
                 scope_id,
                 OpCode::OpGetCallerParameter,
             ) {
+                // [command, scope, scope_id, terminal, caller_type, terminal, instructions]
                 let mut instructions = vec![command as u8, scope as u8];
 
                 for id in scope_id {
