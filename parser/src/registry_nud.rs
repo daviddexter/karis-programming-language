@@ -424,7 +424,7 @@ impl TokenRegistry {
             let res = Parser::expression(0, index + 0x01, bucket.clone())?;
 
             // we re-organize the object. We want the UNION kind to be the top-level object, not the root of the
-            // enclosed arthemetic expression.
+            // enclosed  expression.
             let object = reorganize_parenthesis_object(res.0.clone());
 
             Ok((object, res.1))

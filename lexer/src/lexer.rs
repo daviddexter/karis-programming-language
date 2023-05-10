@@ -781,7 +781,7 @@ fn is_alphanumeric_only(i: &str) -> bool {
 }
 
 // checks if the identifier is composed of Integers only
-// these Integers will be parsed correctly when performing arthemetic operations
+// these Integers will be parsed correctly when performing  operations
 fn is_integers_only(i: &str) -> bool {
     for x in i.as_bytes() {
         if !is_digit(*x) {

@@ -1,5 +1,6 @@
 use std::{cell::RefCell, process, rc::Rc};
 
+use debug_print::debug_println;
 use either::Either::{self, Left, Right};
 use errors::errors::{KarisError, KarisErrorType};
 use lexer::tokens::IdentifierKind;
@@ -503,6 +504,7 @@ impl Compiler for Node {
 
                 if let Some(instructions) = left_or_right(rhs, worker.clone(), scope, scope_id) {
                     // update the instructions in the binding table
+                    debug_println!("Assign instructions {:?}", instructions);
                     wrk.add_symbol(binding_key_as_bytes, instructions);
 
                     None
@@ -660,6 +662,8 @@ impl Compiler for Node {
 
                     let binding_key = random_string_id();
                     let binding_key_as_bytes = binding_key.as_bytes().to_vec();
+
+                    debug_println!("call instructions {:?}", caller_instructions);
 
                     let wrk = worker.borrow();
                     wrk.add_symbol(binding_key_as_bytes.clone(), caller_instructions.clone());
