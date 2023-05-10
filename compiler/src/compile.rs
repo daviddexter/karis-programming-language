@@ -584,8 +584,6 @@ mod compile_tests {
         assert_eq!(st.0.len(), 1);
     }
 
-    // this test shows that a literal must be first assigned to a variable before returning it.
-    // this is a language design decision to ensure that a value has occupied some space in memory before returning it
     #[test]
     fn should_compile2() {
         let lx = Lexer::new(String::from(
@@ -821,6 +819,7 @@ mod compile_tests {
                 let n0 @int = n - 1;
                 return downer(n0);
             };
+
 
             @main fn(){
                 let result @int = downer(3);

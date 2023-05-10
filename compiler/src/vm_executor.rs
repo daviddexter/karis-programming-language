@@ -22,8 +22,6 @@ impl VM {
         let command: OpCode = command.into();
 
         match command {
-            OpCode::OpTerminal => Ok(CompileObject::Null),
-
             OpCode::OpAdd
             | OpCode::OpMinus
             | OpCode::OpMultiply
@@ -116,6 +114,15 @@ impl VM {
                 Ok(binding_value)
             }
 
+            OpCode::OpConstant => {
+                let op_instruction = instruction.first().unwrap();
+                let location = op_instruction.get(5).unwrap();
+                let location = *location as usize;
+                let obj = self.byte_code.constants.get(location).unwrap();
+                let obj = obj.clone();
+                Ok(obj)
+            }
+
             OpCode::OpReturn => {
                 let op_instruction = instruction.first().unwrap();
                 let return_instructions = op_instruction.get(5..op_instruction.len() - 1).unwrap();
@@ -135,15 +142,6 @@ impl VM {
                 let binding_instructions = binding_instructions.clone();
                 let binding_instructions = vec![binding_instructions];
                 self.executor(&binding_instructions, params)
-            }
-
-            OpCode::OpConstant => {
-                let op_instruction = instruction.first().unwrap();
-                let location = op_instruction.get(5).unwrap();
-                let location = *location as usize;
-                let obj = self.byte_code.constants.get(location).unwrap();
-                let obj = obj.clone();
-                Ok(obj)
             }
 
             OpCode::OpAddBuiltin => {
@@ -551,7 +549,7 @@ impl VM {
                                 let rhs_value = rhs.as_integer().unwrap();
                                 lhs_value < rhs_value
                             }
-                            // conditional AND operation on string return the most significant string length
+                            // conditional OR operation on string return the most significant string length
                             STRING_OBJECT_TYPE => {
                                 let lhs_value = lhs.as_string().unwrap();
                                 let rhs_value = rhs.as_string().unwrap();
@@ -738,6 +736,7 @@ impl VM {
             OpCode::OpBang => panic!(""),
 
             OpCode::OpNull
+            | OpCode::OpTerminal
             | OpCode::OpMain
             | OpCode::OpFunctionDef
             | OpCode::OpGetFunctionParameter

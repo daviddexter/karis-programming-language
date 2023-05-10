@@ -1,2 +1,7 @@
-let num1 @int = 1;
-let num2 @int = 2;
+fun main() {
+    if 7 % 2 == 0 {
+        println("7 is even")
+    } else {
+        println("7 is odd")
+    }
+}
