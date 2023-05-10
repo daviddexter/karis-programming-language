@@ -76,10 +76,10 @@ impl Compiler for Node {
         match kind {
             IdentifierKind::INTLITERAL => {
                 let lit = self.left_child.as_ref().unwrap().as_ref().left().unwrap();
-                let int_value = lit.as_obj_interger_value().unwrap();
+                let int_value = lit.as_obj_integer_value().unwrap();
                 let int_lit = int_value.value.unwrap();
 
-                let obj = CompileObject::Interger(int_lit);
+                let obj = CompileObject::Integer(int_lit);
                 let wrk = worker.borrow();
 
                 let instructions = wrk.add_constant(scope, scope_id, obj);
@@ -723,9 +723,9 @@ fn left_or_right(
 ) -> Option<Vec<Vec<u8>>> {
     match object {
         Left(left) => match left {
-            LiteralObjects::ObjIntergerValue(int) => {
+            LiteralObjects::ObjIntegerValue(int) => {
                 let int_lit = int.value.unwrap();
-                let obj = CompileObject::Interger(int_lit);
+                let obj = CompileObject::Integer(int_lit);
                 let wrk = worker.borrow();
                 let instructions = wrk.add_constant(scope, scope_id, obj);
                 Some(vec![instructions])
@@ -795,9 +795,9 @@ fn call_parameter_map(
 ) {
     match param {
         Left(left) => match left {
-            LiteralObjects::ObjIntergerValue(int) => {
+            LiteralObjects::ObjIntegerValue(int) => {
                 let int_lit = int.value.unwrap();
-                let obj = CompileObject::Interger(int_lit);
+                let obj = CompileObject::Integer(int_lit);
                 let wrk = worker.borrow();
                 let const_location = wrk.append_to_constant_pool(obj);
 

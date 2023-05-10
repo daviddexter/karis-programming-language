@@ -207,7 +207,7 @@ pub trait Value {
 /// Represents literal values definitions
 #[derive(Debug, EnumAsInner, PartialEq, Eq, Clone, Serialize)]
 pub enum LiteralObjects {
-    ObjIntergerValue(IntergerValue),
+    ObjIntegerValue(IntegerValue),
     ObjBooleanValue(BooleanValue),
     ObjStringValue(StringValue),
 }
@@ -215,7 +215,7 @@ pub enum LiteralObjects {
 impl Value for LiteralObjects {
     fn kind(&self) -> TypingKind {
         match &self {
-            LiteralObjects::ObjIntergerValue(i) => i.kind(),
+            LiteralObjects::ObjIntegerValue(i) => i.kind(),
             LiteralObjects::ObjBooleanValue(i) => i.kind(),
             LiteralObjects::ObjStringValue(i) => i.kind(),
         }
@@ -223,20 +223,20 @@ impl Value for LiteralObjects {
 
     fn inspect(&self) -> Vec<(String, String)> {
         match &self {
-            LiteralObjects::ObjIntergerValue(i) => i.inspect(),
+            LiteralObjects::ObjIntegerValue(i) => i.inspect(),
             LiteralObjects::ObjBooleanValue(i) => i.inspect(),
             LiteralObjects::ObjStringValue(i) => i.inspect(),
         }
     }
 }
 
-/// Interger values representation
+/// Integer values representation
 #[derive(Debug, PartialEq, Eq, Default, Clone, Serialize)]
-pub struct IntergerValue {
+pub struct IntegerValue {
     pub value: Option<isize>,
 }
 
-impl Value for IntergerValue {
+impl Value for IntegerValue {
     fn kind(&self) -> TypingKind {
         TypingKind::Int
     }

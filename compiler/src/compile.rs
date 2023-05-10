@@ -13,7 +13,6 @@ use parser::objects::Objects;
 use std::{cell::RefCell, fs::File, io::Write, os::unix::prelude::PermissionsExt, rc::Rc};
 
 #[derive(Debug, Clone, BorshSerialize, BorshDeserialize)]
-
 pub struct ByteCode {
     pub instructions: Vec<Vec<u8>>,
 

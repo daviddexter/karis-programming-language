@@ -10,7 +10,7 @@ use crate::objects::StringValue;
 use crate::registry::TokenRegistry;
 use crate::retriever::reorganize_parenthesis_object;
 use crate::{
-    objects::{BooleanValue, IntergerValue, LiteralObjects, Node, Objects},
+    objects::{BooleanValue, IntegerValue, LiteralObjects, Node, Objects},
     parser::Parser,
 };
 
@@ -492,10 +492,10 @@ impl TokenRegistry {
                     }
                 };
 
-                let int = IntergerValue {
+                let int = IntegerValue {
                     value: Some(value_fn()),
                 };
-                let obj = LiteralObjects::ObjIntergerValue(int);
+                let obj = LiteralObjects::ObjIntegerValue(int);
                 let node = Node {
                     identifier_kind: Some(IdentifierKind::INTLITERAL),
                     left_child: Some(Left(obj)),
@@ -965,8 +965,8 @@ impl TokenRegistry {
         }
 
         let value = as_isize.unwrap();
-        let int = IntergerValue { value: Some(value) };
-        let obj = LiteralObjects::ObjIntergerValue(int);
+        let int = IntegerValue { value: Some(value) };
+        let obj = LiteralObjects::ObjIntegerValue(int);
         let node = Node {
             identifier_kind: Some(IdentifierKind::INTLITERAL),
             left_child: Some(Left(obj)),

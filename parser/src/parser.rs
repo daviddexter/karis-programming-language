@@ -172,7 +172,7 @@ mod parser_tests {
     use debug_print::debug_println;
 
     use crate::retriever::{
-        interger_value_from_nested_node, node_child, node_from_object, right_side_of_either,
+        integer_value_from_nested_node, node_child, node_from_object, right_side_of_either,
     };
 
     use super::*;
@@ -372,10 +372,10 @@ mod parser_tests {
 
         let slash_node = asterisk_node_slash_node;
 
-        let slash_node_left_literal = interger_value_from_nested_node(slash_node, true);
+        let slash_node_left_literal = integer_value_from_nested_node(slash_node, true);
         assert_eq!(slash_node_left_literal.value, Some(10));
 
-        let slash_node_right_literal = interger_value_from_nested_node(slash_node, false);
+        let slash_node_right_literal = integer_value_from_nested_node(slash_node, false);
         assert_eq!(slash_node_right_literal.value, Some(2));
     }
 

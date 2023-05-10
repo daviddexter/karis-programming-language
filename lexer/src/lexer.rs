@@ -701,7 +701,7 @@ impl Lexer {
                                     self.position,
                                 )),
                                 _ => {
-                                    if is_intergers_only(ident) {
+                                    if is_integers_only(ident) {
                                         Ok(tokens::Token::new(
                                             tokens::IdentifierKind::INTLITERAL,
                                             ident_owned,
@@ -767,7 +767,7 @@ impl Lexer {
     }
 }
 
-// check if the identifier is composed of both intergers and alphabet characters
+// check if the identifier is composed of both Integers and alphabet characters
 // example:
 //  fname, fname0, fname2, f_name, f_name1,lname123
 fn is_alphanumeric_only(i: &str) -> bool {
@@ -780,9 +780,9 @@ fn is_alphanumeric_only(i: &str) -> bool {
     not_valid_count == 0
 }
 
-// checks if the identifier is composed of intergers only
-// these intergers will be parsed correctly when performing arthemetic operations
-fn is_intergers_only(i: &str) -> bool {
+// checks if the identifier is composed of Integers only
+// these Integers will be parsed correctly when performing arthemetic operations
+fn is_integers_only(i: &str) -> bool {
     for x in i.as_bytes() {
         if !is_digit(*x) {
             return false;
