@@ -2,7 +2,7 @@ use either::Either;
 use lexer::tokens::IdentifierKind;
 use Either::Right;
 
-use crate::objects::{BooleanValue, IntergerValue, LiteralObjects, Node, Objects, StringValue};
+use crate::objects::{BooleanValue, IntegerValue, LiteralObjects, Node, Objects, StringValue};
 
 /// given an owned object, return an owned node
 pub(crate) fn node_from_object(object: Objects) -> Node {
@@ -33,8 +33,8 @@ pub(crate) fn left_side_of_either(e: &Either<LiteralObjects, Box<Objects>>) -> &
 }
 
 #[allow(dead_code)]
-fn integer_from_literal_object(literal_object: &LiteralObjects) -> &IntergerValue {
-    literal_object.as_obj_interger_value().unwrap()
+fn integer_from_literal_object(literal_object: &LiteralObjects) -> &IntegerValue {
+    literal_object.as_obj_integer_value().unwrap()
 }
 
 #[allow(dead_code)]
@@ -47,13 +47,13 @@ fn string_from_literal_object(literal_object: &LiteralObjects) -> &StringValue {
     literal_object.as_obj_string_value().unwrap()
 }
 
-/// given a reference to a node, recursively walk down the node and return a reference to it's interger value.
+/// given a reference to a node, recursively walk down the node and return a reference to it's Integer value.
 #[allow(dead_code)]
-pub(crate) fn interger_value_from_nested_node(node: &Node, left_child: bool) -> &IntergerValue {
+pub(crate) fn integer_value_from_nested_node(node: &Node, left_child: bool) -> &IntegerValue {
     let child = node_child(node, left_child);
     if child.is_right() {
         let node0 = right_side_of_either(child);
-        interger_value_from_nested_node(node0, true)
+        integer_value_from_nested_node(node0, true)
     } else {
         let lit = left_side_of_either(child);
         integer_from_literal_object(lit)

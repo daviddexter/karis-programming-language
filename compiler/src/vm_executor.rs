@@ -6,7 +6,7 @@ use std::iter::zip;
 
 use crate::{
     defs::{CallerParamType, OpCode},
-    objects::{CompileObject, BOOLEAN_OBJECT_TYPE, INTERGER_OBJECT_TYPE, STRING_OBJECT_TYPE},
+    objects::{CompileObject, BOOLEAN_OBJECT_TYPE, INTEGER_OBJECT_TYPE, STRING_OBJECT_TYPE},
 };
 
 impl VM {
@@ -47,12 +47,9 @@ impl VM {
                     .to_vec();
                 let right = vec![right];
 
-                debug_println!("Left: {:?}", left);
-                debug_println!("Right: {:?}", right);
-
                 let left_value = match self.executor(&left, params.clone()) {
                     Ok(obj) => match obj {
-                        CompileObject::Interger(number) => number,
+                        CompileObject::Integer(number) => number,
                         _ => 0_isize,
                     },
                     Err(_) => 0_isize,
@@ -60,7 +57,7 @@ impl VM {
 
                 let right_value = match self.executor(&right, params.clone()) {
                     Ok(obj) => match obj {
-                        CompileObject::Interger(number) => number,
+                        CompileObject::Integer(number) => number,
                         _ => 0_isize,
                     },
                     Err(_) => 0_isize,
@@ -75,7 +72,7 @@ impl VM {
                     _ => 0_isize,
                 };
 
-                Ok(CompileObject::Interger(result))
+                Ok(CompileObject::Integer(result))
             }
 
             OpCode::OpGetBinding => {
@@ -92,8 +89,6 @@ impl VM {
                     .filter(|elem| **elem != OpCode::OpTerminal as u8)
                     .copied()
                     .collect::<Vec<u8>>();
-
-                debug_println!("binding name {:?}", binding_name);
 
                 let binding_value =
                     // fetch the binding from symbol table. If not present, fetch from params
@@ -187,7 +182,7 @@ impl VM {
 
                     if let Ok(item) = self.executor(&array_item_instructions, params.clone()) {
                         match item {
-                            CompileObject::Interger(integer) => {
+                            CompileObject::Integer(integer) => {
                                 is_int_item = true;
                                 int_items.push(integer);
                             }
@@ -205,7 +200,7 @@ impl VM {
                 }
 
                 if is_int_item {
-                    let obj = CompileObject::Array(ArrayObject::Interger(int_items));
+                    let obj = CompileObject::Array(ArrayObject::Integer(int_items));
                     return Ok(obj);
                 }
 
@@ -234,7 +229,7 @@ impl VM {
                         let value = self.byte_code.constants.get(loc).unwrap();
 
                         match value {
-                            CompileObject::Interger(val) => println!("{:?}", val),
+                            CompileObject::Integer(val) => println!("{:?}", val),
                             CompileObject::String(val) => println!("{:?}", val),
                             CompileObject::Boolean(val) => println!("{:?}", val),
                             _ => {}
@@ -391,9 +386,9 @@ impl VM {
                     OpCode::OpGreaterThan => {
                         let obj_type = lhs.object_type();
                         let result = match obj_type {
-                            INTERGER_OBJECT_TYPE => {
-                                let lhs_value = lhs.as_interger().unwrap();
-                                let rhs_value = rhs.as_interger().unwrap();
+                            INTEGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_integer().unwrap();
+                                let rhs_value = rhs.as_integer().unwrap();
                                 lhs_value > rhs_value
                             }
                             STRING_OBJECT_TYPE => {
@@ -414,9 +409,9 @@ impl VM {
                     OpCode::OpGreaterThanOrEqual => {
                         let obj_type = lhs.object_type();
                         let result = match obj_type {
-                            INTERGER_OBJECT_TYPE => {
-                                let lhs_value = lhs.as_interger().unwrap();
-                                let rhs_value = rhs.as_interger().unwrap();
+                            INTEGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_integer().unwrap();
+                                let rhs_value = rhs.as_integer().unwrap();
                                 lhs_value >= rhs_value
                             }
                             STRING_OBJECT_TYPE => {
@@ -437,9 +432,9 @@ impl VM {
                     OpCode::OpLessThan => {
                         let obj_type = lhs.object_type();
                         let result = match obj_type {
-                            INTERGER_OBJECT_TYPE => {
-                                let lhs_value = lhs.as_interger().unwrap();
-                                let rhs_value = rhs.as_interger().unwrap();
+                            INTEGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_integer().unwrap();
+                                let rhs_value = rhs.as_integer().unwrap();
                                 lhs_value < rhs_value
                             }
                             STRING_OBJECT_TYPE => {
@@ -459,9 +454,9 @@ impl VM {
                     OpCode::OpLessThanOrEqual => {
                         let obj_type = lhs.object_type();
                         let result = match obj_type {
-                            INTERGER_OBJECT_TYPE => {
-                                let lhs_value = lhs.as_interger().unwrap();
-                                let rhs_value = rhs.as_interger().unwrap();
+                            INTEGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_integer().unwrap();
+                                let rhs_value = rhs.as_integer().unwrap();
                                 lhs_value <= rhs_value
                             }
                             STRING_OBJECT_TYPE => {
@@ -481,9 +476,9 @@ impl VM {
                     OpCode::OpEqualTo => {
                         let obj_type = lhs.object_type();
                         let result = match obj_type {
-                            INTERGER_OBJECT_TYPE => {
-                                let lhs_value = lhs.as_interger().unwrap();
-                                let rhs_value = rhs.as_interger().unwrap();
+                            INTEGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_integer().unwrap();
+                                let rhs_value = rhs.as_integer().unwrap();
                                 lhs_value == rhs_value
                             }
                             STRING_OBJECT_TYPE => {
@@ -503,9 +498,9 @@ impl VM {
                     OpCode::OpNotEqualTo => {
                         let obj_type = lhs.object_type();
                         let result = match obj_type {
-                            INTERGER_OBJECT_TYPE => {
-                                let lhs_value = lhs.as_interger().unwrap();
-                                let rhs_value = rhs.as_interger().unwrap();
+                            INTEGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_integer().unwrap();
+                                let rhs_value = rhs.as_integer().unwrap();
                                 lhs_value != rhs_value
                             }
                             STRING_OBJECT_TYPE => {
@@ -525,10 +520,10 @@ impl VM {
                     OpCode::OpAND => {
                         let obj_type = lhs.object_type();
                         let result = match obj_type {
-                            // conditional AND operation on integers return the most significant interger
-                            INTERGER_OBJECT_TYPE => {
-                                let lhs_value = lhs.as_interger().unwrap();
-                                let rhs_value = rhs.as_interger().unwrap();
+                            // conditional AND operation on integers return the most significant Integer
+                            INTEGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_integer().unwrap();
+                                let rhs_value = rhs.as_integer().unwrap();
                                 lhs_value > rhs_value
                             }
 
@@ -550,10 +545,10 @@ impl VM {
                     OpCode::OpOR => {
                         let obj_type = lhs.object_type();
                         let result = match obj_type {
-                            // conditional OR operation on integers return the least significant interger
-                            INTERGER_OBJECT_TYPE => {
-                                let lhs_value = lhs.as_interger().unwrap();
-                                let rhs_value = rhs.as_interger().unwrap();
+                            // conditional OR operation on integers return the least significant Integer
+                            INTEGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_integer().unwrap();
+                                let rhs_value = rhs.as_integer().unwrap();
                                 lhs_value < rhs_value
                             }
                             // conditional AND operation on string return the most significant string length
@@ -575,9 +570,9 @@ impl VM {
                         let obj_type = lhs.object_type();
                         let result = match obj_type {
                             // Bitwise OR operation on integers return the least significant bit
-                            INTERGER_OBJECT_TYPE => {
-                                let lhs_value = lhs.as_interger().unwrap();
-                                let rhs_value = rhs.as_interger().unwrap();
+                            INTEGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_integer().unwrap();
+                                let rhs_value = rhs.as_integer().unwrap();
                                 lhs_value < rhs_value
                             }
                             // Bitwise OR operation on string return the least significant bit on the string length
@@ -599,9 +594,9 @@ impl VM {
                         let obj_type = lhs.object_type();
                         let result = match obj_type {
                             // Bitwise OR operation on integers return the most significant bit
-                            INTERGER_OBJECT_TYPE => {
-                                let lhs_value = lhs.as_interger().unwrap();
-                                let rhs_value = rhs.as_interger().unwrap();
+                            INTEGER_OBJECT_TYPE => {
+                                let lhs_value = lhs.as_integer().unwrap();
+                                let rhs_value = rhs.as_integer().unwrap();
                                 lhs_value > rhs_value
                             }
                             // Bitwise OR operation on string return the most significant bit on the string length
@@ -622,7 +617,7 @@ impl VM {
                     OpCode::OpBang => {
                         let obj_type = lhs.object_type();
                         let result = match obj_type {
-                            INTERGER_OBJECT_TYPE => false,
+                            INTEGER_OBJECT_TYPE => false,
                             STRING_OBJECT_TYPE => false,
                             BOOLEAN_OBJECT_TYPE => {
                                 let lhs_value = lhs.as_boolean().unwrap();

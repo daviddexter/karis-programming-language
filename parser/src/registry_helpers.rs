@@ -9,9 +9,7 @@ use lexer::tokens::{IdentifierKind, Token};
 
 use crate::registry::TokenRegistry;
 use crate::{
-    objects::{
-        BooleanValue, IntergerValue, LiteralObjects, Node, Objects, StringValue, TypingKind,
-    },
+    objects::{BooleanValue, IntegerValue, LiteralObjects, Node, Objects, StringValue, TypingKind},
     parser::Parser,
 };
 
@@ -83,9 +81,9 @@ impl TokenRegistry {
                     .literal
                     .parse::<isize>()
                     .unwrap_or_else(|_| panic!("Failed to parse to INT"));
-                let obj = IntergerValue { value: Some(value) };
+                let obj = IntegerValue { value: Some(value) };
 
-                let literal = LiteralObjects::ObjIntergerValue(obj);
+                let literal = LiteralObjects::ObjIntegerValue(obj);
                 params.push(Left(literal));
                 Self::collect_function_call_params(
                     idx + 0x01,
@@ -257,9 +255,9 @@ impl TokenRegistry {
                     .literal
                     .parse::<isize>()
                     .unwrap_or_else(|_| panic!("Failed to parse to INT"));
-                let obj = IntergerValue { value: Some(value) };
+                let obj = IntegerValue { value: Some(value) };
 
-                let literal = LiteralObjects::ObjIntergerValue(obj);
+                let literal = LiteralObjects::ObjIntegerValue(obj);
                 params.push(Left(literal));
                 Self::collect_function_definition_args(
                     idx + 0x01,

@@ -141,7 +141,7 @@ impl Evaluate for Node {
         match kind {
             IdentifierKind::INTLITERAL => {
                 let lit = self.left_child.as_ref().unwrap().as_ref().left().unwrap();
-                let int_value = lit.as_obj_interger_value().unwrap();
+                let int_value = lit.as_obj_integer_value().unwrap();
                 let int_lit = int_value.value.unwrap();
                 Ok(EvaluationObject::Integer(int_lit))
             }
@@ -627,7 +627,7 @@ impl Evaluate for Node {
                             let from_call = from_call.clone();
                             let call_lit = from_call.left().unwrap();
                             let call_lit = match call_lit {
-                                LiteralObjects::ObjIntergerValue(int) => {
+                                LiteralObjects::ObjIntegerValue(int) => {
                                     let int_lit = int.value.unwrap();
                                     EvaluationObject::Integer(int_lit)
                                 }
@@ -716,7 +716,7 @@ impl Evaluate for Node {
 
                 match params {
                     Left(lit) => match lit {
-                        LiteralObjects::ObjIntergerValue(i) => {
+                        LiteralObjects::ObjIntegerValue(i) => {
                             let msg = format!("{:?}", i.value.unwrap_or_default());
                             message = msg;
                         }
@@ -872,7 +872,7 @@ fn left_or_right(
 ) -> Result<EvaluationObject, KarisError> {
     match object {
         Left(left) => match left {
-            LiteralObjects::ObjIntergerValue(int) => {
+            LiteralObjects::ObjIntegerValue(int) => {
                 let int_lit = int.value.unwrap();
                 Ok(EvaluationObject::Integer(int_lit))
             }
