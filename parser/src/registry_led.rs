@@ -229,7 +229,7 @@ impl TokenRegistry {
     /// Evaluates the RHS of an expression
     /// Checks if the RHS is
     /// - a literal => string, bool, int, array
-    /// - arthemetic expression
+    /// -  expression
     /// - function definition expression
     /// - function call expression
     ///
@@ -321,7 +321,7 @@ impl TokenRegistry {
             }
         }
 
-        // here, the RHS is a fully-qualified expression. That is either a function declaration, arthemetic expression or function call
+        // here, the RHS is a fully-qualified expression. That is either a function declaration,  expression or function call
         // we therefore parse the expression then return it as the RHS of `=`
         let res = Parser::expression(0x00, token_index + 0x01, bucket.clone());
         if res.is_err() {

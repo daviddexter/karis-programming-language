@@ -82,6 +82,7 @@ fn main() -> Result<(), KarisError> {
         .subcommand(
             Command::new("script")
                 .about("Executes a Karis script")
+                .arg(arg!(-p --filepath <PATH>).required(false))
                 .arg_required_else_help(true),
         )
         .subcommand(
